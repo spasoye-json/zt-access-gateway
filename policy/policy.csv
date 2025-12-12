@@ -1,0 +1,5 @@
+p, role:user, /users, GET
+p, role:user, /users/:id, GET
+p, role:user, /orders, (GET|POST)
+p, role:user, /orders/:id, GET
+p, role:admin, /*, (GET|POST|PUT|PATCH|DELETE)

@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - JWT_SECRET=your-super-secret-jwt-key-here
+      - FORCE_MTLS=true
+      - USE_SECURE_CONNECTIONS=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./certs:/app/certs  # Mount certificates
+    depends_on:
+      - postgres
+      - prometheus
+    networks:
+      - zt-network
+
+  users-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.microservice
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./certs:/app/certs  # Mount certificates
+    environment:
+      - NODE_ENV=development
+    networks:
+      - zt-network
+
+  orders-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.microservice
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./certs:/app/certs  # Mount certificates
+    environment:
+      - NODE_ENV=development
+    networks:
+      - zt-network
+
+  permissions-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.microservice
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./certs:/app/certs  # Mount certificates
+    environment:
+      - NODE_ENV=development
+    networks:
+      - zt-network
+
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=zt_gateway
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - zt-network
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - zt-network
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3005:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - zt-network
+
+volumes:
+  postgres_data:
+  grafana_data:
+
+networks:
+  zt-network:
+    driver: bridge
