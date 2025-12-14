@@ -68,4 +68,7 @@ export const configureApp = (
   );
 
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  const server = app.getHttpServer();
+  console.log(server._events?.request?._router?.stack?.map((l) => l.route && l.route.path).filter(Boolean));
 };

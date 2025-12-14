@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Delete, Request, Response, Body, Query, Headers, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Controller, Request, Response, Body, Query, Headers, BadRequestException, UnauthorizedException, All } from '@nestjs/common';
 import { AuthService, UserClaims } from '../auth/auth.service';
 import { Public } from '../auth/public.decorator';
 import { TrustScoreService, TrustScoreResult } from '../trust-score/trust-score.service';
@@ -20,10 +20,7 @@ export class GatewayController {
     private metricsService: MetricsService,
   ) {}
 
-  @Post('*')
-  @Get('*')
-  @Put('*')
-  @Delete('*')
+  @All('*')
   async handleRequest(
     @Request() req,
     @Response() res,

@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { OrdersModule } from './orders.module';
 import * as https from 'https';
 import * as fs from 'fs';
+import { GatewayOnlyGuard } from 'microservices/gateway-only.guard';
 
 async function bootstrap() {
   // Create HTTPS server options with certificate
@@ -26,7 +27,9 @@ async function bootstrap() {
     httpsOptions,
   });
 
-  await app.listen(3002); // Using HTTPS on port 3002
+  app.useGlobalGuards(new GatewayOnlyGuard());
+
+  await app.listen(3002, '127.0.0.1');
   console.log('Orders service is running on https://localhost:3002');
 }
 bootstrap();

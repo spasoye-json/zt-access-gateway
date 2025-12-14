@@ -8,12 +8,11 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - JWT_SECRET=your-super-secret-jwt-key-here
+      - JWT_SECRET=a-string-secret-at-least-256-bits-long
       - FORCE_MTLS=true
       - USE_SECURE_CONNECTIONS=true
+      - DATABASE_URL=postgresql://user:password@postgres:5432/zt_gateway
     volumes:
-      - .:/app
-      - /app/node_modules
       - ./certs:/app/certs  # Mount certificates
     depends_on:
       - postgres

@@ -49,7 +49,7 @@ The permissions service will start on port 3003.
 ## Testing the Gateway
 
 ### 1. Generate a JWT token
-You can use online JWT tools with the secret `your-super-secret-jwt-key-here` (defined in `.env`) and payload like:
+You can use online JWT tools with the secret `a-string-secret-at-least-256-bits-long` (defined in `.env`) and payload like:
 ```json
 {
   "userId": "test-user",

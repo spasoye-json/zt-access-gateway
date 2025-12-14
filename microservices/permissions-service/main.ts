@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { PermissionsModule } from './permissions.module';
 import * as https from 'https';
 import * as fs from 'fs';
+import { GatewayOnlyGuard } from 'microservices/gateway-only.guard';
 
 async function bootstrap() {
   // Create HTTPS server options with certificate
@@ -32,7 +33,9 @@ async function bootstrap() {
     httpsOptions: Object.keys(httpsOptions).length > 0 ? httpsOptions : undefined,
   });
 
-  await app.listen(3003); // Using HTTPS on port 3003 if certificates exist, otherwise plain HTTP
+  app.useGlobalGuards(new GatewayOnlyGuard());
+
+  await app.listen(3003, '127.0.0.1');
   console.log('Permissions service is running on https://localhost:3003');
 }
 bootstrap();
