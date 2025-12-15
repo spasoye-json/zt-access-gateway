@@ -6,6 +6,7 @@ import { ConfigService } from '../config/config.service';
 import { ServiceRegistryService } from './service-registry.service';
 import * as https from 'https';
 import * as fs from 'fs';
+import * as tls from 'tls';
 
 @Injectable()
 export class ProxyService {
@@ -99,16 +100,11 @@ export class ProxyService {
       // Create HTTPS agent with mTLS configuration
       const agent = new https.Agent({
         ca: caCert,
-        cert: cert,
-        key: key,
-        // In a real implementation, you'd validate the server certificate against a known list
-        rejectUnauthorized: true, // Now we require proper certificate validation
+        cert,
+        key,
+        rejectUnauthorized: true,
         requestCert: true,
-        checkServerIdentity: (host, cert) => {
-          // Validate the server certificate against our CA
-          // In a real implementation, you'd validate the specific service name
-          return undefined; // For now, we trust certificates signed by our CA
-        },
+        checkServerIdentity: (host, cert) => tls.checkServerIdentity(host, cert),
       });
 
       // Make the actual mTLS request to the target service

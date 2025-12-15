@@ -1,7 +1,9 @@
 import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
 import { PolicyService, PolicyBinding } from './policy.service';
 import { PolicyBindingDto } from './dto/policy-binding.dto';
+import { Roles } from '../auth/roles.decorator';
 
+@Roles('admin')
 @Controller('policy/admin')
 export class PolicyAdminController {
   constructor(private readonly policyService: PolicyService) {}

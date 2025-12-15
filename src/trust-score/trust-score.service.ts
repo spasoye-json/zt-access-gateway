@@ -62,7 +62,7 @@ export class TrustScoreService {
       const locationFingerprint = this.deriveLocationFingerprint(normalizedIp);
       const historicalSignal = await this.telemetryRepository.getSignal(userId, deviceId);
       const trustedDevice = this.isTrustedDevice(deviceId, historicalSignal);
-      const ipReputation = this.evaluateIpReputation(normalizedIp);
+      const ipReputation = this.evaluateIpReputation(normalizedIp, historicalSignal);
       const ipTrusted = ipReputation === 'TRUSTED';
       const isConsistentLocation = this.isGeolocationConsistent(locationFingerprint, historicalSignal);
       const isHighFrequency = await this.detectHighFrequency(userId);
@@ -129,26 +129,30 @@ export class TrustScoreService {
     if (!deviceId) {
       return false;
     }
-    if (historical) {
-      return true;
-    }
-    return deviceId.startsWith('trusted-');
+    return Boolean(historical);
   }
 
-  private evaluateIpReputation(ip: string): 'TRUSTED' | 'UNTRUSTED' | 'SUSPICIOUS' {
+  private evaluateIpReputation(
+    ip: string,
+    historical: TrustSignalRecord | null,
+  ): 'TRUSTED' | 'UNTRUSTED' | 'SUSPICIOUS' {
     if (!this.isValidIp(ip)) {
       return 'SUSPICIOUS';
     }
 
-    if (ip.startsWith('192.168.2')) {
+    if (this.isKnownUntrustedNetwork(ip)) {
       return 'UNTRUSTED';
     }
 
-    if (ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('172.16.')) {
+    if (historical?.lastIp === ip) {
       return 'TRUSTED';
     }
 
-    return 'TRUSTED';
+    if (this.isPrivateNetwork(ip)) {
+      return 'SUSPICIOUS';
+    }
+
+    return 'SUSPICIOUS';
   }
 
   private isValidIp(ip: string): boolean {
@@ -164,6 +168,22 @@ export class TrustScoreService {
       return true;
     }
     return historical.locationFingerprint === locationFingerprint;
+  }
+
+  private isPrivateNetwork(ip: string): boolean {
+    return (
+      ip.startsWith('10.') ||
+      ip.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)
+    );
+  }
+
+  private isKnownUntrustedNetwork(ip: string): boolean {
+    return (
+      ip.startsWith('127.') ||
+      ip.startsWith('0.') ||
+      ip.startsWith('192.168.2')
+    );
   }
 
   private async detectHighFrequency(userId: string): Promise<boolean> {

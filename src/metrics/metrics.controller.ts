@@ -1,9 +1,9 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { MetricsService } from './metrics.service';
-import { Public } from '../auth/public.decorator';
+import { Roles } from '../auth/roles.decorator';
 
-@Public()
+@Roles('admin')
 @Controller('metrics')
 export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}

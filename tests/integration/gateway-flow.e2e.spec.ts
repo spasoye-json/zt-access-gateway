@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../../src/app.module';
-import { JwtService } from '../../src/shared/jwt.service';
+import { JwtService } from '../../src/auth/jwt.service';
 import { ProxyService } from '../../src/proxy/proxy.service';
 import { configureApp } from '../../src/bootstrap-app';
 import { ConfigService as NestConfigService } from '@nestjs/config';

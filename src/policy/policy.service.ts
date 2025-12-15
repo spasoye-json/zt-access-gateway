@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   PolicyEvaluatorService,
   PolicyDecision,
-} from '../shared/policy-evaluator.service';
+} from './policy-evaluator.service';
 import { UserClaims } from '../auth/auth.service';
 
 export interface PolicyBinding {

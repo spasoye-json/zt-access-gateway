@@ -6,7 +6,8 @@ import { PolicyService } from '../policy/policy.service';
 import { ProxyService } from '../proxy/proxy.service';
 import { AuditService } from '../audit/audit.service';
 import { MetricsService } from '../metrics/metrics.service';
-import { PolicyDecision } from '../shared/policy-evaluator.service';
+import { PolicyDecision } from '../policy/policy-evaluator.service';
+import { extractClientIp, resolveDeviceId } from '../shared/request-context.util';
 
 @Public()
 @Controller()
@@ -43,9 +44,12 @@ export class GatewayController {
 
       // Extract important headers
       const authHeader = headers['authorization'];
-      const deviceId = headers['x-device-id'] || 'unknown';
-      const ip = headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
-      const userAgent = headers['user-agent'] || 'unknown';
+      const deviceId = resolveDeviceId(headers['x-device-id']);
+      const ip = extractClientIp(req);
+      const userAgent =
+        typeof headers['user-agent'] === 'string' && headers['user-agent'].length > 0
+          ? headers['user-agent']
+          : 'unknown';
 
       if (!authHeader || typeof authHeader !== 'string') {
         await this.auditService.logAccessDecision({
