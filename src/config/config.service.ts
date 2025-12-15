@@ -46,6 +46,17 @@ export class ConfigService {
     return this.get('MTLS_KEY_PATH');
   }
 
+  getMtlsAllowedSubjects(): string[] {
+    const raw = this.get('MTLS_ALLOWED_SUBJECTS');
+    if (!raw) {
+      return [];
+    }
+    return raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }
+
   // Security configuration
   getForceMtls(): boolean {
     return this.getBoolean('FORCE_MTLS');

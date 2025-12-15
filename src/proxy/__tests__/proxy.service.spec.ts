@@ -1,11 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
-import * as fs from 'fs';
 import { ProxyService } from '../proxy.service';
 import { MtlsService } from '../../shared/mtls.service';
 import { ConfigService } from '../../config/config.service';
 import { ServiceRegistryService } from '../service-registry.service';
-import { ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 
 describe('ProxyService', () => {
   let service: ProxyService;
@@ -15,7 +14,9 @@ describe('ProxyService', () => {
   let mockRegistry: Partial<ServiceRegistryService>;
 
   beforeEach(async () => {
-    mockMtlsService = {};
+    mockMtlsService = {
+      createAgent: jest.fn().mockReturnValue({}),
+    };
 
     mockConfigService = {
       getMtlsCaCertPath: jest.fn().mockReturnValue('./certs/ca.crt'),
@@ -54,15 +55,6 @@ describe('ProxyService', () => {
   });
 
   describe('forwardRequest', () => {
-    beforeEach(() => {
-      // Mock that certificate files exist
-      jest.spyOn(fs, 'readFileSync').mockImplementation((path: any) => Buffer.from('test'));
-    });
-
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
     it('should forward request with proper headers and return response', async () => {
       const mockResponse = {
         status: 200,
@@ -88,6 +80,7 @@ describe('ProxyService', () => {
         headers: { 'content-type': 'application/json' },
       });
       expect(mockHttpService.axiosRef).toHaveBeenCalled();
+      expect(mockMtlsService.createAgent).toHaveBeenCalledWith('users-service');
     });
 
     it('should add user identity headers to forwarded request', async () => {
@@ -116,7 +109,8 @@ describe('ProxyService', () => {
             'x-roles': 'admin,user',
             'x-trust-score': '0.5',
             'x-custom': 'value'
-          })
+          }),
+          httpsAgent: expect.any(Object),
         })
       );
     });
@@ -126,6 +120,54 @@ describe('ProxyService', () => {
 
       await expect(
         service.forwardRequest('unknown-service', 'GET', '/users', {}, null, null, 0.2),
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('should propagate mTLS errors', async () => {
+      (mockMtlsService.createAgent as jest.Mock).mockImplementation(() => {
+        throw new ServiceUnavailableException('missing certs');
+      });
+
+      await expect(
+        service.forwardRequest(
+          'users-service',
+          'GET',
+          '/users',
+          {},
+          null,
+          { sessionId: '', userId: 'user123', roles: [] },
+          0.1,
+        ),
+      ).rejects.toThrow('missing certs');
+    });
+
+    it('should reject invalid paths', async () => {
+      await expect(
+        service.forwardRequest(
+          'users-service',
+          'GET',
+          '/../etc/passwd',
+          {},
+          null,
+          { sessionId: '', userId: 'user123', roles: [] },
+          0.1,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject unsafe service URLs', async () => {
+      (mockRegistry.getServiceUrl as jest.Mock).mockReturnValue('https://localhost:8443');
+
+      await expect(
+        service.forwardRequest(
+          'users-service',
+          'GET',
+          '/users',
+          {},
+          null,
+          { sessionId: '', userId: 'user123', roles: [] },
+          0.1,
+        ),
       ).rejects.toThrow(ServiceUnavailableException);
     });
   });

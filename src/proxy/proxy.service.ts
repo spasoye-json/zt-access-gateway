@@ -4,9 +4,6 @@ import { MtlsService } from '../shared/mtls.service';
 import { UserClaims } from '../auth/auth.service';
 import { ConfigService } from '../config/config.service';
 import { ServiceRegistryService } from './service-registry.service';
-import * as https from 'https';
-import * as fs from 'fs';
-import * as tls from 'tls';
 
 @Injectable()
 export class ProxyService {
@@ -77,35 +74,7 @@ export class ProxyService {
         throw new ServiceUnavailableException('Target URL is not safe');
       }
 
-      // Get mTLS configuration
-      const caCertPath = this.configService.getMtlsCaCertPath();
-      const certPath = this.configService.getMtlsCertPath();
-      const keyPath = this.configService.getMtlsKeyPath();
-
-      if (!caCertPath || !certPath || !keyPath) {
-        throw new ServiceUnavailableException('mTLS configuration not found');
-      }
-
-      // Read certificate files with error handling
-      let caCert, cert, key;
-      try {
-        caCert = fs.readFileSync(caCertPath);
-        cert = fs.readFileSync(certPath);
-        key = fs.readFileSync(keyPath);
-      } catch (fsError) {
-        this.logger.error(`Failed to read certificate files:`, fsError.message);
-        throw new ServiceUnavailableException('Failed to read mTLS certificates');
-      }
-
-      // Create HTTPS agent with mTLS configuration
-      const agent = new https.Agent({
-        ca: caCert,
-        cert,
-        key,
-        rejectUnauthorized: true,
-        requestCert: true,
-        checkServerIdentity: (host, cert) => tls.checkServerIdentity(host, cert),
-      });
+      const agent = this.mtlsService.createAgent(parsedUrl.hostname);
 
       // Make the actual mTLS request to the target service
       if (this.isCircuitOpen(targetService)) {
