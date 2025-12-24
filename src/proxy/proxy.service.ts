@@ -71,10 +71,14 @@ export class ProxyService {
         throw new ServiceUnavailableException(`Unknown target service: ${targetService}`);
       }
 
-      const url = `${targetUrl}${path}`;
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(path, targetUrl);
+      } catch (error) {
+        throw new BadRequestException('Invalid target URL');
+      }
 
       // Validate URL to prevent SSRF
-      const parsedUrl = new URL(url);
       if (!this.isSafeUrl(parsedUrl)) {
         throw new ServiceUnavailableException('Target URL is not safe');
       }
@@ -91,7 +95,7 @@ export class ProxyService {
       const response = await this.executeWithRetries(targetService, async () => {
         return this.httpService.axiosRef({
           method,
-          url,
+          url: parsedUrl.toString(),
           headers: forwardedHeaders,
           data: body,
           httpsAgent: agent,
@@ -140,6 +144,11 @@ export class ProxyService {
       return false;
     }
 
+    // Prevent protocol-relative URLs from overriding the base target
+    if (path.startsWith('//') || path.startsWith('\\\\')) {
+      return false;
+    }
+
     // Prevent protocol schemes in path (potential SSRF)
     if (/^https?:\/\//.test(path)) {
       return false;
@@ -149,22 +158,21 @@ export class ProxyService {
   }
 
   private isSafeUrl(url: URL): boolean {
-    // Prevent internal network access to prevent SSRF
-    const hostname = url.hostname.toLowerCase();
-
-    // Block private IP ranges
-    if (/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(hostname) ||
-        hostname === 'localhost' || hostname.startsWith('127.') ||
-        hostname.startsWith('internal.') || hostname.endsWith('.internal')) {
+    if (!this.serviceRegistry.isAllowedTarget(url)) {
       return false;
     }
 
-    // Block other potentially dangerous hostnames
-    if (hostname.includes('docker')) {
+    if (url.username || url.password) {
       return false;
     }
 
-    return true;
+    const protocol = url.protocol.toLowerCase();
+    if (protocol === 'https:') {
+      return true;
+    }
+
+    const allowInsecure = this.configService.getBoolean('ALLOW_INSECURE_MICROSERVICE_HTTP');
+    return allowInsecure && protocol === 'http:';
   }
 
   private async executeWithRetries<T>(
