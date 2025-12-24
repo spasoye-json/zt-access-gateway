@@ -324,7 +324,9 @@ export class GatewayMiddleware implements NestMiddleware {
         }
 
         // Return the actual response from the microservice
-        return res.status(forwardedResponse.status).json(forwardedResponse.data);
+        this.applyForwardedHeaders(res, forwardedResponse?.headers);
+        const status = typeof forwardedResponse?.status === 'number' ? forwardedResponse.status : 200;
+        return this.sendResponse(res, status, forwardedResponse?.data);
       }
     } catch (error) {
       console.error('Gateway error:', error);
@@ -379,6 +381,57 @@ export class GatewayMiddleware implements NestMiddleware {
 
   private generateRequestId(): string {
     return 'req-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+  }
+
+  private applyForwardedHeaders(res: Response, headers?: Record<string, any>) {
+    if (!headers || typeof headers !== 'object') {
+      return;
+    }
+
+    const hopByHop = new Set([
+      'connection',
+      'keep-alive',
+      'proxy-authenticate',
+      'proxy-authorization',
+      'te',
+      'trailer',
+      'transfer-encoding',
+      'upgrade',
+      'content-length',
+    ]);
+
+    for (const [key, value] of Object.entries(headers)) {
+      if (!key) {
+        continue;
+      }
+      if (hopByHop.has(key.toLowerCase())) {
+        continue;
+      }
+      if (typeof value === 'undefined') {
+        continue;
+      }
+      res.setHeader(key, value as any);
+    }
+  }
+
+  private sendResponse(res: Response, status: number, data: any) {
+    if (typeof data === 'undefined') {
+      return res.status(status).end();
+    }
+
+    if (Buffer.isBuffer(data)) {
+      return res.status(status).send(data);
+    }
+
+    if (typeof data === 'string') {
+      return res.status(status).send(data);
+    }
+
+    if (data && typeof data === 'object') {
+      return res.status(status).json(data);
+    }
+
+    return res.status(status).send(data);
   }
 
   private isValidPath(path: string): boolean {

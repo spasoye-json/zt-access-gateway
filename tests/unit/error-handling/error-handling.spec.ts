@@ -9,6 +9,14 @@ import { AuditService } from "../../../src/audit/audit.service";
 import { MetricsService } from "../../../src/metrics/metrics.service";
 import { MfaService } from "../../../src/mfa/mfa.service";
 
+const createMockRes = () => ({
+  status: jest.fn().mockReturnThis(),
+  json: jest.fn(),
+  send: jest.fn(),
+  end: jest.fn(),
+  setHeader: jest.fn(),
+});
+
 describe('Error Handling and Validation Tests', () => {
   let middleware: GatewayMiddleware;
   let mockAuthService: Partial<AuthService>;
@@ -78,10 +86,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
@@ -101,10 +106,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
         new UnauthorizedException('Invalid token format. Use Bearer token.'),
@@ -128,10 +130,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
         new UnauthorizedException('Invalid token'),
@@ -155,10 +154,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
@@ -193,10 +189,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
@@ -234,10 +227,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
@@ -276,10 +266,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
         new Error('Internal error'),
@@ -304,10 +291,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
         new Error('Internal error'),
@@ -328,10 +312,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
@@ -369,10 +350,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
       // Very short token
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
@@ -397,10 +375,7 @@ describe('Error Handling and Validation Tests', () => {
         body: {},
         query: {},
       };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
-      };
+      const mockRes = createMockRes();
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
