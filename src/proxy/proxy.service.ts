@@ -52,6 +52,11 @@ export class ProxyService {
 
       // Add identity headers to the forwarded request
       const forwardedHeaders = { ...headers };
+      delete forwardedHeaders['content-length'];
+      delete forwardedHeaders['Content-Length'];
+      delete forwardedHeaders['host'];
+      delete forwardedHeaders['Host'];
+      forwardedHeaders['x-gateway-request'] = 'true';
       if (userClaims) {
         forwardedHeaders['x-user-id'] = userClaims.userId;
         forwardedHeaders['x-roles'] = Array.isArray(userClaims.roles) ? userClaims.roles.join(',') : userClaims.roles || '';

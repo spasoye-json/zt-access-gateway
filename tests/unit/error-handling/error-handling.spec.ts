@@ -7,6 +7,7 @@ import { PolicyService } from "../../../src/policy/policy.service";
 import { ProxyService } from "../../../src/proxy/proxy.service";
 import { AuditService } from "../../../src/audit/audit.service";
 import { MetricsService } from "../../../src/metrics/metrics.service";
+import { MfaService } from "../../../src/mfa/mfa.service";
 
 describe('Error Handling and Validation Tests', () => {
   let controller: GatewayController;
@@ -16,6 +17,7 @@ describe('Error Handling and Validation Tests', () => {
   let mockProxyService: Partial<ProxyService>;
   let mockAuditService: Partial<AuditService>;
   let mockMetricsService: Partial<MetricsService>;
+  let mockMfaService: Partial<MfaService>;
 
   beforeEach(async () => {
     mockAuthService = {
@@ -42,6 +44,14 @@ describe('Error Handling and Validation Tests', () => {
       recordRequestMetrics: jest.fn(),
     };
 
+    mockMfaService = {
+      initiateChallenge: jest.fn().mockResolvedValue({
+        challengeId: 'chal-123',
+        expiresAt: new Date(Date.now() + 300000).toISOString(),
+      }),
+      isTokenValid: jest.fn().mockResolvedValue(false),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [GatewayController],
       providers: [
@@ -51,6 +61,7 @@ describe('Error Handling and Validation Tests', () => {
         { provide: ProxyService, useValue: mockProxyService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: MetricsService, useValue: mockMetricsService },
+        { provide: MfaService, useValue: mockMfaService },
       ],
     }).compile();
 
@@ -209,11 +220,57 @@ describe('Error Handling and Validation Tests', () => {
 
       await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
 
+      expect(mockMfaService.initiateChallenge).toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'Challenge Required',
-        message: 'Additional verification required'
+        message: 'Additional verification required',
+        challengeId: 'chal-123',
+        expiresAt: expect.any(String),
       });
+    });
+
+    it('should proceed when policy decision is CHALLENGE but MFA token is valid', async () => {
+      const mockReq = {
+        method: 'GET',
+        url: '/users',
+        connection: { remoteAddress: '127.0.0.1' },
+        headers: {}
+      };
+      const mockRes = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+      const mockHeaders = { authorization: 'Bearer valid-token', 'x-mfa-token': 'mfa-123' };
+      const mockBody = {};
+      const mockQuery = {};
+
+      (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
+        userId: 'user123',
+        roles: ['user'],
+        sessionId: '',
+      });
+      (mockTrustScoreService.calculateTrustScore as jest.Mock).mockResolvedValue({
+        score: 0.6,
+        level: 'MEDIUM',
+        factors: {},
+      });
+      (mockPolicyService.evaluateAccess as jest.Mock).mockResolvedValue({
+        decision: 'CHALLENGE',
+        reason: 'Additional verification required',
+      });
+      (mockMfaService.isTokenValid as jest.Mock).mockResolvedValue(true);
+      (mockProxyService.forwardRequest as jest.Mock).mockResolvedValue({
+        status: 200,
+        data: { success: true },
+        headers: {},
+      });
+
+      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+
+      expect(mockProxyService.forwardRequest).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true });
     });
 
     it('should handle exceptions during token validation', async () => {

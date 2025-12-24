@@ -8,6 +8,7 @@ import { AuditService } from '../audit/audit.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { PolicyDecision } from '../policy/policy-evaluator.service';
 import { extractClientIp, resolveDeviceId } from '../shared/request-context.util';
+import { MfaService } from '../mfa/mfa.service';
 
 @Public()
 @Controller()
@@ -19,6 +20,7 @@ export class GatewayController {
     private proxyService: ProxyService,
     private auditService: AuditService,
     private metricsService: MetricsService,
+    private mfaService: MfaService,
   ) {}
 
   @All('*')
@@ -50,6 +52,13 @@ export class GatewayController {
         typeof headers['user-agent'] === 'string' && headers['user-agent'].length > 0
           ? headers['user-agent']
           : 'unknown';
+      const mfaToken =
+        typeof headers['x-mfa-token'] === 'string' && headers['x-mfa-token'].length > 0
+          ? headers['x-mfa-token']
+          : undefined;
+      const sanitizedHeaders = { ...headers };
+      delete sanitizedHeaders['x-mfa-token'];
+      delete sanitizedHeaders['X-Mfa-Token'];
 
       if (!authHeader || typeof authHeader !== 'string') {
         await this.auditService.logAccessDecision({
@@ -158,6 +167,18 @@ export class GatewayController {
         });
       }
 
+      let mfaSatisfied = false;
+      if (policyDecision.decision === 'CHALLENGE') {
+        if (await this.mfaService.isTokenValid(userClaims.userId, mfaToken)) {
+          mfaSatisfied = true;
+          policyDecision = {
+            decision: 'ALLOW',
+            reason: 'MFA challenge satisfied',
+            score: trustScoreResult.score,
+          };
+        }
+      }
+
       // Step 4: Record audit log based on policy decision
       try {
         await this.auditService.logAccessDecision({
@@ -172,6 +193,7 @@ export class GatewayController {
             method,
             trustFactors: trustScoreResult.factors,
             decisionReason: policyDecision.reason,
+            mfaSatisfied,
           },
         });
       } catch (auditError) {
@@ -216,9 +238,20 @@ export class GatewayController {
           console.warn('Failed to record metrics for challenged request:', metricsError.message);
         }
 
-        return res.status(401).json({ 
-          error: 'Challenge Required', 
-          message: policyDecision.reason 
+        const challenge = await this.mfaService.initiateChallenge({
+          userId: userClaims.userId,
+          sessionId: userClaims.sessionId,
+          method,
+          path,
+          deviceId,
+          ip,
+        });
+
+        return res.status(401).json({
+          error: 'Challenge Required',
+          message: policyDecision.reason,
+          challengeId: challenge.challengeId,
+          expiresAt: challenge.expiresAt,
         });
       } else { // ALLOW
         // Validate that the path is safe before forwarding
@@ -249,7 +282,7 @@ export class GatewayController {
             targetMicroservice,
             method,
             path,
-            headers,
+            sanitizedHeaders,
             body,
             userClaims,
             trustScoreResult.score,

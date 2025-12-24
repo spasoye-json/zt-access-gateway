@@ -80,6 +80,8 @@ describe('ProxyService', () => {
         headers: { 'content-type': 'application/json' },
       });
       expect(mockHttpService.axiosRef).toHaveBeenCalled();
+      const axiosMock = mockHttpService.axiosRef as unknown as jest.Mock;
+      expect(axiosMock.mock.calls[0][0].headers['x-gateway-request']).toBe('true');
       expect(mockMtlsService.createAgent).toHaveBeenCalledWith('users-service');
     });
 

@@ -34,6 +34,7 @@ At runtime the gateway stitches together the following NestJS modules:
 | **Proxy** | Service registry, mTLS connection factory, circuit breaker, SSRF defense. | `src/proxy/*`, `src/shared/mtls.service.ts` |
 | **Audit** | Persisted decisions with metadata. | `src/audit/*` |
 | **Metrics** | Prometheus counters/histograms, `/metrics` endpoint. | `src/metrics/*` |
+| **MFA** | Issues/validates challenges when risk requires step-up authentication. | `src/mfa/*` |
 | **Gateway Controller** | End-to-end request orchestration and error handling. | `src/gateway/gateway.controller.ts` |
 | **Sample Microservices** | Demonstration downstream services protected by `GatewayOnlyGuard`. | `microservices/*` |
 
@@ -74,6 +75,12 @@ At runtime the gateway stitches together the following NestJS modules:
 - Steps: header validation → authentication → trust calculation → policy evaluation → audit logging → metrics → decision enforcement → proxy forwarding.
 - Includes request ID propagation, path validation (no traversal or schema injection), and dedicated error handling to ensure consistent responses and audits.
 
+### 4.7 Multi-Factor Authentication (MFA)
+- `MfaService` issues one-time challenges whenever policy evaluation returns `CHALLENGE`.
+- For development, a 6-digit code is logged to the gateway console to simulate SMS/Email delivery.
+- `MfaController` exposes `POST /mfa/verify`, which requires the authenticated user to submit `{ challengeId, code }`. On success it returns a short-lived `mfaToken`.
+- Future requests may include the `X-MFA-Token` header; if valid for the user/session, the gateway upgrades the policy decision from CHALLENGE to ALLOW and proceeds to proxy forwarding.
+
 ---
 
 ## 5. Request Lifecycle
@@ -85,7 +92,7 @@ At runtime the gateway stitches together the following NestJS modules:
 6. **Audit Log**: Captures decision, factors, and context; resiliency logic prevents failed writes from crashing the request.
 7. **Decision Handling**:
    - `DENY` → 403 with reason.
-   - `CHALLENGE` → 401 placeholder (future MFA hook).
+   - `CHALLENGE` → gateway issues an MFA challenge (`challengeId` + expiry) unless the request already carried a valid `X-MFA-Token`.
    - `ALLOW` → path validation then `ProxyService.forwardRequest()`.
 8. **Proxy Execution**: Attaches identity headers, obtains HTTPS agent from `MtlsService`, enforces circuit breaker, retries transient failures, and returns downstream response (status+body).
 9. **Metrics**: `MetricsService.recordRequestMetrics()` records evaluation latency, forward latency, total latency, decision, trust score.
@@ -142,6 +149,8 @@ At runtime the gateway stitches together the following NestJS modules:
 | `DATABASE_URL` | Postgres connection string | `postgres://user:pass@host/db` |
 | `POLICY_DENY_RISK_THRESHOLD` | Score cutoff for DENY | `0.8` |
 | `POLICY_CHALLENGE_RISK_THRESHOLD` | Score cutoff for CHALLENGE | `0.5` |
+| `MFA_CHALLENGE_TTL_MS` | Lifetime of one-time challenge before it expires | `300000` |
+| `MFA_TOKEN_TTL_MS` | Lifetime of post-MFA session token | `600000` |
 | `TRUST_*` vars | Weights, frequency windows, retention | See `src/trust-score/trust-score.service.ts` |
 
 The project ships with `.env` defaults suitable for development; override as needed per environment.
@@ -175,6 +184,12 @@ The project ships with `.env` defaults suitable for development; override as nee
 1. Ensure `DATABASE_URL` is set so telemetry persists.
 2. Schedule cleanup jobs (already triggered in `calculateTrustScore()`) to keep activity tables trimmed.
 3. Consider integrating external IP reputation feeds via additional DB columns.
+
+### 8.5 MFA Challenge Workflow
+1. When a request receives `401 Challenge Required`, capture the `challengeId` and wait for the out-of-band code (logged to the gateway console in development).
+2. Submit `POST /mfa/verify` with the JWT authorization header and body `{ "challengeId": "...", "code": "XXXXXX" }`.
+3. On success, store the returned `mfaToken` and include it as `X-MFA-Token` on subsequent requests until it expires.
+4. Repeat the flow whenever the trust engine requires another challenge or the token expires.
 
 ---
 

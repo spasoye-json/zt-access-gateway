@@ -11,6 +11,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { MfaModule } from './mfa/mfa.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { RolesGuard } from './auth/roles.guard';
     AuditModule,
     MetricsModule,
     GatewayModule,
+    MfaModule,
   ],
   controllers: [],
   providers: [

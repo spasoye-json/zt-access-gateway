@@ -29,7 +29,7 @@ async function bootstrap() {
 
   app.useGlobalGuards(new GatewayOnlyGuard());
 
-  await app.listen(3002, '127.0.0.1');
-  console.log('Orders service is running on https://localhost:3002');
+  await app.listen(3002, '0.0.0.0');
+  console.log('Orders service is running on https://0.0.0.0:3002');
 }
 bootstrap();

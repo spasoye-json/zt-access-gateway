@@ -6,6 +6,7 @@ import { PolicyModule } from '../policy/policy.module';
 import { ProxyModule } from '../proxy/proxy.module';
 import { AuditModule } from '../audit/audit.module';
 import { MetricsModule } from '../metrics/metrics.module';
+import { MfaModule } from '../mfa/mfa.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { MetricsModule } from '../metrics/metrics.module';
     ProxyModule,
     AuditModule,
     MetricsModule,
+    MfaModule,
   ],
   controllers: [GatewayController],
 })

@@ -5,13 +5,8 @@ services:
     build: .
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - JWT_SECRET=a-string-secret-at-least-256-bits-long
-      - FORCE_MTLS=true
-      - USE_SECURE_CONNECTIONS=true
-      - DATABASE_URL=postgresql://user:password@postgres:5432/zt_gateway
+    env_file:
+      - .env
     volumes:
       - ./certs:/app/certs  # Mount certificates
     depends_on:
@@ -28,8 +23,8 @@ services:
       - "3001:3001"
     volumes:
       - ./certs:/app/certs  # Mount certificates
-    environment:
-      - NODE_ENV=development
+    env_file:
+      - .env
     networks:
       - zt-network
 
@@ -41,8 +36,8 @@ services:
       - "3002:3002"
     volumes:
       - ./certs:/app/certs  # Mount certificates
-    environment:
-      - NODE_ENV=development
+    env_file:
+      - .env
     networks:
       - zt-network
 
@@ -54,8 +49,8 @@ services:
       - "3003:3003"
     volumes:
       - ./certs:/app/certs  # Mount certificates
-    environment:
-      - NODE_ENV=development
+    env_file:
+      - .env
     networks:
       - zt-network
 
@@ -63,10 +58,8 @@ services:
     image: postgres:15
     ports:
       - "5432:5432"
-    environment:
-      - POSTGRES_DB=zt_gateway
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
+    env_file:
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -85,8 +78,8 @@ services:
     image: grafana/grafana
     ports:
       - "3005:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+    env_file:
+      - .env
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:

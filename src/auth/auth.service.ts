@@ -9,6 +9,10 @@ export interface UserClaims {
   sessionId: string;
   deviceId?: string;
   ip?: string;
+  issuer?: string;
+  audience?: string | string[];
+  issuedAt?: number;
+  expiresAt?: number;
   [key: string]: any;
 }
 
@@ -123,11 +127,23 @@ export class AuthService {
         (typeof payload.jti === 'string' && payload.jti) ||
         '';
 
+      const issuerClaim = typeof (payload as any).iss === 'string' ? (payload as any).iss : undefined;
+      const audienceClaim =
+        typeof (payload as any).aud === 'string' || Array.isArray((payload as any).aud)
+          ? (payload as any).aud
+          : undefined;
+      const issuedAtClaim = typeof payload.iat === 'number' ? payload.iat : undefined;
+      const expiresAtClaim = typeof payload.exp === 'number' ? payload.exp : undefined;
+
       return {
         ...(payload as Record<string, any>),
         userId,
         roles,
         sessionId,
+        issuer: issuerClaim,
+        audience: audienceClaim,
+        issuedAt: issuedAtClaim,
+        expiresAt: expiresAtClaim,
       } satisfies UserClaims;
     } catch (error) {
       const err = error as any;

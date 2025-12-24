@@ -29,7 +29,7 @@ async function bootstrap() {
 
   app.useGlobalGuards(new GatewayOnlyGuard());
   
-  await app.listen(3003, '127.0.0.1');
-  console.log('Permissions service is running on https://localhost:3003');
+  await app.listen(3003, '0.0.0.0');
+  console.log('Permissions service is running on https://0.0.0.0:3003');
 }
 bootstrap();

@@ -29,7 +29,7 @@ async function bootstrap() {
 
   app.useGlobalGuards(new GatewayOnlyGuard());
 
-  await app.listen(3001, '127.0.0.1');
-  console.log('Users service is running on https://localhost:3001');
+  await app.listen(3001, '0.0.0.0');
+  console.log('Users service is running on https://0.0.0.0:3001');
 }
 bootstrap();
