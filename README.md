@@ -9,8 +9,8 @@ An opinionated backend gateway that enforces Zero-Trust principles for a set of 
 | Authentication | Centralized Bearer parsing and JWT verification supporting HS256 secrets or RS/ES algorithms via JWKS. Issuer/audience enforcement, length/sanity checks, and a global guard protect every route by default. |
 | Policy Engine | Casbin RBAC model (`policy/model.conf`, `policy/policy.csv`) evaluates `subject → resource → action` permissions, exposes admin APIs to list/add/remove/reload policies, and layers risk thresholds to return **ALLOW / CHALLENGE / DENY**. |
 | Trust / Risk | Heuristic scoring with configurable weights backed by telemetry stored in Postgres tracks per-device history, IP fingerprints, and request frequency to produce LOW/MEDIUM/HIGH outcomes plus factor metadata. |
-| Gateway Pipeline | Controller enforces `Auth → Trust Score → Policy → Proxy → Audit → Metrics`. Helmet, CORS, rate limiting, validation pipes, and structured error responses are wired globally during bootstrap. Request IDs propagate via `x-request-id`. |
-| Proxy & mTLS | Forwards allowed traffic to internal microservices with identity headers/trust score, uses a configurable service registry, retries transient failures, and includes a lightweight circuit breaker. Validates service targets, disallows SSRF paths, and loads mTLS material from configurable paths. |
+| Gateway Pipeline | Middleware enforces `Auth → Trust Score → Policy → Proxy → Audit → Metrics`. Helmet, CORS, rate limiting, validation pipes, and structured error responses are wired globally during bootstrap. Request IDs propagate via `x-request-id`. |
+| Proxy & mTLS | Forwards allowed traffic to internal microservices with identity headers/trust score, uses a configurable service registry allowlist, retries transient failures, and includes a lightweight circuit breaker. Validates targets and URL safety, enforces HTTPS by default, and loads mTLS material from configurable paths. |
 | Observability | Audit logs persist to Postgres when `DATABASE_URL` is set (best-effort logging otherwise). Prometheus metrics (via `prom-client`) are exposed at `/metrics`, and Docker Compose ships with Prometheus/Grafana for dashboards. |
 | Tests | Jest coverage for auth, policy evaluator, proxy, trust score, audit logging, gateway error handling, and end-to-end request flow. Tests auto-skip integration cases when sockets cannot be opened in CI sandboxes. |
 
@@ -37,7 +37,7 @@ Downstream demo services:
 .
 ├── src/
 │   ├── auth/          # JwtStrategy, guard, helpers
-│   ├── gateway/       # Request controller & orchestration
+│   ├── gateway/       # Request middleware & orchestration
 │   ├── policy/        # Policy module + Casbin evaluator
 │   ├── trust-score/   # Risk scoring heuristics
 │   ├── proxy/         # Secure forwarding & mTLS helpers
@@ -81,14 +81,18 @@ Copy `.env.example` (if present) or edit `.env` directly. Key variables:
 | `CORS_ORIGINS` | Comma-separated allowlist; blank means allow all. |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Rate limiter settings. |
 | `MTLS_CA_CERT_PATH`, `MTLS_CERT_PATH`, `MTLS_KEY_PATH` | Paths to gateway cert material for outbound mTLS. |
+| `GATEWAY_CLIENT_CERT_CNS` | Comma-separated CN allowlist for gateway client certs accepted by microservices. |
 | `POLICY_MODEL_PATH`, `POLICY_POLICY_PATH` | Override Casbin files if needed. |
 | `DATABASE_URL` | Postgres connection string used for audit logs and trust telemetry (gateway degrades gracefully if not provided). |
-| `SERVICE_REGISTRY` | JSON map of `{ "service-name": "https://hostname:port" }` to override default downstream targets. |
+| `SERVICE_REGISTRY` | JSON map of `{ "service-name": "https://hostname:port" }` used as the allowlist for downstream targets. |
 | `PROXY_MAX_RETRIES` / `PROXY_RETRY_DELAY_MS` | Retry count and base delay (ms) for transient downstream failures. |
 | `PROXY_CIRCUIT_BREAKER_THRESHOLD` / `PROXY_CIRCUIT_BREAKER_TIMEOUT_MS` | Failure count and cool-off window for the circuit breaker. |
 | `TRUST_WEIGHT_BASE`, `TRUST_WEIGHT_DEVICE`, `TRUST_WEIGHT_IP`, `TRUST_WEIGHT_FREQUENCY`, `TRUST_WEIGHT_GEO` | Weights applied to trust-score components (defaults sum around 1). |
 | `TRUST_FREQUENCY_WINDOW_MS` / `TRUST_FREQUENCY_THRESHOLD` | Sliding window + threshold for request frequency anomaly detection. |
 | `TRUST_ACTIVITY_RETENTION_MS` | Retention for trust telemetry activity records. |
+| `ALLOW_INSECURE_MICROSERVICE_HTTP` | Set `true` to allow HTTP-only microservices (dev only). |
+| `STRICT_CONFIG` | Set `true` or use `NODE_ENV=production` to fail fast on missing critical config. |
+| `DISABLE_DATABASE` | Set `true` to disable Postgres-backed persistence in tests. |
 
 ### Run the gateway (dev mode)
 
@@ -103,12 +107,13 @@ Gateway boots on `http://localhost:3000` with hot reload.
 Each microservice can be launched with `ts-node`:
 
 ```bash
+./create-certs.sh
 npx ts-node microservices/users-service/main.ts
 npx ts-node microservices/orders-service/main.ts
 npx ts-node microservices/permissions-service/main.ts
 ```
 
-> Certificates in `certs/` allow HTTPS/mTLS during development. Services fall back to HTTP if certs are missing.
+> Certificates in `certs/` enable mTLS during development. Microservices validate the gateway client certificate CNs via `GATEWAY_CLIENT_CERT_CNS`. To run microservices without HTTPS, set `ALLOW_INSECURE_MICROSERVICE_HTTP=true` (dev only).
 
 ### Docker Compose
 
@@ -136,7 +141,7 @@ npm test
 ## Request Walkthrough
 
 1. **Auth Guard** extracts Bearer tokens, validates them (secret or JWKS), and attaches `userClaims` to the request context.
-2. **Gateway Controller** logs a request ID, performs extra schema/path validation, and invokes the Trust Score service.
+2. **Gateway Middleware** logs a request ID, performs extra schema/path validation, and invokes the Trust Score service.
 3. **Trust Score** returns a numeric score + factor metadata.
 4. **Policy Evaluator** checks Casbin rules for either `user:<id>` or `role:<role>` subjects. If authorized, the score is compared to challenge/deny thresholds.
 5. **Proxy Service** forwards allow-listed requests to the matching microservice, appending `x-user-id`, `x-roles`, and `x-trust-score` headers and using mTLS certificates from the config.
