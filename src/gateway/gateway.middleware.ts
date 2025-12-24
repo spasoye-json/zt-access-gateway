@@ -1,6 +1,11 @@
-import { Controller, Request, Response, Body, Query, Headers, BadRequestException, UnauthorizedException, All } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { NextFunction, Request, Response } from 'express';
 import { AuthService, UserClaims } from '../auth/auth.service';
-import { Public } from '../auth/public.decorator';
 import { TrustScoreService, TrustScoreResult } from '../trust-score/trust-score.service';
 import { PolicyService } from '../policy/policy.service';
 import { ProxyService } from '../proxy/proxy.service';
@@ -10,9 +15,8 @@ import { PolicyDecision } from '../policy/policy-evaluator.service';
 import { extractClientIp, resolveDeviceId } from '../shared/request-context.util';
 import { MfaService } from '../mfa/mfa.service';
 
-@Public()
-@Controller()
-export class GatewayController {
+@Injectable()
+export class GatewayMiddleware implements NestMiddleware {
   constructor(
     private authService: AuthService,
     private trustScoreService: TrustScoreService,
@@ -23,22 +27,18 @@ export class GatewayController {
     private mfaService: MfaService,
   ) {}
 
-  @All('*')
-  async handleRequest(
-    @Request() req,
-    @Response() res,
-    @Headers() headers,
-    @Body() body,
-    @Query() query,
-  ) {
+  async use(req: Request, res: Response, _next: NextFunction) {
     const startTime = Date.now();
     const requestId = this.generateRequestId();
     const method = req.method;
     const path = req.url;
-    
+
     console.log(`Processing request: ${method} ${path} with ID: ${requestId}`);
 
     try {
+      const headers = req.headers as Record<string, string>;
+      const body = req.body;
+
       // Validate required headers
       if (!headers || typeof headers !== 'object') {
         throw new BadRequestException('Invalid headers provided');
@@ -71,9 +71,9 @@ export class GatewayController {
           metadata: { reason: 'No authorization header' },
         });
 
-        return res.status(401).json({ 
-          error: 'Unauthorized', 
-          message: 'Authorization header is required' 
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Authorization header is required',
         });
       }
 
@@ -94,15 +94,15 @@ export class GatewayController {
           decision: 'DENY',
           riskScore: 1.0,
           policyApplied: 'invalid-token-policy',
-          metadata: { 
+          metadata: {
             reason: 'Token validation failed',
             message,
-            error: authError.message,
+            error: (authError as Error).message,
           },
         });
 
-        return res.status(401).json({ 
-          error: 'Unauthorized', 
+        return res.status(401).json({
+          error: 'Unauthorized',
           message,
         });
       }
@@ -125,15 +125,15 @@ export class GatewayController {
           decision: 'DENY',
           riskScore: 1.0,
           policyApplied: 'trust-score-error-policy',
-          metadata: { 
-            reason: 'Trust score calculation failed', 
-            error: trustError.message 
+          metadata: {
+            reason: 'Trust score calculation failed',
+            error: (trustError as Error).message,
           },
         });
 
-        return res.status(500).json({ 
-          error: 'Internal Server Error', 
-          message: 'Trust score calculation failed' 
+        return res.status(500).json({
+          error: 'Internal Server Error',
+          message: 'Trust score calculation failed',
         });
       }
 
@@ -155,15 +155,15 @@ export class GatewayController {
           decision: 'DENY',
           riskScore: trustScoreResult.score,
           policyApplied: 'policy-evaluation-error-policy',
-          metadata: { 
-            reason: 'Policy evaluation failed', 
-            error: policyError.message 
+          metadata: {
+            reason: 'Policy evaluation failed',
+            error: (policyError as Error).message,
           },
         });
 
-        return res.status(500).json({ 
-          error: 'Internal Server Error', 
-          message: 'Policy evaluation failed' 
+        return res.status(500).json({
+          error: 'Internal Server Error',
+          message: 'Policy evaluation failed',
         });
       }
 
@@ -199,7 +199,7 @@ export class GatewayController {
       } catch (auditError) {
         console.error('Audit logging error:', auditError);
         // Don't fail the request if audit logging fails, but log it
-        console.warn('Failed to log audit decision:', auditError.message);
+        console.warn('Failed to log audit decision:', (auditError as Error).message);
       }
 
       // Step 5: Handle policy decision
@@ -215,12 +215,12 @@ export class GatewayController {
             trustScore: trustScoreResult.score,
           });
         } catch (metricsError) {
-          console.warn('Failed to record metrics for denied request:', metricsError.message);
+          console.warn('Failed to record metrics for denied request:', (metricsError as Error).message);
         }
 
-        return res.status(403).json({ 
-          error: 'Forbidden', 
-          message: policyDecision.reason 
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: policyDecision.reason,
         });
       } else if (policyDecision.decision === 'CHALLENGE') {
         // For now, just return a challenge response
@@ -235,7 +235,7 @@ export class GatewayController {
             trustScore: trustScoreResult.score,
           });
         } catch (metricsError) {
-          console.warn('Failed to record metrics for challenged request:', metricsError.message);
+          console.warn('Failed to record metrics for challenged request:', (metricsError as Error).message);
         }
 
         const challenge = await this.mfaService.initiateChallenge({
@@ -253,7 +253,8 @@ export class GatewayController {
           challengeId: challenge.challengeId,
           expiresAt: challenge.expiresAt,
         });
-      } else { // ALLOW
+      } else {
+        // ALLOW
         // Validate that the path is safe before forwarding
         if (!this.isValidPath(path)) {
           await this.auditService.logAccessDecision({
@@ -266,9 +267,9 @@ export class GatewayController {
             metadata: { reason: 'Invalid path detected' },
           });
 
-          return res.status(400).json({ 
-            error: 'Bad Request', 
-            message: 'Invalid path' 
+          return res.status(400).json({
+            error: 'Bad Request',
+            message: 'Invalid path',
           });
         }
 
@@ -276,7 +277,7 @@ export class GatewayController {
         const targetMicroservice = this.getTargetMicroservice(path);
         let forwardedResponse;
         const forwardStartTime = Date.now();
-        
+
         try {
           forwardedResponse = await this.proxyService.forwardRequest(
             targetMicroservice,
@@ -296,15 +297,15 @@ export class GatewayController {
             decision: 'DENY',
             riskScore: trustScoreResult.score,
             policyApplied: 'proxy-error-policy',
-            metadata: { 
-              reason: 'Proxy forwarding failed', 
-              error: proxyError.message 
+            metadata: {
+              reason: 'Proxy forwarding failed',
+              error: (proxyError as Error).message,
             },
           });
 
-          return res.status(502).json({ 
-            error: 'Bad Gateway', 
-            message: 'Failed to reach target service' 
+          return res.status(502).json({
+            error: 'Bad Gateway',
+            message: 'Failed to reach target service',
           });
         }
 
@@ -319,7 +320,7 @@ export class GatewayController {
             trustScore: trustScoreResult.score,
           });
         } catch (metricsError) {
-          console.warn('Failed to record metrics for allowed request:', metricsError.message);
+          console.warn('Failed to record metrics for allowed request:', (metricsError as Error).message);
         }
 
         // Return the actual response from the microservice
@@ -327,7 +328,7 @@ export class GatewayController {
       }
     } catch (error) {
       console.error('Gateway error:', error);
-      
+
       // Log the error for audit purposes (best effort)
       try {
         await this.auditService.logAccessDecision({
@@ -337,10 +338,10 @@ export class GatewayController {
           decision: 'DENY',
           riskScore: 1.0,
           policyApplied: 'error-policy',
-          metadata: { 
-            reason: 'Gateway processing error', 
-            error: error.message,
-            stack: error.stack,
+          metadata: {
+            reason: 'Gateway processing error',
+            error: (error as Error).message,
+            stack: (error as Error).stack,
           },
         });
       } catch (auditError) {
@@ -349,14 +350,14 @@ export class GatewayController {
 
       // Return appropriate error response based on error type
       if (error instanceof BadRequestException) {
-        return res.status(400).json({ 
-          error: 'Bad Request', 
-          message: error.message 
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: error.message,
         });
       } else {
-        return res.status(500).json({ 
-          error: 'Internal Server Error', 
-          message: 'An unexpected error occurred' 
+        return res.status(500).json({
+          error: 'Internal Server Error',
+          message: 'An unexpected error occurred',
         });
       }
     }
@@ -385,12 +386,12 @@ export class GatewayController {
     if (path.includes('../') || path.includes('..\\')) {
       return false;
     }
-    
+
     // Prevent protocol schemes in path (potential SSRF)
     if (/^https?:\/\//.test(path)) {
       return false;
     }
-    
+
     return true;
   }
 }

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
-import { GatewayController } from "../../../src/gateway/gateway.controller";
+import { GatewayMiddleware } from "../../../src/gateway/gateway.middleware";
 import { AuthService } from "../../../src/auth/auth.service";
 import { TrustScoreService } from "../../../src/trust-score/trust-score.service";
 import { PolicyService } from "../../../src/policy/policy.service";
@@ -10,7 +10,7 @@ import { MetricsService } from "../../../src/metrics/metrics.service";
 import { MfaService } from "../../../src/mfa/mfa.service";
 
 describe('Error Handling and Validation Tests', () => {
-  let controller: GatewayController;
+  let middleware: GatewayMiddleware;
   let mockAuthService: Partial<AuthService>;
   let mockTrustScoreService: Partial<TrustScoreService>;
   let mockPolicyService: Partial<PolicyService>;
@@ -53,8 +53,8 @@ describe('Error Handling and Validation Tests', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [GatewayController],
       providers: [
+        GatewayMiddleware,
         { provide: AuthService, useValue: mockAuthService },
         { provide: TrustScoreService, useValue: mockTrustScoreService },
         { provide: PolicyService, useValue: mockPolicyService },
@@ -65,26 +65,25 @@ describe('Error Handling and Validation Tests', () => {
       ],
     }).compile();
 
-    controller = module.get<GatewayController>(GatewayController);
+    middleware = module.get<GatewayMiddleware>(GatewayMiddleware);
   });
 
-  describe('Gateway Controller Error Handling', () => {
+  describe('Gateway Middleware Error Handling', () => {
     it('should return 401 when no authorization header is present', async () => {
+      const mockHeaders = {};
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = {};
-      const mockBody = {};
-      const mockQuery = {};
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -94,25 +93,24 @@ describe('Error Handling and Validation Tests', () => {
     });
 
     it('should return 401 when token format is invalid', async () => {
+      const mockHeaders = { authorization: 'InvalidFormatToken' };
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = { authorization: 'InvalidFormatToken' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
         new UnauthorizedException('Invalid token format. Use Bearer token.'),
       );
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -122,25 +120,24 @@ describe('Error Handling and Validation Tests', () => {
     });
 
     it('should return 401 when token is invalid', async () => {
+      const mockHeaders = { authorization: 'Bearer invalid-token' };
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = { authorization: 'Bearer invalid-token' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
         new UnauthorizedException('Invalid token'),
       );
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -150,19 +147,18 @@ describe('Error Handling and Validation Tests', () => {
     });
 
     it('should return 403 when policy decision is DENY', async () => {
+      const mockHeaders = { authorization: 'Bearer valid-token' };
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = { authorization: 'Bearer valid-token' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
@@ -179,7 +175,7 @@ describe('Error Handling and Validation Tests', () => {
         reason: 'High risk score',
       });
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       expect(mockRes.status).toHaveBeenCalledWith(403);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -189,19 +185,18 @@ describe('Error Handling and Validation Tests', () => {
     });
 
     it('should return 401 when policy decision is CHALLENGE', async () => {
+      const mockHeaders = { authorization: 'Bearer valid-token' };
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = { authorization: 'Bearer valid-token' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
@@ -218,7 +213,7 @@ describe('Error Handling and Validation Tests', () => {
         reason: 'Additional verification required',
       });
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       expect(mockMfaService.initiateChallenge).toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(401);
@@ -231,19 +226,18 @@ describe('Error Handling and Validation Tests', () => {
     });
 
     it('should proceed when policy decision is CHALLENGE but MFA token is valid', async () => {
+      const mockHeaders = { authorization: 'Bearer valid-token', 'x-mfa-token': 'mfa-123' };
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = { authorization: 'Bearer valid-token', 'x-mfa-token': 'mfa-123' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
@@ -266,7 +260,7 @@ describe('Error Handling and Validation Tests', () => {
         headers: {},
       });
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       expect(mockProxyService.forwardRequest).toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -274,27 +268,26 @@ describe('Error Handling and Validation Tests', () => {
     });
 
     it('should handle exceptions during token validation', async () => {
+      const mockHeaders = { authorization: 'Bearer valid-token' };
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = { authorization: 'Bearer valid-token' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
         new Error('Internal error'),
       );
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
-      // The actual behavior in the controller is to return 401 when token validation fails
+      // The actual behavior in the middleware is to return 401 when token validation fails
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'Unauthorized',
@@ -303,44 +296,42 @@ describe('Error Handling and Validation Tests', () => {
     });
 
     it('should call audit service even when an error occurs', async () => {
+      const mockHeaders = { authorization: 'Bearer valid-token' };
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = { authorization: 'Bearer valid-token' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
         new Error('Internal error'),
       );
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       // Audit service should be called to log the error condition
       expect(mockAuditService.logAccessDecision).toHaveBeenCalled();
     });
 
     it('should handle proxy forwarding errors gracefully', async () => {
+      const mockHeaders = { authorization: 'Bearer valid-token' };
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = { authorization: 'Bearer valid-token' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
@@ -358,7 +349,7 @@ describe('Error Handling and Validation Tests', () => {
       });
       (mockProxyService.forwardRequest as jest.Mock).mockRejectedValue(new Error('Service unavailable'));
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       expect(mockRes.status).toHaveBeenCalledWith(502);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -370,26 +361,25 @@ describe('Error Handling and Validation Tests', () => {
 
   describe('Input Validation', () => {
     it('should validate token length', async () => {
+      const mockHeaders = { authorization: 'Bearer short' };
       const mockReq = {
         method: 'GET',
         url: '/users',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
       // Very short token
-      const mockHeaders = { authorization: 'Bearer short' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockRejectedValue(
         new UnauthorizedException('Invalid token length'),
       );
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -399,19 +389,18 @@ describe('Error Handling and Validation Tests', () => {
     });
 
     it('should validate path to prevent traversal attacks', async () => {
+      const mockHeaders = { authorization: 'Bearer valid-token' };
       const mockReq = {
         method: 'GET',
         url: '/users/../../../etc/passwd',
-        connection: { remoteAddress: '127.0.0.1' },
-        headers: {}
+        headers: mockHeaders,
+        body: {},
+        query: {},
       };
       const mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn(),
       };
-      const mockHeaders = { authorization: 'Bearer valid-token' };
-      const mockBody = {};
-      const mockQuery = {};
 
       (mockAuthService.validateAuthorizationHeader as jest.Mock).mockResolvedValue({
         userId: 'user123',
@@ -428,7 +417,7 @@ describe('Error Handling and Validation Tests', () => {
         reason: 'Valid request',
       });
 
-      await controller.handleRequest(mockReq, mockRes, mockHeaders, mockBody, mockQuery);
+      await middleware.use(mockReq as any, mockRes as any, jest.fn());
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
