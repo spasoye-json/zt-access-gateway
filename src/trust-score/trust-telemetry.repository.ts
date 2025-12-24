@@ -19,6 +19,12 @@ export class TrustTelemetryRepository implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly configService: ConfigService) {}
 
   async onModuleInit(): Promise<void> {
+    const nodeEnv = (this.configService.get<string>('NODE_ENV') || '').toLowerCase();
+    if (nodeEnv === 'test' || this.configService.get<string>('DISABLE_DATABASE') === 'true') {
+      this.logger.warn('Trust telemetry persistence disabled for tests');
+      return;
+    }
+
     const connectionString = this.configService.get<string>('DATABASE_URL');
     if (!connectionString) {
       this.logger.warn('DATABASE_URL not set; trust telemetry persistence disabled');

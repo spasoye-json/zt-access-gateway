@@ -13,6 +13,53 @@ const parseOrigins = (origins?: string | null): true | string[] => {
   return list.length ? list : true;
 };
 
+const shouldEnforceStrictConfig = (configService: NestConfigService): boolean => {
+  const strict = configService.get<string>('STRICT_CONFIG');
+  if (strict === 'true') {
+    return true;
+  }
+
+  const nodeEnv = (configService.get<string>('NODE_ENV') || '').toLowerCase();
+  return nodeEnv === 'production';
+};
+
+const requireConfig = (configService: NestConfigService, key: string): string => {
+  const value = configService.get<string>(key);
+  if (!value) {
+    throw new Error(`Missing required configuration: ${key}`);
+  }
+  return value;
+};
+
+export const validateCriticalConfig = (configService: NestConfigService) => {
+  if (!shouldEnforceStrictConfig(configService)) {
+    return;
+  }
+
+  const algorithm = (configService.get<string>('JWT_ALGORITHM') || 'HS256')
+    .toUpperCase()
+    .trim();
+
+  if (algorithm.startsWith('HS')) {
+    requireConfig(configService, 'JWT_SECRET');
+  } else if (algorithm.startsWith('RS') || algorithm.startsWith('ES')) {
+    requireConfig(configService, 'JWT_JWKS_URI');
+  } else {
+    throw new Error(`Unsupported JWT_ALGORITHM: ${algorithm}`);
+  }
+
+  requireConfig(configService, 'MTLS_CA_CERT_PATH');
+  requireConfig(configService, 'MTLS_CERT_PATH');
+  requireConfig(configService, 'MTLS_KEY_PATH');
+
+  const registry = requireConfig(configService, 'SERVICE_REGISTRY');
+  try {
+    JSON.parse(registry);
+  } catch (error) {
+    throw new Error('SERVICE_REGISTRY must be valid JSON');
+  }
+};
+
 export const configureApp = (
   app: INestApplication,
   configService: NestConfigService,

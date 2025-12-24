@@ -22,6 +22,7 @@ describe('ProxyService', () => {
       getMtlsCaCertPath: jest.fn().mockReturnValue('./certs/ca.crt'),
       getMtlsCertPath: jest.fn().mockReturnValue('./certs/gateway.crt'),
       getMtlsKeyPath: jest.fn().mockReturnValue('./certs/gateway.key'),
+      getBoolean: jest.fn().mockReturnValue(false),
       getProxyMaxRetries: jest.fn().mockReturnValue(0),
       getProxyRetryDelayMs: jest.fn().mockReturnValue(0),
       getProxyCircuitBreakerThreshold: jest.fn().mockReturnValue(3),
@@ -35,6 +36,7 @@ describe('ProxyService', () => {
 
     mockRegistry = {
       getServiceUrl: jest.fn().mockReturnValue('https://users-service:3001'),
+      isAllowedTarget: jest.fn().mockReturnValue(true),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -159,6 +161,7 @@ describe('ProxyService', () => {
 
     it('should reject unsafe service URLs', async () => {
       (mockRegistry.getServiceUrl as jest.Mock).mockReturnValue('https://localhost:8443');
+      (mockRegistry.isAllowedTarget as jest.Mock).mockReturnValue(false);
 
       await expect(
         service.forwardRequest(

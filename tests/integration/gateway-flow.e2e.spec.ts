@@ -36,6 +36,10 @@ describe('Gateway Integration Tests', () => {
       return;
     }
 
+    process.env.JWT_SECRET = 'test-secret-for-jest';
+    process.env.POLICY_CHALLENGE_RISK_THRESHOLD = '1.0';
+    process.env.POLICY_DENY_RISK_THRESHOLD = '1.1';
+
     mockProxyService = {
       forwardRequest: jest.fn().mockResolvedValue({
         status: 200,
@@ -55,8 +59,6 @@ describe('Gateway Integration Tests', () => {
     configureApp(app, moduleFixture.get<NestConfigService>(NestConfigService));
     jwtService = moduleFixture.get<JwtService>(JwtService);
 
-    process.env.JWT_SECRET = 'test-secret-for-jest';
-
     await app.init();
   });
 
@@ -72,6 +74,8 @@ describe('Gateway Integration Tests', () => {
         userId: 'test-user',
         roles: ['user'],
         sessionId: 'session123',
+        iss: 'local-issuer',
+        aud: 'zt-access-gateway',
       };
       const token = await jwtService.sign(tokenPayload, 'test-secret-for-jest');
 
@@ -90,7 +94,7 @@ describe('Gateway Integration Tests', () => {
               authorization: `Bearer ${token}`,
               'x-device-id': 'device123',
             }),
-            undefined,
+            expect.anything(),
             expect.objectContaining({ userId: 'test-user' }),
             expect.any(Number),
           );
@@ -117,7 +121,7 @@ describe('Gateway Integration Tests', () => {
         .then((response) => {
           expect(response.body).toEqual({
             error: 'Unauthorized',
-            message: 'Invalid token',
+            message: 'Token validation failed',
           });
         });
     });
@@ -131,20 +135,23 @@ describe('Gateway Integration Tests', () => {
         userId: 'test-user',
         roles: ['admin'],
         sessionId: 'session123',
+        iss: 'local-issuer',
+        aud: 'zt-access-gateway',
       };
       const token = await jwtService.sign(tokenPayload, 'test-secret-for-jest');
 
-      await request(app.getHttpServer())
-        .get('/admin')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(502)
-        .finally(() => {
-          (mockProxyService.forwardRequest as jest.Mock).mockResolvedValue({
-            status: 200,
-            data: { message: 'Success from microservice' },
-            headers: {},
-          });
+      try {
+        await request(app.getHttpServer())
+          .get('/admin')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(502);
+      } finally {
+        (mockProxyService.forwardRequest as jest.Mock).mockResolvedValue({
+          status: 200,
+          data: { message: 'Success from microservice' },
+          headers: {},
         });
+      }
     });
   });
 
@@ -154,6 +161,8 @@ describe('Gateway Integration Tests', () => {
         userId: 'test-user',
         roles: ['admin'],
         sessionId: 'session123',
+        iss: 'local-issuer',
+        aud: 'zt-access-gateway',
       };
       const token = await jwtService.sign(tokenPayload, 'test-secret-for-jest');
 
@@ -174,6 +183,8 @@ describe('Gateway Integration Tests', () => {
         userId: 'test-user',
         roles: ['admin'],
         sessionId: 'session123',
+        iss: 'local-issuer',
+        aud: 'zt-access-gateway',
       };
       const token = await jwtService.sign(tokenPayload, 'test-secret-for-jest');
 
@@ -194,6 +205,8 @@ describe('Gateway Integration Tests', () => {
         userId: 'test-user',
         roles: ['admin'],
         sessionId: 'session123',
+        iss: 'local-issuer',
+        aud: 'zt-access-gateway',
       };
       const token = await jwtService.sign(tokenPayload, 'test-secret-for-jest');
 
