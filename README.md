@@ -2,6 +2,11 @@
 
 An opinionated backend gateway that enforces Zero-Trust principles for a set of demo microservices (users/orders/permissions). Every inbound request is authenticated, risk-scored, policy-evaluated, and proxied over secure channels before reaching an internal service. Audit events and metrics are emitted for every decision.
 
+## Documentation
+
+- `STARTUP_GUIDE.md` — architecture whitepaper and operational model.
+- `docs/CODEBASE.md` — codebase walkthrough (modules, flows, responsibilities).
+
 ## Current Capabilities
 
 | Area | Details |
