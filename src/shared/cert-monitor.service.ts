@@ -16,6 +16,8 @@ const POLL_INTERVAL_MS = 30_000;
 export class CertMonitorService implements OnModuleInit, OnModuleDestroy {
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private lastMtimes: Record<string, number> = {};
+  // Guards against concurrent invocations (e.g. slow NFS stat overlapping the next interval)
+  private checking = false;
 
   constructor(
     private readonly mtlsService: MtlsService,
@@ -39,23 +41,29 @@ export class CertMonitorService implements OnModuleInit, OnModuleDestroy {
 
   /** Exposed for testing: force an immediate check outside the timer. */
   async checkFiles(): Promise<void> {
-    const paths = this.certPaths();
-    let changed = false;
+    if (this.checking) return;
+    this.checking = true;
+    try {
+      const paths = this.certPaths();
+      let changed = false;
 
-    for (const p of paths) {
-      try {
-        const stat = await fs.promises.stat(p);
-        if (stat.mtimeMs !== this.lastMtimes[p]) {
-          this.lastMtimes[p] = stat.mtimeMs;
-          changed = true;
+      for (const p of paths) {
+        try {
+          const stat = await fs.promises.stat(p);
+          if (stat.mtimeMs !== this.lastMtimes[p]) {
+            this.lastMtimes[p] = stat.mtimeMs;
+            changed = true;
+          }
+        } catch {
+          // File unreadable — skip this cycle, reload will surface the error
         }
-      } catch {
-        // File unreadable — skip this cycle, reload will surface the error
       }
-    }
 
-    if (changed) {
-      await this.mtlsService.reload();
+      if (changed) {
+        await this.mtlsService.reload();
+      }
+    } finally {
+      this.checking = false;
     }
   }
 
