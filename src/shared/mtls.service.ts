@@ -20,6 +20,8 @@ interface CertCache {
 @Injectable()
 export class MtlsService {
   private certCache: CertCache | null = null;
+  // Serializes concurrent callers so only one reload runs at a time (TOCTOU guard)
+  private reloadPromise: Promise<void> | null = null;
 
   constructor(private readonly config: AppConfigService) {}
 
@@ -75,7 +77,12 @@ export class MtlsService {
       keyStat.mtimeMs !== this.certCache.mtimes.key;
 
     if (mtimesChanged) {
-      await this.loadCertificates();
+      if (!this.reloadPromise) {
+        this.reloadPromise = this.loadCertificates().finally(() => {
+          this.reloadPromise = null;
+        });
+      }
+      await this.reloadPromise;
     }
 
     return this.certCache!.agent;
