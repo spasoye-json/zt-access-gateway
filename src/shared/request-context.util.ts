@@ -1,43 +1,31 @@
-import type { Request } from 'express';
+import { Request } from 'express';
 
-const UNKNOWN_IP = 'unknown';
-const UNKNOWN_DEVICE = 'unknown-device';
-
-const normalizeIp = (ip?: string | null): string => {
-  if (!ip) {
-    return UNKNOWN_IP;
+/**
+ * Extracts the real client IP from request headers.
+ * Takes ONLY the first entry from x-forwarded-for to prevent IP spoofing
+ * via appended headers (T-01-04). The upstream proxy must set this header.
+ */
+export function extractIp(req: Request): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)
+      .split(',')[0]
+      .trim();
+    return first;
   }
+  return req.socket?.remoteAddress || 'unknown';
+}
 
-  return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-};
+/**
+ * Extracts the User-Agent header value or returns 'unknown'.
+ */
+export function extractUserAgent(req: Request): string {
+  return (req.headers['user-agent'] as string) || 'unknown';
+}
 
-export const extractClientIp = (req: Request): string => {
-  if (!req) {
-    return UNKNOWN_IP;
-  }
-
-  if (Array.isArray(req.ips) && req.ips.length > 0) {
-    return normalizeIp(req.ips[0]);
-  }
-
-  const connectionIp = req.ip || req.socket?.remoteAddress;
-
-  return normalizeIp(connectionIp);
-};
-
-export const resolveDeviceId = (value?: unknown): string => {
-  if (Array.isArray(value)) {
-    return resolveDeviceId(value[0]);
-  }
-
-  if (typeof value !== 'string') {
-    return UNKNOWN_DEVICE;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return UNKNOWN_DEVICE;
-  }
-
-  return trimmed.slice(0, 128);
-};
+/**
+ * Extracts the x-device-id header value or returns null if absent.
+ */
+export function extractDeviceId(req: Request): string | null {
+  return (req.headers['x-device-id'] as string) || null;
+}

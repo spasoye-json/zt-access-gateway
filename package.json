@@ -90,8 +90,7 @@
     "coverageDirectory": "./artifacts/coverage",
     "testEnvironment": "node",
     "roots": [
-      "<rootDir>/src",
-      "<rootDir>/tests"
+      "<rootDir>/src"
     ]
   }
 }
