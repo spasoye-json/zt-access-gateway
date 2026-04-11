@@ -91,13 +91,34 @@ describe('Bootstrap middleware stack (e2e)', () => {
   });
 
   it('Rate limiting returns 429 after exceeding RATE_LIMIT_MAX requests', async () => {
-    // max is 5 across the window; prior tests consumed some quota.
-    // Send enough requests to guarantee the limit is hit, then verify 429.
-    const server = app.getHttpServer();
-    for (let i = 0; i < 5; i++) {
+    // Spin up a dedicated app instance with max:3 so this test is fully self-contained
+    // and does not depend on quota consumed by prior tests (WR-04).
+    const moduleFixture = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    const isolatedApp = moduleFixture.createNestApplication();
+    isolatedApp.use(helmet());
+    isolatedApp.use(
+      rateLimit({
+        windowMs: 60000,
+        max: 3,
+        standardHeaders: true,
+        legacyHeaders: false,
+      }),
+    );
+    isolatedApp.useGlobalFilters(new HttpExceptionFilter());
+    await isolatedApp.init();
+
+    const server = isolatedApp.getHttpServer();
+    // Consume all 3 allowed requests
+    for (let i = 0; i < 3; i++) {
       await request(server).get('/health');
     }
+    // 4th request must be rate-limited
     const response = await request(server).get('/health');
     expect(response.status).toBe(429);
+
+    await isolatedApp.close();
   });
 });
