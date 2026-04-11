@@ -1,96 +1,30 @@
 version: '3.8'
 
+# Minimal compose stack for Phase 1 (D-04).
+# Only gateway and postgres. No microservices, no Prometheus, no Grafana.
+# No init scripts or schema SQL (D-05) — migrations run at application start.
+
 services:
   gateway:
     build: .
     ports:
-      - "3000:3000"
-    env_file:
-      - .env
-    volumes:
-      - ./certs:/app/certs  # Mount certificates
+      - '${PORT:-3000}:3000'
+    env_file: .env
     depends_on:
-      - postgres
-      - prometheus
-    networks:
-      - zt-network
-
-  users-service:
-    build:
-      context: .
-      dockerfile: Dockerfile.microservice
-    ports:
-      - "3001:3001"
-    volumes:
-      - ./certs:/app/certs  # Mount certificates
-    env_file:
-      - .env
-    networks:
-      - zt-network
-
-  orders-service:
-    build:
-      context: .
-      dockerfile: Dockerfile.microservice
-    ports:
-      - "3002:3002"
-    volumes:
-      - ./certs:/app/certs  # Mount certificates
-    env_file:
-      - .env
-    networks:
-      - zt-network
-
-  permissions-service:
-    build:
-      context: .
-      dockerfile: Dockerfile.microservice
-    ports:
-      - "3003:3003"
-    volumes:
-      - ./certs:/app/certs  # Mount certificates
-    env_file:
-      - .env
-    networks:
-      - zt-network
+      postgres:
+        condition: service_started
+    restart: unless-stopped
 
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ztgateway}
+      POSTGRES_USER: ${POSTGRES_USER:-ztgateway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ztgateway_dev}
     ports:
-      - "5432:5432"
-    env_file:
-      - .env
+      - '5432:5432'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - zt-network
-
-  prometheus:
-    image: prom/prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - zt-network
-
-  grafana:
-    image: grafana/grafana
-    ports:
-      - "3005:3000"
-    env_file:
-      - .env
-    volumes:
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-    networks:
-      - zt-network
+      - pgdata:/var/lib/postgresql/data
 
 volumes:
-  postgres_data:
-  grafana_data:
-
-networks:
-  zt-network:
-    driver: bridge
+  pgdata:

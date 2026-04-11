@@ -1,38 +1,19 @@
-# ------------------------
-# Builder stage
-# ------------------------
+# Build stage — compile TypeScript to dist/
 FROM node:18-alpine AS builder
-
 WORKDIR /app
-
 COPY package*.json ./
 RUN npm ci
-
-COPY src ./src
-COPY policy ./policy
-COPY nest-cli.json tsconfig.json ./
-
+COPY . .
 RUN npm run build
 
-
-# ------------------------
-# Runtime stage
-# ------------------------
+# Production stage — minimal image with only compiled output (T-01-14)
 FROM node:18-alpine
-
 WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/policy ./policy
-
-RUN addgroup -g 1001 -S nodejs \
- && adduser -S nestjs -u 1001
-
-USER nestjs
-
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+ENV NODE_ENV=production
 EXPOSE 3000
-
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 CMD ["node", "dist/main.js"]
