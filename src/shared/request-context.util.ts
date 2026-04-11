@@ -1,9 +1,18 @@
 import { Request } from 'express';
 
+const IPV4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+const IPV6 = /^[0-9a-fA-F:]+$/;
+
+function isValidIp(ip: string): boolean {
+  return IPV4.test(ip) || IPV6.test(ip);
+}
+
 /**
  * Extracts the real client IP from request headers.
  * Takes ONLY the first entry from x-forwarded-for to prevent IP spoofing
  * via appended headers (T-01-04). The upstream proxy must set this header.
+ * Validates the extracted value as an IPv4/IPv6 address to block injection
+ * of arbitrary strings into trust scoring and audit logs (T-01-04).
  */
 export function extractIp(req: Request): string {
   const forwarded = req.headers['x-forwarded-for'];
@@ -11,7 +20,7 @@ export function extractIp(req: Request): string {
     const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)
       .split(',')[0]
       .trim();
-    return first;
+    if (first && isValidIp(first)) return first;
   }
   return req.socket?.remoteAddress || 'unknown';
 }

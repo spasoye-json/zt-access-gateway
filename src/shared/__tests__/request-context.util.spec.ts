@@ -27,6 +27,26 @@ describe('extractIp', () => {
     const req = makeReq({ headers: {}, socket: {} });
     expect(extractIp(req)).toBe('unknown');
   });
+
+  it("returns 'unknown' when x-forwarded-for is an empty string (WR-01)", () => {
+    const req = makeReq({ headers: { 'x-forwarded-for': '' }, socket: {} });
+    expect(extractIp(req)).toBe('unknown');
+  });
+
+  it("returns 'unknown' when x-forwarded-for contains only commas/spaces (WR-01)", () => {
+    const req = makeReq({ headers: { 'x-forwarded-for': ', ,' }, socket: {} });
+    expect(extractIp(req)).toBe('unknown');
+  });
+
+  it("returns 'unknown' when x-forwarded-for contains an invalid/injected value (WR-02)", () => {
+    const req = makeReq({ headers: { 'x-forwarded-for': "'; DROP TABLE trust_signals;--" }, socket: {} });
+    expect(extractIp(req)).toBe('unknown');
+  });
+
+  it('accepts a valid IPv6 address from x-forwarded-for (WR-02)', () => {
+    const req = makeReq({ headers: { 'x-forwarded-for': '2001:db8::1' } });
+    expect(extractIp(req)).toBe('2001:db8::1');
+  });
 });
 
 describe('extractUserAgent', () => {
