@@ -1,84 +1,48 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
+/**
+ * Typed wrapper over @nestjs/config ConfigService.
+ * Only exposes Phase 1 env vars (CONF-03) — no stubs for future phases.
+ */
 @Injectable()
-export class ConfigService {
-  get(key: string): string | undefined {
-    return process.env[key];
+export class AppConfigService {
+  constructor(private readonly config: ConfigService) {}
+
+  get port(): number {
+    return this.config.get<number>('PORT')!;
   }
 
-  getNumber(key: string): number | undefined {
-    const value = process.env[key];
-    return value ? parseInt(value, 10) : undefined;
+  get nodeEnv(): string {
+    return this.config.get<string>('NODE_ENV')!;
   }
 
-  getBoolean(key: string): boolean {
-    const value = process.env[key];
-    return value === 'true' || value === '1';
+  get corsOrigin(): string {
+    return this.config.get<string>('CORS_ORIGIN')!;
   }
 
-  // Gateway configuration
-  getPort(): number {
-    return this.getNumber('PORT') || 3000;
+  get rateLimitWindowMs(): number {
+    return this.config.get<number>('RATE_LIMIT_WINDOW_MS')!;
   }
 
-  getJwtSecret(): string {
-    return this.get('JWT_SECRET') || 'default_secret_for_development';
+  get rateLimitMax(): number {
+    return this.config.get<number>('RATE_LIMIT_MAX')!;
   }
 
-  getTrustScoreThresholds(): { low: number; medium: number; high: number } {
-    return {
-      low: this.getNumber('TRUST_SCORE_LOW_THRESHOLD') || 0.3,
-      medium: this.getNumber('TRUST_SCORE_MEDIUM_THRESHOLD') || 0.7,
-      high: 1.0,
-    };
+  get mtlsCaCertPath(): string {
+    return this.config.get<string>('MTLS_CA_CERT_PATH')!;
   }
 
-  // mTLS configuration
-  getMtlsCaCertPath(): string | undefined {
-    return this.get('MTLS_CA_CERT_PATH');
+  get mtlsClientCertPath(): string {
+    return this.config.get<string>('MTLS_CLIENT_CERT_PATH')!;
   }
 
-  getMtlsCertPath(): string | undefined {
-    return this.get('MTLS_CERT_PATH');
+  get mtlsClientKeyPath(): string {
+    return this.config.get<string>('MTLS_CLIENT_KEY_PATH')!;
   }
 
-  getMtlsKeyPath(): string | undefined {
-    return this.get('MTLS_KEY_PATH');
-  }
-
-  getMtlsAllowedSubjects(): string[] {
-    const raw = this.get('MTLS_ALLOWED_SUBJECTS');
-    if (!raw) {
-      return [];
-    }
-    return raw
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-  }
-
-  // Security configuration
-  getForceMtls(): boolean {
-    return this.getBoolean('FORCE_MTLS');
-  }
-
-  getUseSecureConnections(): boolean {
-    return this.getBoolean('USE_SECURE_CONNECTIONS');
-  }
-
-  getProxyMaxRetries(): number {
-    return this.getNumber('PROXY_MAX_RETRIES') ?? 2;
-  }
-
-  getProxyRetryDelayMs(): number {
-    return this.getNumber('PROXY_RETRY_DELAY_MS') ?? 100;
-  }
-
-  getProxyCircuitBreakerThreshold(): number {
-    return this.getNumber('PROXY_CIRCUIT_BREAKER_THRESHOLD') ?? 3;
-  }
-
-  getProxyCircuitBreakerTimeoutMs(): number {
-    return this.getNumber('PROXY_CIRCUIT_BREAKER_TIMEOUT_MS') ?? 30_000;
+  /** Returns comma-separated MTLS_ALLOWED_SUBJECTS as a string array. */
+  get mtlsAllowedSubjects(): string[] {
+    return this.config.get<string>('MTLS_ALLOWED_SUBJECTS')!.split(',');
   }
 }

@@ -167,13 +167,13 @@ describe('AppConfigService', () => {
     it('does not expose auth/JWT getters', async () => {
       setRequiredEnv();
       const service = await createModuleWithEnv();
-      expect((service as Record<string, unknown>).jwtSecret).toBeUndefined();
+      expect((service as unknown as Record<string, unknown>).jwtSecret).toBeUndefined();
     });
 
     it('does not expose database getters', async () => {
       setRequiredEnv();
       const service = await createModuleWithEnv();
-      expect((service as Record<string, unknown>).databaseUrl).toBeUndefined();
+      expect((service as unknown as Record<string, unknown>).databaseUrl).toBeUndefined();
     });
   });
 });
