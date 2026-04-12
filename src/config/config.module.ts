@@ -19,6 +19,9 @@ import { AppConfigService } from './config.service';
         MTLS_CLIENT_CERT_PATH: Joi.string().required(),
         MTLS_CLIENT_KEY_PATH: Joi.string().required(),
         MTLS_ALLOWED_SUBJECTS: Joi.string().required(),
+        // Phase 2: JA4H + Honeypot (D-03)
+        BLACKLIST_TTL_MS: Joi.number().default(3600000),
+        HONEYPOT_ROUTES: Joi.string().optional().default(''),
       }),
       // List ALL missing vars at once, not one at a time (D-03)
       validationOptions: { abortEarly: false },

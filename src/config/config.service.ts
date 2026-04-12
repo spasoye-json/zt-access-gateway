@@ -45,4 +45,23 @@ export class AppConfigService {
   get mtlsAllowedSubjects(): string[] {
     return this.config.get<string>('MTLS_ALLOWED_SUBJECTS')!.split(',');
   }
+
+  /** How long a blacklisted JA4H fingerprint stays blocked (ms). Default: 1 hour. */
+  get blacklistTtlMs(): number {
+    return this.config.get<number>('BLACKLIST_TTL_MS')!;
+  }
+
+  /**
+   * Additional honeypot routes from env (JSON array string).
+   * Returns empty array if unset or unparseable. Hardcoded defaults in HoneypotModule always apply.
+   */
+  get honeypotRoutes(): string[] {
+    const raw = this.config.get<string>('HONEYPOT_ROUTES')!;
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
 }
