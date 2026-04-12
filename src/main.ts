@@ -38,7 +38,8 @@ async function bootstrap() {
     }),
   );
 
-  // Note: JA4H fingerprinting middleware is NOT added here — deferred to Phase 2 per D-06.
+  // Note: JA4H fingerprinting middleware is registered in AppModule.configure() via MiddlewareConsumer
+  // (Phase 2) — NestJS DI-aware middleware runs after the global Express middleware above.
   await app.listen(config.port);
 }
 bootstrap();
