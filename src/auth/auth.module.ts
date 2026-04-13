@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { TokenRevocationService } from './token-revocation.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
+import { AuthController } from './auth.controller';
 
 /**
  * AuthModule -- JWT authentication and RBAC authorization.
@@ -20,7 +21,7 @@ import { RolesGuard } from './roles.guard';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  controllers: [], // AuthController added in Plan 03-03
+  controllers: [AuthController],
   exports: [AuthService, TokenRevocationService],
 })
 export class AuthModule {}
