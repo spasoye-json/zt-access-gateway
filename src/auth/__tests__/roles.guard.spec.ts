@@ -34,7 +34,7 @@ describe('RolesGuard', () => {
       getArgByIndex: () => undefined,
       switchToRpc: () => ({} as ReturnType<ExecutionContext['switchToRpc']>),
       switchToWs: () => ({} as ReturnType<ExecutionContext['switchToWs']>),
-    } as ExecutionContext;
+    } as unknown as ExecutionContext;
   }
 
   beforeEach(() => {

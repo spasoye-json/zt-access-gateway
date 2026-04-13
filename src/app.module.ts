@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigAppModule } from './config/config.module';
+import { AuthModule } from './auth/auth.module';
 import { SharedModule } from './shared/shared.module';
 import { FingerprintModule } from './fingerprint/fingerprint.module';
 import { HoneypotModule } from './honeypot/honeypot.module';
@@ -19,7 +20,7 @@ import { Ja4hMiddleware } from './fingerprint/ja4h.middleware';
  * matching before any real routes (T-02-11, Pitfall 3 in 02-RESEARCH.md).
  */
 @Module({
-  imports: [ConfigAppModule, SharedModule, FingerprintModule, HoneypotModule],
+  imports: [ConfigAppModule, AuthModule, SharedModule, FingerprintModule, HoneypotModule],
   controllers: [],
   providers: [],
 })
