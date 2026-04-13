@@ -64,4 +64,31 @@ export class AppConfigService {
       return [];
     }
   }
+
+  // --- Phase 3: JWT Auth (D-11) ---
+
+  /** HS256 signing/verification secret. Required. Min 32 chars. */
+  get jwtSecret(): string {
+    return this.config.get<string>('JWT_SECRET')!;
+  }
+
+  /** PEM-encoded SPKI public key for RS256/ES256. Optional. */
+  get jwtPublicKey(): string | undefined {
+    return this.config.get<string>('JWT_PUBLIC_KEY');
+  }
+
+  /** Remote JWKS endpoint URL. Optional. Used when JWT_PUBLIC_KEY not set. */
+  get jwksUri(): string | undefined {
+    return this.config.get<string>('JWKS_URI');
+  }
+
+  /** Expected JWT issuer claim. Optional -- skips iss validation when unset. */
+  get jwtIssuer(): string | undefined {
+    return this.config.get<string>('JWT_ISSUER');
+  }
+
+  /** Expected JWT audience claim. Optional -- skips aud validation when unset. */
+  get jwtAudience(): string | undefined {
+    return this.config.get<string>('JWT_AUDIENCE');
+  }
 }
