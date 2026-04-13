@@ -22,6 +22,12 @@ import { AppConfigService } from './config.service';
         // Phase 2: JA4H + Honeypot (D-03)
         BLACKLIST_TTL_MS: Joi.number().default(3600000),
         HONEYPOT_ROUTES: Joi.string().optional().default(''),
+        // Phase 3: JWT Auth (D-11)
+        JWT_SECRET: Joi.string().min(32).required(),
+        JWT_PUBLIC_KEY: Joi.string().optional(),
+        JWKS_URI: Joi.string().uri().optional(),
+        JWT_ISSUER: Joi.string().optional(),
+        JWT_AUDIENCE: Joi.string().optional(),
       }),
       // List ALL missing vars at once, not one at a time (D-03)
       validationOptions: { abortEarly: false },

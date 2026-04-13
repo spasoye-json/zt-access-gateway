@@ -3,12 +3,13 @@ import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { AppConfigService } from '../config.service';
 
-// Helper: set all required mTLS env vars
+// Helper: set all required env vars (mTLS + JWT)
 function setRequiredEnv() {
   process.env.MTLS_CA_CERT_PATH = '/tmp/ca.pem';
   process.env.MTLS_CLIENT_CERT_PATH = '/tmp/client.pem';
   process.env.MTLS_CLIENT_KEY_PATH = '/tmp/client-key.pem';
   process.env.MTLS_ALLOWED_SUBJECTS = 'test-cn';
+  process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long!';
 }
 
 const joiSchema = Joi.object({
@@ -21,6 +22,12 @@ const joiSchema = Joi.object({
   MTLS_CLIENT_CERT_PATH: Joi.string().required(),
   MTLS_CLIENT_KEY_PATH: Joi.string().required(),
   MTLS_ALLOWED_SUBJECTS: Joi.string().required(),
+  // Phase 3: JWT Auth (D-11)
+  JWT_SECRET: Joi.string().min(32).required(),
+  JWT_PUBLIC_KEY: Joi.string().optional(),
+  JWKS_URI: Joi.string().uri().optional(),
+  JWT_ISSUER: Joi.string().optional(),
+  JWT_AUDIENCE: Joi.string().optional(),
 });
 
 async function createModuleWithEnv() {
@@ -164,16 +171,70 @@ describe('AppConfigService', () => {
   });
 
   describe('Phase 1 only config groups (CONF-03)', () => {
-    it('does not expose auth/JWT getters', async () => {
-      setRequiredEnv();
-      const service = await createModuleWithEnv();
-      expect((service as unknown as Record<string, unknown>).jwtSecret).toBeUndefined();
-    });
-
     it('does not expose database getters', async () => {
       setRequiredEnv();
       const service = await createModuleWithEnv();
       expect((service as unknown as Record<string, unknown>).databaseUrl).toBeUndefined();
+    });
+  });
+
+  describe('JWT config group (CONF-03 Phase 3, D-11)', () => {
+    it('throws when JWT_SECRET is missing', async () => {
+      setRequiredEnv();
+      delete process.env.JWT_SECRET;
+
+      await expect(createModuleWithEnv()).rejects.toThrow();
+    });
+
+    it('throws when JWT_SECRET is shorter than 32 chars', async () => {
+      setRequiredEnv();
+      process.env.JWT_SECRET = 'too-short';
+
+      await expect(createModuleWithEnv()).rejects.toThrow();
+    });
+
+    it('jwtSecret getter returns JWT_SECRET value', async () => {
+      setRequiredEnv();
+      const service = await createModuleWithEnv();
+      expect(service.jwtSecret).toBe('test-secret-that-is-at-least-32-chars-long!');
+    });
+
+    it('jwtPublicKey returns undefined when JWT_PUBLIC_KEY not set', async () => {
+      setRequiredEnv();
+      const service = await createModuleWithEnv();
+      expect(service.jwtPublicKey).toBeUndefined();
+    });
+
+    it('jwtPublicKey returns value when JWT_PUBLIC_KEY is set', async () => {
+      setRequiredEnv();
+      process.env.JWT_PUBLIC_KEY = '-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----';
+      const service = await createModuleWithEnv();
+      expect(service.jwtPublicKey).toBe('-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----');
+    });
+
+    it('jwksUri returns undefined when JWKS_URI not set', async () => {
+      setRequiredEnv();
+      const service = await createModuleWithEnv();
+      expect(service.jwksUri).toBeUndefined();
+    });
+
+    it('jwksUri returns value when JWKS_URI is set', async () => {
+      setRequiredEnv();
+      process.env.JWKS_URI = 'https://idp.example.com/.well-known/jwks.json';
+      const service = await createModuleWithEnv();
+      expect(service.jwksUri).toBe('https://idp.example.com/.well-known/jwks.json');
+    });
+
+    it('jwtIssuer returns undefined when JWT_ISSUER not set', async () => {
+      setRequiredEnv();
+      const service = await createModuleWithEnv();
+      expect(service.jwtIssuer).toBeUndefined();
+    });
+
+    it('jwtAudience returns undefined when JWT_AUDIENCE not set', async () => {
+      setRequiredEnv();
+      const service = await createModuleWithEnv();
+      expect(service.jwtAudience).toBeUndefined();
     });
   });
 });
