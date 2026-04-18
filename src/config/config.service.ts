@@ -91,4 +91,30 @@ export class AppConfigService {
   get jwtAudience(): string | undefined {
     return this.config.get<string>('JWT_AUDIENCE');
   }
+
+  // --- Phase 4: Trust score + telemetry (D-21) ---
+
+  get databaseUrl(): string {
+    return this.config.get<string>('DATABASE_URL')!;
+  }
+
+  get trustKnownThreshold(): number {
+    return this.config.get<number>('TRUST_KNOWN_THRESHOLD')!;
+  }
+
+  get trustDecayHalfLifeMs(): number {
+    return this.config.get<number>('TRUST_DECAY_HALFLIFE_MS')!;
+  }
+
+  get trustAnomalyWarmupN(): number {
+    return this.config.get<number>('TRUST_ANOMALY_WARMUP_N')!;
+  }
+
+  get trustFrequencyWindowMs(): number {
+    return this.config.get<number>('TRUST_FREQUENCY_WINDOW_MS')!;
+  }
+
+  get trustFrequencyNormalMax(): number {
+    return this.config.get<number>('TRUST_FREQUENCY_NORMAL_MAX')!;
+  }
 }

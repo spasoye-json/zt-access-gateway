@@ -28,6 +28,19 @@ import { AppConfigService } from './config.service';
         JWKS_URI: Joi.string().uri().optional(),
         JWT_ISSUER: Joi.string().optional(),
         JWT_AUDIENCE: Joi.string().optional(),
+        // Phase 4: Trust + Postgres (D-21)
+        DATABASE_URL: Joi.string()
+          .pattern(/^postgres(ql)?:\/\//i)
+          .required()
+          .messages({
+            'string.pattern.base':
+              'DATABASE_URL must start with postgres:// or postgresql://',
+          }),
+        TRUST_KNOWN_THRESHOLD: Joi.number().default(3),
+        TRUST_DECAY_HALFLIFE_MS: Joi.number().default(604800000),
+        TRUST_ANOMALY_WARMUP_N: Joi.number().default(20),
+        TRUST_FREQUENCY_WINDOW_MS: Joi.number().default(60000),
+        TRUST_FREQUENCY_NORMAL_MAX: Joi.number().default(30),
       }),
       // List ALL missing vars at once, not one at a time (D-03)
       validationOptions: { abortEarly: false },

@@ -10,6 +10,8 @@ function setRequiredEnv() {
   process.env.MTLS_CLIENT_KEY_PATH = '/tmp/client-key.pem';
   process.env.MTLS_ALLOWED_SUBJECTS = 'test-cn';
   process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long!';
+  process.env.DATABASE_URL =
+    'postgresql://ztgateway:ztgateway@localhost:5432/ztgateway';
 }
 
 const joiSchema = Joi.object({
@@ -28,6 +30,14 @@ const joiSchema = Joi.object({
   JWKS_URI: Joi.string().uri().optional(),
   JWT_ISSUER: Joi.string().optional(),
   JWT_AUDIENCE: Joi.string().optional(),
+  DATABASE_URL: Joi.string()
+    .pattern(/^postgres(ql)?:\/\//i)
+    .required(),
+  TRUST_KNOWN_THRESHOLD: Joi.number().default(3),
+  TRUST_DECAY_HALFLIFE_MS: Joi.number().default(604800000),
+  TRUST_ANOMALY_WARMUP_N: Joi.number().default(20),
+  TRUST_FREQUENCY_WINDOW_MS: Joi.number().default(60000),
+  TRUST_FREQUENCY_NORMAL_MAX: Joi.number().default(30),
 });
 
 async function createModuleWithEnv() {
@@ -170,11 +180,36 @@ describe('AppConfigService', () => {
     });
   });
 
-  describe('Phase 1 only config groups (CONF-03)', () => {
-    it('does not expose database getters', async () => {
+  describe('Phase 4 trust + database config (D-21)', () => {
+    it('databaseUrl returns DATABASE_URL', async () => {
       setRequiredEnv();
       const service = await createModuleWithEnv();
-      expect((service as unknown as Record<string, unknown>).databaseUrl).toBeUndefined();
+      expect(service.databaseUrl).toBe(
+        'postgresql://ztgateway:ztgateway@localhost:5432/ztgateway',
+      );
+    });
+
+    it('trust getters return defaults when unset', async () => {
+      setRequiredEnv();
+      delete process.env.TRUST_KNOWN_THRESHOLD;
+      delete process.env.TRUST_DECAY_HALFLIFE_MS;
+      delete process.env.TRUST_ANOMALY_WARMUP_N;
+      delete process.env.TRUST_FREQUENCY_WINDOW_MS;
+      delete process.env.TRUST_FREQUENCY_NORMAL_MAX;
+
+      const service = await createModuleWithEnv();
+      expect(service.trustKnownThreshold).toBe(3);
+      expect(service.trustDecayHalfLifeMs).toBe(604800000);
+      expect(service.trustAnomalyWarmupN).toBe(20);
+      expect(service.trustFrequencyWindowMs).toBe(60000);
+      expect(service.trustFrequencyNormalMax).toBe(30);
+    });
+
+    it('throws when DATABASE_URL is missing', async () => {
+      setRequiredEnv();
+      delete process.env.DATABASE_URL;
+
+      await expect(createModuleWithEnv()).rejects.toThrow();
     });
   });
 
