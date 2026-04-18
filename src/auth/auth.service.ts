@@ -86,8 +86,12 @@ export class AuthService {
     );
   }
 
-  /** Extract UserClaims from validated JWT payload (D-10, JA4H-04). */
+  /** Extract UserClaims from validated JWT payload (D-10, JA4H-04, D-11). */
   private extractClaims(payload: JWTPayload): UserClaims {
+    const deviceId = payload.deviceId;
+    if (typeof deviceId !== 'string' || deviceId.trim() === '') {
+      throw new UnauthorizedException('Token missing deviceId claim');
+    }
     return {
       userId: payload.sub!,
       roles: (payload.roles as string[]) ?? [],
@@ -95,7 +99,7 @@ export class AuthService {
       exp: payload.exp!,
       email: payload.email as string | undefined,
       sessionId: payload.sessionId as string | undefined,
-      deviceId: payload.deviceId as string | undefined,
+      deviceId,
     };
   }
 

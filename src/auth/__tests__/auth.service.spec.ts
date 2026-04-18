@@ -253,7 +253,7 @@ describe('AuthService', () => {
       expect(claims.jti).toBe('unique-jti-value');
     });
 
-    it('extracts optional email, sessionId, deviceId', async () => {
+    it('extracts optional email and sessionId and required deviceId', async () => {
       const token = await createHs256Token(
         {
           sub: 'u1',
@@ -268,6 +268,17 @@ describe('AuthService', () => {
       expect(claims.email).toBe('test@example.com');
       expect(claims.sessionId).toBe('sess-123');
       expect(claims.deviceId).toBe('dev-456');
+    });
+
+    it('throws UnauthorizedException when deviceId claim is missing', async () => {
+      const token = await createHs256Token(
+        { sub: 'u1', roles: ['user'] },
+        { jti: 'jti-no-device', omitDeviceId: true },
+      );
+
+      await expect(authService.validateToken(token)).rejects.toThrow(
+        'Token missing deviceId claim',
+      );
     });
 
     it('throws UnauthorizedException when jti claim is missing', async () => {

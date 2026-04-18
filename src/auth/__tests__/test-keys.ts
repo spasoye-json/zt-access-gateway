@@ -21,12 +21,21 @@ export const TEST_HS256_SECRET =
  */
 export async function createHs256Token(
   payload: Record<string, unknown>,
-  opts?: { expiresIn?: string; jti?: string; secret?: string },
+  opts?: {
+    expiresIn?: string;
+    jti?: string;
+    secret?: string;
+    /** When true, do not add default deviceId (for negative tests). */
+    omitDeviceId?: boolean;
+  },
 ): Promise<string> {
   const key = new TextEncoder().encode(
     opts?.secret ?? TEST_HS256_SECRET,
   );
-  let builder = new SignJWT(payload)
+  const body: Record<string, unknown> = opts?.omitDeviceId
+    ? { ...payload }
+    : { deviceId: 'test-device-1', ...payload };
+  let builder = new SignJWT(body)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(opts?.expiresIn ?? '1h');
@@ -84,9 +93,16 @@ export async function createAsymmetricToken(
   alg: 'RS256' | 'ES256',
   privateKey: KeyLike,
   payload: Record<string, unknown>,
-  opts?: { expiresIn?: string; jti?: string },
+  opts?: {
+    expiresIn?: string;
+    jti?: string;
+    omitDeviceId?: boolean;
+  },
 ): Promise<string> {
-  let builder = new SignJWT(payload)
+  const body: Record<string, unknown> = opts?.omitDeviceId
+    ? { ...payload }
+    : { deviceId: 'test-device-1', ...payload };
+  let builder = new SignJWT(body)
     .setProtectedHeader({ alg })
     .setIssuedAt()
     .setExpirationTime(opts?.expiresIn ?? '1h');
@@ -110,8 +126,13 @@ export async function createExpiredHs256Token(
   secret?: string,
 ): Promise<string> {
   const key = new TextEncoder().encode(secret ?? TEST_HS256_SECRET);
-  return new SignJWT({ sub: 'expired-user', roles: ['user'] })
+  return new SignJWT({
+    sub: 'expired-user',
+    roles: ['user'],
+    deviceId: 'test-device-1',
+  })
     .setProtectedHeader({ alg: 'HS256' })
+    .setJti('jti-expired-hs256')
     .setIssuedAt()
     .setExpirationTime('-1h')
     .sign(key);

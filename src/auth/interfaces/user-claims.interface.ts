@@ -1,7 +1,7 @@
 /**
  * Standardized JWT token payload extracted after validation.
  * Threaded through all downstream pipeline layers (trust, policy, audit, proxy).
- * D-10: userId, roles, jti, exp required; email, sessionId, deviceId optional.
+ * D-10: userId, roles, jti, exp, deviceId required; email, sessionId optional.
  */
 export interface UserClaims {
   /** From JWT 'sub' claim */
@@ -16,6 +16,6 @@ export interface UserClaims {
   email?: string;
   /** Optional -- JA4H drift detection, MFA session binding */
   sessionId?: string;
-  /** Optional -- trust scoring, MFA device binding */
-  deviceId?: string;
+  /** Required -- trust scoring, MFA device binding (Phase 4 D-11) */
+  deviceId: string;
 }
