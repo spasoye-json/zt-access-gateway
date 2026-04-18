@@ -89,6 +89,7 @@
     ],
     "coverageDirectory": "./artifacts/coverage",
     "testEnvironment": "node",
+    "globalSetup": "<rootDir>/tests/jest-global-setup.cjs",
     "roots": [
       "<rootDir>/src"
     ]
