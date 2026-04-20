@@ -6,3 +6,4 @@ certs/
 
 .env
 artifacts/
+.planning/
