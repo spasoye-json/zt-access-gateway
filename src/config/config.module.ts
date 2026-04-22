@@ -21,7 +21,7 @@ import { AppConfigService } from './config.service';
         MTLS_ALLOWED_SUBJECTS: Joi.string().required(),
         // Phase 2: JA4H + Honeypot (D-03)
         BLACKLIST_TTL_MS: Joi.number().default(3600000),
-        HONEYPOT_ROUTES: Joi.string().optional().default(''),
+        HONEYPOT_ROUTES: Joi.string().allow('').optional().default(''),
         // Phase 3: JWT Auth (D-11)
         JWT_SECRET: Joi.string().min(32).required(),
         JWT_PUBLIC_KEY: Joi.string().optional(),
