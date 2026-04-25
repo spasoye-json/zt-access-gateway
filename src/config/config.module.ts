@@ -41,6 +41,13 @@ import { AppConfigService } from './config.service';
         TRUST_ANOMALY_WARMUP_N: Joi.number().default(20),
         TRUST_FREQUENCY_WINDOW_MS: Joi.number().default(60000),
         TRUST_FREQUENCY_NORMAL_MAX: Joi.number().default(30),
+        // Phase 5: Hashcash PoW (D-17)
+        HASHCASH_HMAC_SECRET: Joi.string().min(32).required(),
+        HASHCASH_CHALLENGE_TTL_MS: Joi.number().default(120000),
+        HASHCASH_USED_NONCE_CAPACITY: Joi.number().default(10000),
+        HASHCASH_TRIGGER_THRESHOLD: Joi.number().default(0.7),
+        HASHCASH_DIFFICULTY_MIN: Joi.number().default(18),
+        HASHCASH_DIFFICULTY_MAX: Joi.number().default(22),
       }),
       // List ALL missing vars at once, not one at a time (D-03)
       validationOptions: { abortEarly: false },

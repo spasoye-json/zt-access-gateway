@@ -117,4 +117,42 @@ export class AppConfigService {
   get trustFrequencyNormalMax(): number {
     return this.config.get<number>('TRUST_FREQUENCY_NORMAL_MAX')!;
   }
+
+  // --- Phase 5: Hashcash PoW (D-17) ---
+
+  /** HMAC secret for signing PoW challenge nonces. Required, min 32 chars. Separate from JWT_SECRET (D-05). */
+  get hashcashHmacSecret(): string {
+    return this.config.get<string>('HASHCASH_HMAC_SECRET')!;
+  }
+
+  /** Challenge TTL in ms (D-03). Default 120000 (120s). */
+  get hashcashChallengeTtlMs(): number {
+    return this.config.get<number>('HASHCASH_CHALLENGE_TTL_MS')!;
+  }
+
+  /** Bounded LRU capacity for the used-nonce store (D-04). Default 10000. */
+  get hashcashUsedNonceCapacity(): number {
+    return this.config.get<number>('HASHCASH_USED_NONCE_CAPACITY')!;
+  }
+
+  /** Trust score above which PoW activates (D-08, strict >). Default 0.7. */
+  get hashcashTriggerThreshold(): number {
+    return this.config.get<number>('HASHCASH_TRIGGER_THRESHOLD')!;
+  }
+
+  /**
+   * Minimum difficulty in bits (D-10, D-17). Default 18. Override to 4 in test envs for fast solving.
+   * Wired into HashcashService constructor → difficultyForScore(score, min, max) on BOTH issue and verify.
+   */
+  get hashcashDifficultyMin(): number {
+    return this.config.get<number>('HASHCASH_DIFFICULTY_MIN')!;
+  }
+
+  /**
+   * Maximum difficulty in bits (D-10, D-17). Default 22. Override to 4 in test envs.
+   * Wired into HashcashService constructor → difficultyForScore(score, min, max) on BOTH issue and verify.
+   */
+  get hashcashDifficultyMax(): number {
+    return this.config.get<number>('HASHCASH_DIFFICULTY_MAX')!;
+  }
 }
