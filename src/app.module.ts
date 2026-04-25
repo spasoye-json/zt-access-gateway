@@ -6,6 +6,7 @@ import { FingerprintModule } from './fingerprint/fingerprint.module';
 import { HoneypotModule } from './honeypot/honeypot.module';
 import { Ja4hMiddleware } from './fingerprint/ja4h.middleware';
 import { TrustScoreModule } from './trust-score/trust-score.module';
+import { HashcashModule } from './hashcash/hashcash.module';
 
 /**
  * AppModule — root module wiring the full Phase 2 pipeline.
@@ -16,6 +17,7 @@ import { TrustScoreModule } from './trust-score/trust-score.module';
  *   3. Rate limiting (main.ts)
  *   4. JA4H fingerprinting (MiddlewareConsumer — NestJS DI-aware middleware)
  *   5. Auth guard (Phase 3 — guard-per-route, not middleware)
+ *   5b. Hashcash PoW guard (Phase 5 — APP_GUARD in HashcashModule, runs after JwtAuthGuard)
  *
  * HoneypotModule imported last to prevent shadow controller routes from
  * matching before any real routes (T-02-11, Pitfall 3 in 02-RESEARCH.md).
@@ -27,6 +29,7 @@ import { TrustScoreModule } from './trust-score/trust-score.module';
     SharedModule,
     FingerprintModule,
     TrustScoreModule,
+    HashcashModule,
     HoneypotModule,
   ],
   controllers: [],
