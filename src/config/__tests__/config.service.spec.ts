@@ -12,6 +12,8 @@ function setRequiredEnv() {
   process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long!';
   process.env.DATABASE_URL =
     'postgresql://ztgateway:ztgateway@localhost:5432/ztgateway';
+  process.env.HASHCASH_HMAC_SECRET =
+    'hashcash-secret-that-is-at-least-32-chars-long!';
 }
 
 const joiSchema = Joi.object({
@@ -38,6 +40,13 @@ const joiSchema = Joi.object({
   TRUST_ANOMALY_WARMUP_N: Joi.number().default(20),
   TRUST_FREQUENCY_WINDOW_MS: Joi.number().default(60000),
   TRUST_FREQUENCY_NORMAL_MAX: Joi.number().default(30),
+  // Phase 5: Hashcash PoW (D-17)
+  HASHCASH_HMAC_SECRET: Joi.string().min(32).required(),
+  HASHCASH_CHALLENGE_TTL_MS: Joi.number().default(120000),
+  HASHCASH_USED_NONCE_CAPACITY: Joi.number().default(10000),
+  HASHCASH_TRIGGER_THRESHOLD: Joi.number().default(0.7),
+  HASHCASH_DIFFICULTY_MIN: Joi.number().default(18),
+  HASHCASH_DIFFICULTY_MAX: Joi.number().default(22),
 });
 
 async function createModuleWithEnv() {
@@ -270,6 +279,83 @@ describe('AppConfigService', () => {
       setRequiredEnv();
       const service = await createModuleWithEnv();
       expect(service.jwtAudience).toBeUndefined();
+    });
+  });
+
+  describe('HASHCASH config (Phase 5)', () => {
+    it('Joi rejects startup when HASHCASH_HMAC_SECRET is missing', async () => {
+      setRequiredEnv();
+      delete process.env.HASHCASH_HMAC_SECRET;
+
+      await expect(createModuleWithEnv()).rejects.toThrow();
+    });
+
+    it('Joi rejects HASHCASH_HMAC_SECRET shorter than 32 chars', async () => {
+      setRequiredEnv();
+      process.env.HASHCASH_HMAC_SECRET = 'too-short';
+
+      await expect(createModuleWithEnv()).rejects.toThrow();
+    });
+
+    it('hashcashHmacSecret getter returns HASHCASH_HMAC_SECRET value', async () => {
+      setRequiredEnv();
+      const service = await createModuleWithEnv();
+      expect(service.hashcashHmacSecret).toBe(
+        'hashcash-secret-that-is-at-least-32-chars-long!',
+      );
+    });
+
+    it('hashcashChallengeTtlMs defaults to 120000 when env unset', async () => {
+      setRequiredEnv();
+      delete process.env.HASHCASH_CHALLENGE_TTL_MS;
+      const service = await createModuleWithEnv();
+      expect(service.hashcashChallengeTtlMs).toBe(120000);
+    });
+
+    it('hashcashUsedNonceCapacity defaults to 10000', async () => {
+      setRequiredEnv();
+      delete process.env.HASHCASH_USED_NONCE_CAPACITY;
+      const service = await createModuleWithEnv();
+      expect(service.hashcashUsedNonceCapacity).toBe(10000);
+    });
+
+    it('hashcashTriggerThreshold defaults to 0.7', async () => {
+      setRequiredEnv();
+      delete process.env.HASHCASH_TRIGGER_THRESHOLD;
+      const service = await createModuleWithEnv();
+      expect(service.hashcashTriggerThreshold).toBe(0.7);
+    });
+
+    it('hashcashDifficultyMin defaults to 18', async () => {
+      setRequiredEnv();
+      delete process.env.HASHCASH_DIFFICULTY_MIN;
+      const service = await createModuleWithEnv();
+      expect(service.hashcashDifficultyMin).toBe(18);
+    });
+
+    it('hashcashDifficultyMax defaults to 22', async () => {
+      setRequiredEnv();
+      delete process.env.HASHCASH_DIFFICULTY_MAX;
+      const service = await createModuleWithEnv();
+      expect(service.hashcashDifficultyMax).toBe(22);
+    });
+
+    it('explicit HASHCASH_DIFFICULTY_MIN=4 and MAX=4 override defaults (e2e knob)', async () => {
+      setRequiredEnv();
+      process.env.HASHCASH_DIFFICULTY_MIN = '4';
+      process.env.HASHCASH_DIFFICULTY_MAX = '4';
+      const service = await createModuleWithEnv();
+      expect(service.hashcashDifficultyMin).toBe(4);
+      expect(service.hashcashDifficultyMax).toBe(4);
+    });
+
+    it('hashcashHmacSecret is distinct from jwtSecret (D-05 separation)', async () => {
+      setRequiredEnv();
+      process.env.JWT_SECRET = 'jwt-secret-that-is-at-least-32-chars-long-AAAA';
+      process.env.HASHCASH_HMAC_SECRET =
+        'hashcash-secret-that-is-at-least-32-chars-long-BBBB';
+      const service = await createModuleWithEnv();
+      expect(service.hashcashHmacSecret).not.toBe(service.jwtSecret);
     });
   });
 });
