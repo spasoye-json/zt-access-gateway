@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { AppConfigService } from '../config.service';
+import { ConfigAppModule } from '../config.module';
 
 // Helper: set all required env vars (mTLS + JWT)
 function setRequiredEnv() {
@@ -356,6 +357,147 @@ describe('AppConfigService', () => {
         'hashcash-secret-that-is-at-least-32-chars-long-BBBB';
       const service = await createModuleWithEnv();
       expect(service.hashcashHmacSecret).not.toBe(service.jwtSecret);
+    });
+  });
+
+  describe('Phase 6: POLICY_*/THREAT_* schema + cross-field validator (D-23)', () => {
+    // Bootstrap the REAL ConfigAppModule so we exercise the production schema
+    // (including .custom() cross-field validator) end-to-end.
+    async function createRealModule() {
+      const module = await Test.createTestingModule({
+        imports: [ConfigAppModule],
+      }).compile();
+      return module.get(AppConfigService);
+    }
+
+    it('accepts bootstrap with all defaults (no Phase 6 env vars set)', async () => {
+      setRequiredEnv();
+      // Defaults must be schema-valid (Elevated/Critical strictly tighter than Normal)
+      await expect(createRealModule()).resolves.toBeDefined();
+    });
+
+    it('Test 2 — rejects bootstrap when Elevated challenge >= Normal challenge', async () => {
+      setRequiredEnv();
+      process.env.POLICY_ELEVATED_CHALLENGE_THRESHOLD = '0.5'; // not strictly < 0.5
+
+      let errMsg = '';
+      try {
+        await createRealModule();
+      } catch (err) {
+        errMsg = err instanceof Error ? err.message : String(err);
+      }
+      expect(errMsg).toContain(
+        'POLICY_ELEVATED_CHALLENGE_THRESHOLD must be < POLICY_CHALLENGE_THRESHOLD',
+      );
+    });
+
+    it('Test 3 — rejects when Critical challenge >= Elevated challenge', async () => {
+      setRequiredEnv();
+      process.env.POLICY_ELEVATED_CHALLENGE_THRESHOLD = '0.3';
+      process.env.POLICY_CRITICAL_CHALLENGE_THRESHOLD = '0.4'; // not < 0.3
+
+      let errMsg = '';
+      try {
+        await createRealModule();
+      } catch (err) {
+        errMsg = err instanceof Error ? err.message : String(err);
+      }
+      expect(errMsg).toContain(
+        'POLICY_CRITICAL_CHALLENGE_THRESHOLD must be < POLICY_ELEVATED_CHALLENGE_THRESHOLD',
+      );
+    });
+
+    it('Test 4 — rejects when Elevated denies >= Critical denies (count direction)', async () => {
+      setRequiredEnv();
+      process.env.THREAT_ELEVATED_DENIES = '50';
+      process.env.THREAT_CRITICAL_DENIES = '20';
+
+      let errMsg = '';
+      try {
+        await createRealModule();
+      } catch (err) {
+        errMsg = err instanceof Error ? err.message : String(err);
+      }
+      expect(errMsg).toContain(
+        'THREAT_ELEVATED_DENIES must be < THREAT_CRITICAL_DENIES',
+      );
+    });
+
+    it('Test 5 — rejects POLICY_CHALLENGE_THRESHOLD outside [0,1]', async () => {
+      setRequiredEnv();
+      process.env.POLICY_CHALLENGE_THRESHOLD = '1.5';
+
+      await expect(createRealModule()).rejects.toThrow();
+    });
+
+    it('Test 6 — rejects THREAT_WINDOW_MS below 1000', async () => {
+      setRequiredEnv();
+      process.env.THREAT_WINDOW_MS = '500';
+
+      await expect(createRealModule()).rejects.toThrow();
+    });
+
+    it('rejects when Elevated deny threshold not < Normal deny threshold', async () => {
+      setRequiredEnv();
+      process.env.POLICY_ELEVATED_DENY_THRESHOLD = '0.8'; // not < 0.8
+
+      let errMsg = '';
+      try {
+        await createRealModule();
+      } catch (err) {
+        errMsg = err instanceof Error ? err.message : String(err);
+      }
+      expect(errMsg).toContain(
+        'POLICY_ELEVATED_DENY_THRESHOLD must be < POLICY_DENY_THRESHOLD',
+      );
+    });
+
+    it('rejects when Critical deny threshold not < Elevated deny threshold', async () => {
+      setRequiredEnv();
+      process.env.POLICY_ELEVATED_DENY_THRESHOLD = '0.6';
+      process.env.POLICY_CRITICAL_DENY_THRESHOLD = '0.7'; // not < 0.6
+
+      let errMsg = '';
+      try {
+        await createRealModule();
+      } catch (err) {
+        errMsg = err instanceof Error ? err.message : String(err);
+      }
+      expect(errMsg).toContain(
+        'POLICY_CRITICAL_DENY_THRESHOLD must be < POLICY_ELEVATED_DENY_THRESHOLD',
+      );
+    });
+
+    it('rejects when Elevated invalid_tokens >= Critical invalid_tokens', async () => {
+      setRequiredEnv();
+      process.env.THREAT_ELEVATED_INVALID_TOKENS = '80';
+      process.env.THREAT_CRITICAL_INVALID_TOKENS = '30';
+
+      let errMsg = '';
+      try {
+        await createRealModule();
+      } catch (err) {
+        errMsg = err instanceof Error ? err.message : String(err);
+      }
+      expect(errMsg).toContain(
+        'THREAT_ELEVATED_INVALID_TOKENS must be < THREAT_CRITICAL_INVALID_TOKENS',
+      );
+    });
+
+    it('rejects when Elevated honeypot >= Critical honeypot', async () => {
+      setRequiredEnv();
+      process.env.THREAT_ELEVATED_HONEYPOT = '15';
+      process.env.THREAT_CRITICAL_HONEYPOT = '5';
+
+      let errMsg = '';
+      try {
+        await createRealModule();
+      } catch (err) {
+        errMsg = err instanceof Error ? err.message : String(err);
+      }
+      expect(errMsg).toContain(
+        'THREAT_ELEVATED_HONEYPOT must be < THREAT_CRITICAL_HONEYPOT',
+      );
     });
   });
 });
