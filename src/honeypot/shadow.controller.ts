@@ -1,4 +1,5 @@
 import { Controller, Get, Req, Res } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Request, Response } from 'express';
 import { FingerprintStore } from '../fingerprint/fingerprint.store';
 import { SecurityMetricsService } from './security-metrics.service';
@@ -6,6 +7,11 @@ import { AppConfigService } from '../config/config.service';
 import { Honeypot } from './honeypot.decorator';
 import { getFakeResponse } from './honeypot-responses';
 import { sleep, randomDelay } from '../shared/sleep.util';
+import { extractJa4h } from '../shared/request-context.util';
+import {
+  HONEYPOT_TRIGGER,
+  type ThreatSignalPayload,
+} from '../policy/policy-events';
 
 /**
  * ShadowController — deception layer of the zero-trust pipeline.
@@ -30,6 +36,7 @@ export class ShadowController {
     private readonly store: FingerprintStore,
     private readonly metrics: SecurityMetricsService,
     private readonly config: AppConfigService,
+    private readonly events: EventEmitter2,
   ) {}
 
   /**
@@ -48,6 +55,18 @@ export class ShadowController {
 
     // Increment Prometheus counter (HPOT-07)
     this.metrics.incrementHoneypotTriggers();
+
+    // Phase 6 D-14: emit honeypot.trigger to threat-signal bus.
+    // Emit lives in the controller (not SecurityMetricsService) because the
+    // controller has request context; service stays request-agnostic.
+    const payload: ThreatSignalPayload = {
+      type: HONEYPOT_TRIGGER,
+      ip: req.ip ?? 'unknown',
+      ja4h: extractJa4h(req),
+      ts: Date.now(),
+      resource: path,
+    };
+    this.events.emit(HONEYPOT_TRIGGER, payload);
 
     // Structured audit log — IP and user-agent are client-controlled but logged for forensics
     // The JA4H fingerprint (not IP) is the enforcement key (T-02-10)
