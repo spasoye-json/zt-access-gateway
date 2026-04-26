@@ -1,12 +1,13 @@
-import { HttpException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, HttpException, NotFoundException } from '@nestjs/common';
 import { HttpExceptionFilter } from '../http-exception.filter';
 import { ArgumentsHost } from '@nestjs/common';
 
-function makeHost(statusFn: jest.Mock, jsonFn: jest.Mock): ArgumentsHost {
+function makeHost(statusFn: jest.Mock, jsonFn: jest.Mock, headersSent = false): ArgumentsHost {
   return {
     switchToHttp: () => ({
       getResponse: () => ({
         status: statusFn,
+        headersSent,
       }),
       getRequest: () => ({}),
     }),
@@ -69,5 +70,15 @@ describe('HttpExceptionFilter', () => {
     filter.catch(new Error('crash'), host);
     const callArg = jsonMock.mock.calls[0][0];
     expect(callArg).not.toHaveProperty('stack');
+  });
+
+  it('no-ops when response.headersSent is true (prevents ERR_HTTP_HEADERS_SENT)', () => {
+    // Regression: a guard that wrote the response and returned `false` caused
+    // Nest to throw an implicit ForbiddenException, which re-entered this filter
+    // and crashed when status() tried to set headers on an already-ended socket.
+    const host = makeHost(statusMock, jsonMock, /* headersSent */ true);
+    expect(() => filter.catch(new ForbiddenException('Forbidden resource'), host)).not.toThrow();
+    expect(statusMock).not.toHaveBeenCalled();
+    expect(jsonMock).not.toHaveBeenCalled();
   });
 });
