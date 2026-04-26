@@ -155,4 +155,91 @@ export class AppConfigService {
   get hashcashDifficultyMax(): number {
     return this.config.get<number>('HASHCASH_DIFFICULTY_MAX')!;
   }
+
+  // ── Phase 6: Policy + Threat Escalation (D-23) ──
+
+  /** Path to Casbin model.conf (FileAdapter). Default 'policy/model.conf'. */
+  get policyModelPath(): string {
+    return this.config.get<string>('POLICY_MODEL_PATH')!;
+  }
+
+  /** Path to Casbin policy.csv (FileAdapter). Default 'policy/policy.csv'. */
+  get policyCsvPath(): string {
+    return this.config.get<string>('POLICY_CSV_PATH')!;
+  }
+
+  /** Trust score above which policy returns CHALLENGE at NORMAL threat level (D-19). */
+  get policyChallengeThreshold(): number {
+    return this.config.get<number>('POLICY_CHALLENGE_THRESHOLD')!;
+  }
+
+  /** Trust score above which policy returns DENY at NORMAL threat level (D-19). */
+  get policyDenyThreshold(): number {
+    return this.config.get<number>('POLICY_DENY_THRESHOLD')!;
+  }
+
+  /** Trust score above which policy returns CHALLENGE at ELEVATED threat level (D-19). Tighter than normal. */
+  get policyElevatedChallengeThreshold(): number {
+    return this.config.get<number>('POLICY_ELEVATED_CHALLENGE_THRESHOLD')!;
+  }
+
+  /** Trust score above which policy returns DENY at ELEVATED threat level (D-19). Tighter than normal. */
+  get policyElevatedDenyThreshold(): number {
+    return this.config.get<number>('POLICY_ELEVATED_DENY_THRESHOLD')!;
+  }
+
+  /** Trust score above which policy returns CHALLENGE at CRITICAL threat level (D-19). Tighter than elevated. */
+  get policyCriticalChallengeThreshold(): number {
+    return this.config.get<number>('POLICY_CRITICAL_CHALLENGE_THRESHOLD')!;
+  }
+
+  /** Trust score above which policy returns DENY at CRITICAL threat level (D-19). Tighter than elevated. */
+  get policyCriticalDenyThreshold(): number {
+    return this.config.get<number>('POLICY_CRITICAL_DENY_THRESHOLD')!;
+  }
+
+  /** Sliding window length (ms) over which threat signals accumulate. Default 300000 (5min). */
+  get threatWindowMs(): number {
+    return this.config.get<number>('THREAT_WINDOW_MS')!;
+  }
+
+  /** Bounded array capacity per signal type (D-18). Default 10000. */
+  get threatWindowMaxEvents(): number {
+    return this.config.get<number>('THREAT_WINDOW_MAX_EVENTS')!;
+  }
+
+  /** Deny count in window that triggers ELEVATED threat level (D-20). Default 20. */
+  get threatElevatedDenies(): number {
+    return this.config.get<number>('THREAT_ELEVATED_DENIES')!;
+  }
+
+  /** Deny count in window that triggers CRITICAL threat level (D-20). Default 50. */
+  get threatCriticalDenies(): number {
+    return this.config.get<number>('THREAT_CRITICAL_DENIES')!;
+  }
+
+  /** Invalid-token count in window that triggers ELEVATED threat level (D-20). Default 30. */
+  get threatElevatedInvalidTokens(): number {
+    return this.config.get<number>('THREAT_ELEVATED_INVALID_TOKENS')!;
+  }
+
+  /** Invalid-token count in window that triggers CRITICAL threat level (D-20). Default 80. */
+  get threatCriticalInvalidTokens(): number {
+    return this.config.get<number>('THREAT_CRITICAL_INVALID_TOKENS')!;
+  }
+
+  /** Honeypot-hit count in window that triggers ELEVATED threat level (D-20). Default 5. */
+  get threatElevatedHoneypot(): number {
+    return this.config.get<number>('THREAT_ELEVATED_HONEYPOT')!;
+  }
+
+  /** Honeypot-hit count in window that triggers CRITICAL threat level (D-20). Default 15. */
+  get threatCriticalHoneypot(): number {
+    return this.config.get<number>('THREAT_CRITICAL_HONEYPOT')!;
+  }
+
+  /** Cooldown (ms) before threat level can de-escalate. Default 600000 (10min). */
+  get threatCooldownMs(): number {
+    return this.config.get<number>('THREAT_COOLDOWN_MS')!;
+  }
 }
