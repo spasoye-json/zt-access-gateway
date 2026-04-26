@@ -1,4 +1,4 @@
-import { extractIp, extractUserAgent, extractDeviceId } from '../request-context.util';
+import { extractIp, extractUserAgent, extractDeviceId, extractJa4h } from '../request-context.util';
 import { Request } from 'express';
 
 function makeReq(overrides: Partial<{
@@ -70,5 +70,30 @@ describe('extractDeviceId', () => {
   it('returns null when no x-device-id header', () => {
     const req = makeReq({});
     expect(extractDeviceId(req)).toBeNull();
+  });
+});
+
+describe('extractJa4h', () => {
+  it('returns the fingerprint when Ja4hMiddleware has attached it', () => {
+    const r = {} as Request;
+    (r as any)['x-ja4h'] = 'ja4h_test_fp';
+    expect(extractJa4h(r)).toBe('ja4h_test_fp');
+  });
+
+  it('returns undefined when the field is absent', () => {
+    const r = {} as Request;
+    expect(extractJa4h(r)).toBeUndefined();
+  });
+
+  it('returns undefined when the field is an empty string', () => {
+    const r = {} as Request;
+    (r as any)['x-ja4h'] = '';
+    expect(extractJa4h(r)).toBeUndefined();
+  });
+
+  it('does NOT read from req.headers (production wiring writes to req itself, not headers)', () => {
+    const r = { headers: { 'x-ja4h': 'wrong-place' } } as unknown as Request;
+    // Header value must be ignored — only req['x-ja4h'] counts
+    expect(extractJa4h(r)).toBeUndefined();
   });
 });
