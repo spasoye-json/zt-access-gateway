@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { AppConfigService } from '../config.service';
-import { ConfigAppModule } from '../config.module';
+import { validationSchema as productionSchema } from '../config.module';
 
 // Helper: set all required env vars (mTLS + JWT)
 function setRequiredEnv() {
@@ -361,11 +361,21 @@ describe('AppConfigService', () => {
   });
 
   describe('Phase 6: POLICY_*/THREAT_* schema + cross-field validator (D-23)', () => {
-    // Bootstrap the REAL ConfigAppModule so we exercise the production schema
-    // (including .custom() cross-field validator) end-to-end.
+    // Bootstrap with the EXPORTED production schema so each test re-runs Joi
+    // validation against the current process.env (ConfigModule.forRoot evaluates
+    // its schema once per call — using the production schema directly via a
+    // fresh ConfigModule.forRoot per test re-validates per-test).
     async function createRealModule() {
       const module = await Test.createTestingModule({
-        imports: [ConfigAppModule],
+        imports: [
+          ConfigModule.forRoot({
+            isGlobal: true,
+            ignoreEnvFile: true,
+            validationSchema: productionSchema,
+            validationOptions: { abortEarly: false },
+          }),
+        ],
+        providers: [AppConfigService],
       }).compile();
       return module.get(AppConfigService);
     }
