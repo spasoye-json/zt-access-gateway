@@ -216,6 +216,40 @@ describe('HashcashService', () => {
       expect((result as { reason: string }).reason).toBe('insufficient_zeros');
     });
 
+    describe('identity binding (D-02)', () => {
+      it("rejects with reason 'identity_mismatch' when expectedUserId differs from payload.sub", () => {
+        const { nonce, difficulty } = service.issueChallenge('user-A', 'dev-1', 0.85);
+        const sol = solveAt(nonce, difficulty);
+        const result = service.verifySolution(nonce, sol, 0.85, 'user-B', 'dev-1');
+        expect(result).toEqual({ ok: false, reason: 'identity_mismatch' });
+      });
+
+      it("rejects with reason 'identity_mismatch' when expectedDeviceId differs from payload.dev", () => {
+        const { nonce, difficulty } = service.issueChallenge('user-A', 'dev-1', 0.85);
+        const sol = solveAt(nonce, difficulty);
+        const result = service.verifySolution(nonce, sol, 0.85, 'user-A', 'dev-2');
+        expect(result).toEqual({ ok: false, reason: 'identity_mismatch' });
+      });
+
+      it('accepts when expectedUserId and expectedDeviceId both match payload.sub / payload.dev', () => {
+        const { nonce, difficulty } = service.issueChallenge('user-A', 'dev-1', 0.85);
+        const sol = solveAt(nonce, difficulty);
+        const result = service.verifySolution(nonce, sol, 0.85, 'user-A', 'dev-1');
+        expect(result).toEqual({ ok: true, iat: expect.any(Number) });
+      });
+
+      it('mismatched verify does NOT consume the single-use slot — legitimate verify still succeeds afterward', () => {
+        const { nonce, difficulty } = service.issueChallenge('user-A', 'dev-1', 0.85);
+        const sol = solveAt(nonce, difficulty);
+        // Attacker tries to replay user-A's puzzle as user-B
+        const blocked = service.verifySolution(nonce, sol, 0.85, 'user-B', 'dev-1');
+        expect(blocked).toEqual({ ok: false, reason: 'identity_mismatch' });
+        // Legitimate user-A submits — must still succeed (identity check is BEFORE replay-store add)
+        const ok = service.verifySolution(nonce, sol, 0.85, 'user-A', 'dev-1');
+        expect(ok).toMatchObject({ ok: true });
+      });
+    });
+
     it('emits metrics: solved on happy path, failed on rejection', async () => {
       const issued = service.issueChallenge('u', 'd', 0.85);
       const solution = solveAt(issued.nonce, issued.difficulty);
