@@ -8,6 +8,7 @@ import { Honeypot } from './honeypot.decorator';
 import { getFakeResponse } from './honeypot-responses';
 import { sleep, randomDelay } from '../shared/sleep.util';
 import { extractJa4h } from '../shared/request-context.util';
+import { Public } from '../shared/public.decorator';
 import {
   HONEYPOT_TRIGGER,
   type ThreatSignalPayload,
@@ -31,6 +32,7 @@ import {
  * - HoneypotModule is imported last in AppModule to prevent shadowing real routes (T-02-11).
  */
 @Controller()
+@Public()
 export class ShadowController {
   constructor(
     private readonly store: FingerprintStore,
