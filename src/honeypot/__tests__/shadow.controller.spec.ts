@@ -1,9 +1,11 @@
 import 'reflect-metadata';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ShadowController } from '../shadow.controller';
 import { FingerprintStore } from '../../fingerprint/fingerprint.store';
 import { SecurityMetricsService } from '../security-metrics.service';
 import { AppConfigService } from '../../config/config.service';
 import { HONEYPOT_KEY } from '../honeypot.decorator';
+import { HONEYPOT_TRIGGER } from '../../policy/policy-events';
 
 // Mock sleep/randomDelay so tests don't wait 2-5 seconds
 jest.mock('../../shared/sleep.util', () => ({
@@ -41,6 +43,8 @@ describe('ShadowController', () => {
   let store: jest.Mocked<FingerprintStore>;
   let metrics: jest.Mocked<SecurityMetricsService>;
   let config: jest.Mocked<AppConfigService>;
+  let events: EventEmitter2;
+  let emitSpy: jest.SpyInstance;
   let warnSpy: jest.SpyInstance;
 
   beforeEach(() => {
@@ -61,7 +65,10 @@ describe('ShadowController', () => {
       blacklistTtlMs: 3600000,
     } as any;
 
-    controller = new ShadowController(store, metrics, config);
+    events = new EventEmitter2();
+    emitSpy = jest.spyOn(events, 'emit');
+
+    controller = new ShadowController(store, metrics, config, events);
     warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
     (sleep as jest.Mock).mockClear();
@@ -188,6 +195,53 @@ describe('ShadowController', () => {
         await (controller as any)[method](req, res);
         expect(store.add).toHaveBeenCalledWith('unknown', expect.any(Object));
       });
+
+      it('emits HONEYPOT_TRIGGER with ip + ja4h + resource (Phase 6 D-14)', async () => {
+        const req = makeMockReq(path, 'jh-fp-xyz');
+        req.ip = '5.6.7.8';
+        const res = makeMockRes();
+        await (controller as any)[method](req, res);
+        expect(emitSpy).toHaveBeenCalledWith(
+          HONEYPOT_TRIGGER,
+          expect.objectContaining({
+            type: HONEYPOT_TRIGGER,
+            ip: '5.6.7.8',
+            ja4h: 'jh-fp-xyz',
+            resource: path,
+          }),
+        );
+      });
+    });
+  });
+
+  describe('honeypot.trigger emission edge cases (Phase 6 D-14)', () => {
+    it('emits with ja4h: undefined when x-ja4h is absent', async () => {
+      const req = makeMockReq('/wp-login.php');
+      delete req['x-ja4h'];
+      const res = makeMockRes();
+      await (controller as any).wpLogin(req, res);
+      expect(emitSpy).toHaveBeenCalledWith(
+        HONEYPOT_TRIGGER,
+        expect.objectContaining({
+          type: HONEYPOT_TRIGGER,
+          ja4h: undefined,
+        }),
+      );
+    });
+
+    it('payload always contains type, ip, ts (ThreatSignalPayload shape)', async () => {
+      const req = makeMockReq('/.env');
+      const res = makeMockRes();
+      await (controller as any).dotEnv(req, res);
+      const calls = emitSpy.mock.calls.filter((c) => c[0] === HONEYPOT_TRIGGER);
+      expect(calls.length).toBe(1);
+      expect(calls[0][1]).toEqual(
+        expect.objectContaining({
+          type: HONEYPOT_TRIGGER,
+          ip: '1.2.3.4',
+          ts: expect.any(Number),
+        }),
+      );
     });
   });
 
