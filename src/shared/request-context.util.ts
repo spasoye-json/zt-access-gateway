@@ -38,3 +38,19 @@ export function extractUserAgent(req: Request): string {
 export function extractDeviceId(req: Request): string | null {
   return (req.headers['x-device-id'] as string) || null;
 }
+
+/**
+ * Extracts the JA4H fingerprint attached by Ja4hMiddleware (Phase 2).
+ *
+ * IMPORTANT: Ja4hMiddleware writes to `(req as any)['x-ja4h']` — see
+ * `src/fingerprint/ja4h.middleware.ts:23`. It does NOT set
+ * `req.headers['x-ja4h']`. Reading from headers will silently return undefined
+ * and produce empty fingerprint payloads in audit / threat signals.
+ *
+ * Returns undefined when absent so callers can decide their own fallback
+ * (`?? 'unknown'` for trust ctx, `?? undefined` for ThreatSignalPayload).
+ */
+export function extractJa4h(req: Request): string | undefined {
+  const v = (req as unknown as Record<string, unknown>)['x-ja4h'];
+  return typeof v === 'string' && v.length > 0 ? v : undefined;
+}
