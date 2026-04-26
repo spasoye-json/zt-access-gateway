@@ -1,9 +1,11 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtAuthGuard } from '../jwt-auth.guard';
 import { AuthService } from '../auth.service';
 import { TokenRevocationService } from '../token-revocation.service';
 import { IS_PUBLIC_KEY } from '../../shared/public.decorator';
+import { AUTH_INVALID_TOKEN } from '../../policy/policy-events';
 import {
   TEST_HS256_SECRET,
   createHs256Token,
@@ -20,20 +22,27 @@ describe('JwtAuthGuard', () => {
   let reflector: Reflector;
   let authService: Partial<AuthService>;
   let revocationService: Partial<TokenRevocationService>;
+  let events: EventEmitter2;
 
   function createMockExecutionContext(overrides?: {
     authorization?: string;
     isPublic?: boolean;
     roles?: string[];
+    ip?: string;
+    ja4h?: string;
   }): ExecutionContext {
-    const request = {
+    const request: Record<string, unknown> = {
       headers: {
         ...(overrides?.authorization !== undefined
           ? { authorization: overrides.authorization }
           : {}),
       },
+      ip: overrides?.ip ?? '1.2.3.4',
       user: undefined as unknown,
     };
+    if (overrides?.ja4h !== undefined) {
+      request['x-ja4h'] = overrides.ja4h;
+    }
 
     const handler = {} as () => void;
     const classRef = {} as () => void;
@@ -62,11 +71,13 @@ describe('JwtAuthGuard', () => {
     revocationService = {
       isRevoked: jest.fn().mockReturnValue(false),
     };
+    events = new EventEmitter2();
 
     guard = new JwtAuthGuard(
       reflector,
       authService as AuthService,
       revocationService as TokenRevocationService,
+      events,
     );
   });
 
@@ -270,6 +281,146 @@ describe('JwtAuthGuard', () => {
         'Invalid token signature',
       );
       expect(revocationService.isRevoked).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('auth.invalid_token emission (Phase 6 D-14)', () => {
+    let emitSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      emitSpy = jest.spyOn(events, 'emit');
+    });
+
+    it('emits on missing Authorization header (no userId)', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      const ctx = createMockExecutionContext({ ip: '5.6.7.8' });
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(emitSpy).toHaveBeenCalledWith(
+        AUTH_INVALID_TOKEN,
+        expect.objectContaining({
+          type: AUTH_INVALID_TOKEN,
+          ip: '5.6.7.8',
+          userId: undefined,
+        }),
+      );
+    });
+
+    it('emits on bad scheme (Basic ...)', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      const ctx = createMockExecutionContext({
+        authorization: 'Basic dXNlcjpwYXNz',
+        ip: '5.6.7.8',
+      });
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(emitSpy).toHaveBeenCalledWith(
+        AUTH_INVALID_TOKEN,
+        expect.objectContaining({ type: AUTH_INVALID_TOKEN, ip: '5.6.7.8' }),
+      );
+    });
+
+    it('emits on validateToken throw (no userId in payload)', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      (authService.validateToken as jest.Mock).mockRejectedValueOnce(
+        new UnauthorizedException('Token expired'),
+      );
+      const ctx = createMockExecutionContext({
+        authorization: 'Bearer x.y.z',
+      });
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(emitSpy).toHaveBeenCalledWith(
+        AUTH_INVALID_TOKEN,
+        expect.objectContaining({
+          type: AUTH_INVALID_TOKEN,
+          userId: undefined,
+        }),
+      );
+    });
+
+    it('emits on revocation hit (with userId)', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      (authService.validateToken as jest.Mock).mockResolvedValueOnce({
+        userId: '42',
+        roles: ['user'],
+        jti: 'jti-revoked',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+      (revocationService.isRevoked as jest.Mock).mockReturnValueOnce(true);
+      const ctx = createMockExecutionContext({
+        authorization: 'Bearer x.y.z',
+      });
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(emitSpy).toHaveBeenCalledWith(
+        AUTH_INVALID_TOKEN,
+        expect.objectContaining({
+          type: AUTH_INVALID_TOKEN,
+          userId: '42',
+        }),
+      );
+    });
+
+    it('emits with ja4h when (req as any)["x-ja4h"] is set', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      const ctx = createMockExecutionContext({ ja4h: 'jh-fp-123' });
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(emitSpy).toHaveBeenCalledWith(
+        AUTH_INVALID_TOKEN,
+        expect.objectContaining({ ja4h: 'jh-fp-123' }),
+      );
+    });
+
+    it('does NOT emit on successful auth', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      (authService.validateToken as jest.Mock).mockResolvedValueOnce({
+        userId: '42',
+        roles: ['user'],
+        jti: 'jti-ok',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+      (revocationService.isRevoked as jest.Mock).mockReturnValueOnce(false);
+      const ctx = createMockExecutionContext({
+        authorization: 'Bearer x.y.z',
+      });
+
+      await expect(guard.canActivate(ctx)).resolves.toBe(true);
+      expect(emitSpy).not.toHaveBeenCalled();
+    });
+
+    it('does NOT emit on @Public() route', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
+      const ctx = createMockExecutionContext();
+
+      await expect(guard.canActivate(ctx)).resolves.toBe(true);
+      expect(emitSpy).not.toHaveBeenCalled();
+    });
+
+    it('payload always contains type, ip, ts (ThreatSignalPayload shape)', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      const ctx = createMockExecutionContext({ ip: '9.9.9.9' });
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow();
+      const [, payload] = emitSpy.mock.calls[0];
+      expect(payload).toEqual(
+        expect.objectContaining({
+          type: AUTH_INVALID_TOKEN,
+          ip: '9.9.9.9',
+          ts: expect.any(Number),
+        }),
+      );
     });
   });
 });
