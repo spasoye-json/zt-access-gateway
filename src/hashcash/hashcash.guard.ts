@@ -89,7 +89,13 @@ export class HashcashGuard implements CanActivate {
       return false;
     }
 
-    const result = this.hashcash.verifySolution(nonceHeader, solutionHeader, score);
+    const result = this.hashcash.verifySolution(
+      nonceHeader,
+      solutionHeader,
+      score,
+      user.userId,
+      user.deviceId,
+    );
     if (result.ok) return true;
 
     this.issueChallenge(response, user.userId, user.deviceId, score, 'proof_of_work_invalid');

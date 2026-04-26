@@ -126,7 +126,7 @@ describe('HashcashService', () => {
     it('happy path: valid nonce + correct solution returns {ok:true}', () => {
       const issued = service.issueChallenge('user-1', 'dev-1', 0.85);
       const solution = solveAt(issued.nonce, issued.difficulty);
-      const result = service.verifySolution(issued.nonce, solution, 0.85);
+      const result = service.verifySolution(issued.nonce, solution, 0.85, 'user-1', 'dev-1');
       expect(result.ok).toBe(true);
       if (result.ok) expect(typeof result.iat).toBe('number');
     });
@@ -134,12 +134,12 @@ describe('HashcashService', () => {
     it('invalid hmac: tampered payload rejected by timingSafeEqual', () => {
       const issued = service.issueChallenge('user-1', 'dev-1', 0.85);
       const tampered = issued.nonce.replace(/.$/, (c) => (c === 'A' ? 'B' : 'A'));
-      const result = service.verifySolution(tampered, 'whatever', 0.85);
+      const result = service.verifySolution(tampered, 'whatever', 0.85, 'user-1', 'dev-1');
       expect(result).toEqual({ ok: false, reason: 'invalid_hmac' });
     });
 
     it('invalid hmac: malformed nonce (no dot) rejected without throwing', () => {
-      const result = service.verifySolution('no-dot-here', 'sol', 0.85);
+      const result = service.verifySolution('no-dot-here', 'sol', 0.85, 'u', 'd');
       expect(result.ok).toBe(false);
       expect(['malformed', 'invalid_hmac']).toContain((result as { reason: string }).reason);
     });
@@ -150,7 +150,7 @@ describe('HashcashService', () => {
         JSON.stringify({ v: 1, exp: 9_999_999_999, diff: 4, sub: 'u', dev: 'd', iat: 0 }),
       ).toString('base64url');
       const shortMacB64 = Buffer.from('short').toString('base64url');
-      const result = service.verifySolution(`${payloadB64}.${shortMacB64}`, 'sol', 0.85);
+      const result = service.verifySolution(`${payloadB64}.${shortMacB64}`, 'sol', 0.85, 'u', 'd');
       expect(result.ok).toBe(false);
       expect((result as { reason: string }).reason).toBe('invalid_hmac');
       // CRITICAL: did NOT throw ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH
@@ -159,7 +159,7 @@ describe('HashcashService', () => {
     it('expired: payload with exp <= now is rejected', () => {
       const expiredService = new HashcashService(fakeConfig({ ttlMs: 0 }), store, metrics);
       const issued = expiredService.issueChallenge('u', 'd', 0.85);
-      const result = expiredService.verifySolution(issued.nonce, 'irrelevant', 0.85);
+      const result = expiredService.verifySolution(issued.nonce, 'irrelevant', 0.85, 'u', 'd');
       expect(result.ok).toBe(false);
       expect((result as { reason: string }).reason).toBe('expired');
     });
@@ -167,9 +167,9 @@ describe('HashcashService', () => {
     it('replay: second verifySolution for same nonce returns {ok:false, reason:"replay"}', () => {
       const issued = service.issueChallenge('u', 'd', 0.85);
       const solution = solveAt(issued.nonce, issued.difficulty);
-      const first = service.verifySolution(issued.nonce, solution, 0.85);
+      const first = service.verifySolution(issued.nonce, solution, 0.85, 'u', 'd');
       expect(first.ok).toBe(true);
-      const second = service.verifySolution(issued.nonce, solution, 0.85);
+      const second = service.verifySolution(issued.nonce, solution, 0.85, 'u', 'd');
       expect(second.ok).toBe(false);
       expect((second as { reason: string }).reason).toBe('replay');
     });
@@ -183,7 +183,7 @@ describe('HashcashService', () => {
       );
       // Issue at score 0.71 (diff=18) but verify with live score 0.85 (expected diff=21)
       const issued = prodService.issueChallenge('u', 'd', 0.71);
-      const result = prodService.verifySolution(issued.nonce, 'sol', 0.85);
+      const result = prodService.verifySolution(issued.nonce, 'sol', 0.85, 'u', 'd');
       expect(result.ok).toBe(false);
       expect((result as { reason: string }).reason).toBe('difficulty_mismatch');
     });
@@ -191,14 +191,14 @@ describe('HashcashService', () => {
     it('length bound: solution.length > 256 rejected before any hashing', () => {
       const issued = service.issueChallenge('u', 'd', 0.85);
       const big = 'x'.repeat(257);
-      const result = service.verifySolution(issued.nonce, big, 0.85);
+      const result = service.verifySolution(issued.nonce, big, 0.85, 'u', 'd');
       expect(result.ok).toBe(false);
       expect((result as { reason: string }).reason).toBe('length_bound');
     });
 
     it('length bound: solution.length === 0 rejected', () => {
       const issued = service.issueChallenge('u', 'd', 0.85);
-      const result = service.verifySolution(issued.nonce, '', 0.85);
+      const result = service.verifySolution(issued.nonce, '', 0.85, 'u', 'd');
       expect(result.ok).toBe(false);
       expect((result as { reason: string }).reason).toBe('length_bound');
     });
@@ -211,7 +211,7 @@ describe('HashcashService', () => {
         metrics,
       );
       const issued = prodService.issueChallenge('u', 'd', 0.71);
-      const result = prodService.verifySolution(issued.nonce, 'a', 0.71);
+      const result = prodService.verifySolution(issued.nonce, 'a', 0.71, 'u', 'd');
       expect(result.ok).toBe(false);
       expect((result as { reason: string }).reason).toBe('insufficient_zeros');
     });
@@ -253,8 +253,8 @@ describe('HashcashService', () => {
     it('emits metrics: solved on happy path, failed on rejection', async () => {
       const issued = service.issueChallenge('u', 'd', 0.85);
       const solution = solveAt(issued.nonce, issued.difficulty);
-      service.verifySolution(issued.nonce, solution, 0.85); // solved
-      service.verifySolution('garbage', 'x', 0.85); // failed (malformed)
+      service.verifySolution(issued.nonce, solution, 0.85, 'u', 'd'); // solved
+      service.verifySolution('garbage', 'x', 0.85, 'u', 'd'); // failed (malformed)
       const json = await metrics.registry.getMetricsAsJSON();
       const total = json.find((x) => x.name === 'zt_gateway_hashcash_total')!;
       const solved = total.values.find((v) => v.labels.outcome === 'solved');

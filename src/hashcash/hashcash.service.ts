@@ -42,7 +42,8 @@ export type VerifyResult =
         | 'difficulty_mismatch'
         | 'replay'
         | 'length_bound'
-        | 'insufficient_zeros';
+        | 'insufficient_zeros'
+        | 'identity_mismatch';
     };
 
 /**
@@ -95,7 +96,13 @@ export class HashcashService {
     return { nonce, difficulty, expiresAt };
   }
 
-  verifySolution(nonce: string, solution: string, liveScore: number): VerifyResult {
+  verifySolution(
+    nonce: string,
+    solution: string,
+    liveScore: number,
+    expectedUserId: string,
+    expectedDeviceId: string,
+  ): VerifyResult {
     // 1. length bound — before any hashing (T-5-HBOMB)
     if (typeof solution !== 'string' || solution.length < 1 || solution.length > 256) {
       this.metrics.total.inc({ outcome: 'failed', difficulty: '0' });
@@ -127,7 +134,9 @@ export class HashcashService {
       if (
         typeof payload.exp !== 'number' ||
         typeof payload.diff !== 'number' ||
-        typeof payload.iat !== 'number'
+        typeof payload.iat !== 'number' ||
+        typeof payload.sub !== 'string' ||
+        typeof payload.dev !== 'string'
       ) {
         throw new Error('shape');
       }
@@ -136,6 +145,14 @@ export class HashcashService {
       return { ok: false, reason: 'malformed' };
     }
     const diffLabel = String(payload.diff);
+
+    // 4b. identity binding (D-02) — payload.sub/dev encoded at issue must match the calling user.
+    // Placed BEFORE replay-store add (step 9) so a mismatched verify does NOT consume the slot
+    // for the legitimate user.
+    if (payload.sub !== expectedUserId || payload.dev !== expectedDeviceId) {
+      this.metrics.total.inc({ outcome: 'failed', difficulty: diffLabel });
+      return { ok: false, reason: 'identity_mismatch' };
+    }
 
     // 5. expiry
     const nowSec = Math.floor(Date.now() / 1000);
