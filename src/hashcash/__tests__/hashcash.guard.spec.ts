@@ -228,7 +228,34 @@ describe('HashcashGuard', () => {
       );
       hashcashService.verifySolution.mockReturnValue({ ok: true, iat: 0 });
       await guard.canActivate(c.ec);
-      expect(hashcashService.verifySolution).toHaveBeenCalledWith('N', 'S', 0.75);
+      expect(hashcashService.verifySolution).toHaveBeenCalledWith('N', 'S', 0.75, 'u', 'd');
+    });
+
+    it('forwards user.userId and user.deviceId into verifySolution (D-02 identity binding)', async () => {
+      const c = ctx({
+        trustScore: 0.8,
+        headers: {
+          'x-hashcash-nonce': 'NONCE',
+          'x-hashcash-solution': 'SOL',
+          'x-ja4h': 'fp',
+        },
+        user: { userId: 'user-A', deviceId: 'dev-1', roles: [] },
+      });
+      guard = new HashcashGuard(
+        c.reflector,
+        hashcashService as unknown as HashcashService,
+        trustScoreService as unknown as TrustScoreService,
+        fakeConfig(),
+      );
+      hashcashService.verifySolution.mockReturnValue({ ok: true, iat: 1 });
+      await guard.canActivate(c.ec);
+      expect(hashcashService.verifySolution).toHaveBeenCalledWith(
+        'NONCE',
+        'SOL',
+        expect.any(Number),
+        'user-A',
+        'dev-1',
+      );
     });
 
     it('header value > 256 chars rejected with 429 invalid before service call', async () => {
