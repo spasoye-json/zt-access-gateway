@@ -133,7 +133,15 @@ describe('HashcashService', () => {
 
     it('invalid hmac: tampered payload rejected by timingSafeEqual', () => {
       const issued = service.issueChallenge('user-1', 'dev-1', 0.85);
-      const tampered = issued.nonce.replace(/.$/, (c) => (c === 'A' ? 'B' : 'A'));
+      // Replace the mac segment with 32 zero bytes — same decoded length as a real mac
+      // (so the length pre-check passes and we reach timingSafeEqual), but cryptographically
+      // unable to match a genuine HMAC-SHA256 over the payload.
+      // Avoid tampering the trailing base64url char: a 32-byte mac → 43 chars where the last
+      // char encodes only 4 meaningful bits, so half of single-char flips decode to the same
+      // mac bytes and the test becomes flaky.
+      const dotIdx = issued.nonce.lastIndexOf('.');
+      const zeroMac = Buffer.alloc(32, 0).toString('base64url');
+      const tampered = `${issued.nonce.slice(0, dotIdx + 1)}${zeroMac}`;
       const result = service.verifySolution(tampered, 'whatever', 0.85, 'user-1', 'dev-1');
       expect(result).toEqual({ ok: false, reason: 'invalid_hmac' });
     });
