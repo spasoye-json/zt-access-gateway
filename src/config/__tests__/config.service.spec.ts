@@ -510,4 +510,79 @@ describe('AppConfigService', () => {
       );
     });
   });
+
+  describe('Phase 6: AppConfigService getters (D-23)', () => {
+    async function createRealModule() {
+      const module = await Test.createTestingModule({
+        imports: [
+          ConfigModule.forRoot({
+            isGlobal: true,
+            ignoreEnvFile: true,
+            validationSchema: productionSchema,
+            validationOptions: { abortEarly: false },
+          }),
+        ],
+        providers: [AppConfigService],
+      }).compile();
+      return module.get(AppConfigService);
+    }
+
+    it('Test 1 — path getters return defaults', async () => {
+      setRequiredEnv();
+      const cfg = await createRealModule();
+      expect(cfg.policyModelPath).toBe('policy/model.conf');
+      expect(cfg.policyCsvPath).toBe('policy/policy.csv');
+    });
+
+    it('Test 2 — 6 threshold getters return defaults', async () => {
+      setRequiredEnv();
+      const cfg = await createRealModule();
+      expect(cfg.policyChallengeThreshold).toBe(0.5);
+      expect(cfg.policyDenyThreshold).toBe(0.8);
+      expect(cfg.policyElevatedChallengeThreshold).toBe(0.3);
+      expect(cfg.policyElevatedDenyThreshold).toBe(0.6);
+      expect(cfg.policyCriticalChallengeThreshold).toBe(0.2);
+      expect(cfg.policyCriticalDenyThreshold).toBe(0.4);
+    });
+
+    it('Test 3 — window/cooldown getters return defaults', async () => {
+      setRequiredEnv();
+      const cfg = await createRealModule();
+      expect(cfg.threatWindowMs).toBe(300000);
+      expect(cfg.threatWindowMaxEvents).toBe(10000);
+      expect(cfg.threatCooldownMs).toBe(600000);
+    });
+
+    it('Test 4 — 6 threat count getters return defaults [20,50,30,80,5,15]', async () => {
+      setRequiredEnv();
+      const cfg = await createRealModule();
+      expect(cfg.threatElevatedDenies).toBe(20);
+      expect(cfg.threatCriticalDenies).toBe(50);
+      expect(cfg.threatElevatedInvalidTokens).toBe(30);
+      expect(cfg.threatCriticalInvalidTokens).toBe(80);
+      expect(cfg.threatElevatedHoneypot).toBe(5);
+      expect(cfg.threatCriticalHoneypot).toBe(15);
+    });
+
+    it('Test 5 — env override flows through getter (POLICY_DENY_THRESHOLD=0.95)', async () => {
+      setRequiredEnv();
+      process.env.POLICY_DENY_THRESHOLD = '0.95';
+      const cfg = await createRealModule();
+      expect(cfg.policyDenyThreshold).toBe(0.95);
+    });
+
+    it('env override flows through path getter (POLICY_MODEL_PATH=/etc/model.conf)', async () => {
+      setRequiredEnv();
+      process.env.POLICY_MODEL_PATH = '/etc/model.conf';
+      const cfg = await createRealModule();
+      expect(cfg.policyModelPath).toBe('/etc/model.conf');
+    });
+
+    it('env override flows through threat count getter (THREAT_ELEVATED_DENIES=10)', async () => {
+      setRequiredEnv();
+      process.env.THREAT_ELEVATED_DENIES = '10';
+      const cfg = await createRealModule();
+      expect(cfg.threatElevatedDenies).toBe(10);
+    });
+  });
 });
