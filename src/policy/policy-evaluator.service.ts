@@ -77,22 +77,38 @@ export class PolicyEvaluatorService implements OnModuleInit {
       return { decision: 'DENY', reason: 'no_user', score: 1 };
     }
 
-    // 1) D-09 score seam — mirrors hashcash.guard.ts lines 60-71 verbatim.
-    let score = (req as Request & { trustScore?: number }).trustScore;
-    if (score === undefined) {
-      const ctx: TrustContext = {
-        userId: user.userId,
-        deviceId: user.deviceId ?? '',
-        ip: extractIp(req),
-        ja4h: extractJa4h(req) ?? '',
-      };
-      score = await this.trust.evaluateScore(ctx);
-    }
-
-    // 2) Subject + obj + act (D-04, D-06, D-07).
+    // 2) Subject + obj + act (D-04, D-06, D-07) — computed before score so
+    // we can emit a well-formed DENY signal if trust scoring throws (CR-01).
     const subjects = buildSubjects(user);
     const obj = normalizeResource(req.path);
     const act = normalizeAction(req.method);
+
+    // 1) D-09 score seam — mirrors hashcash.guard.ts lines 60-71 verbatim.
+    // CR-01: wrap fallback to honor the "never throws on policy paths"
+    // contract — TrustScoreService.evaluateScore() can hit DB/repo and
+    // throw; surfacing that as a 500 bypasses metrics + policy.deny emit
+    // and looks like infra failure to the client. Fail closed instead.
+    let score: number;
+    try {
+      const provided = (req as Request & { trustScore?: number }).trustScore;
+      if (provided !== undefined) {
+        score = provided;
+      } else {
+        const ctx: TrustContext = {
+          userId: user.userId,
+          deviceId: user.deviceId ?? '',
+          ip: extractIp(req),
+          ja4h: extractJa4h(req) ?? '',
+        };
+        score = await this.trust.evaluateScore(ctx);
+      }
+    } catch (err) {
+      this.metrics.errors.inc();
+      this.logger.warn(`trust-score error: ${(err as Error).message}`);
+      this.metrics.decisions.inc({ decision: 'deny' });
+      this.emitDeny(req, user, 1, obj, act);
+      return { decision: 'DENY', reason: 'policy_error', score: 1 };
+    }
 
     // 3) Casbin (fail-closed runtime per D-03 / RESEARCH Pitfall 2).
     let casbinAllow = false;
