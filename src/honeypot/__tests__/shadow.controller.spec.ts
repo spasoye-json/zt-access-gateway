@@ -236,6 +236,21 @@ describe('ShadowController', () => {
       );
     });
 
+    it("WR-05: empty x-ja4h does not register '' as a terminal blacklist key", async () => {
+      const req = makeMockReq('/wp-login.php');
+      req['x-ja4h'] = '';
+      const res = makeMockRes();
+      await (controller as any).wpLogin(req, res);
+      expect(store.add).toHaveBeenCalledWith(
+        'unknown',
+        expect.objectContaining({ isTerminal: true }),
+      );
+      expect(store.add).not.toHaveBeenCalledWith(
+        '',
+        expect.anything(),
+      );
+    });
+
     it('payload always contains type, ip, ts (ThreatSignalPayload shape)', async () => {
       const req = makeMockReq('/.env');
       const res = makeMockRes();

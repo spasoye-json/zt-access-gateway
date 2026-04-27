@@ -50,7 +50,12 @@ export class ShadowController {
     res: Response,
     path: string,
   ): Promise<void> {
-    const ja4h: string = (req as any)['x-ja4h'] ?? 'unknown';
+    // WR-05: route both reads through extractJa4h. Direct (req as any)['x-ja4h']
+    // returned '' for empty fingerprints, registering the empty string as a
+    // terminal blacklist key — trapping every later request with no JA4H at
+    // score 1.0. extractJa4h coerces empty to undefined so '?? 'unknown''
+    // produces a consistent key.
+    const ja4h: string = extractJa4h(req) ?? 'unknown';
 
     // Blacklist the fingerprint immediately — isTerminal ensures Phase 4 trust score = 1.0
     this.store.add(ja4h, { ttlMs: this.config.blacklistTtlMs, isTerminal: true });
