@@ -31,13 +31,18 @@ describe('JwtAuthGuard', () => {
     ip?: string;
     ja4h?: string;
   }): ExecutionContext {
+    // WR-01: extractIp now reads x-forwarded-for / socket.remoteAddress —
+    // not request.ip. Provide socket.remoteAddress so the guard's emit path
+    // attributes the IP correctly under the new contract.
+    const ip = overrides?.ip ?? '1.2.3.4';
     const request: Record<string, unknown> = {
       headers: {
         ...(overrides?.authorization !== undefined
           ? { authorization: overrides.authorization }
           : {}),
       },
-      ip: overrides?.ip ?? '1.2.3.4',
+      ip,
+      socket: { remoteAddress: ip },
       user: undefined as unknown,
     };
     if (overrides?.ja4h !== undefined) {
