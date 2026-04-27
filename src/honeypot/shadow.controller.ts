@@ -7,7 +7,7 @@ import { AppConfigService } from '../config/config.service';
 import { Honeypot } from './honeypot.decorator';
 import { getFakeResponse } from './honeypot-responses';
 import { sleep, randomDelay } from '../shared/sleep.util';
-import { extractJa4h } from '../shared/request-context.util';
+import { extractIp, extractJa4h } from '../shared/request-context.util';
 import { Public } from '../shared/public.decorator';
 import {
   HONEYPOT_TRIGGER,
@@ -61,9 +61,11 @@ export class ShadowController {
     // Phase 6 D-14: emit honeypot.trigger to threat-signal bus.
     // Emit lives in the controller (not SecurityMetricsService) because the
     // controller has request context; service stays request-agnostic.
+    // WR-01: extractIp honors x-forwarded-for so honeypot signals attribute
+    // to the real client when the gateway sits behind a reverse proxy.
     const payload: ThreatSignalPayload = {
       type: HONEYPOT_TRIGGER,
-      ip: req.ip ?? 'unknown',
+      ip: extractIp(req),
       ja4h: extractJa4h(req),
       ts: Date.now(),
       resource: path,
