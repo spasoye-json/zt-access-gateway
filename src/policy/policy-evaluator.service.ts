@@ -216,38 +216,57 @@ export class PolicyEvaluatorService implements OnModuleInit {
    * savePolicy() returning false means model.conf lacks [role_definition]
    * and the CSV did not actually persist — surface as a runtime error so
    * operators learn at the first admin write rather than after a restart.
+   *
+   * WR-03: when persistence fails (false return OR throw from disk I/O),
+   * roll back the in-memory mutation so the enforcer's RAM state stays in
+   * sync with disk. Without rollback, subsequent enforce() calls treat the
+   * un-persisted rule as authoritative until process restart.
    */
   async addRule(sub: string, obj: string, act: string): Promise<boolean> {
     return this.writerMutex.runExclusive(async () => {
       const added = await this.enforcer.addPolicy(sub, obj, act);
-      if (added) {
+      if (!added) return false;
+      try {
         const saved = await this.enforcer.savePolicy();
         if (!saved) {
+          await this.enforcer.removePolicy(sub, obj, act).catch(() => {});
           throw new Error(
             'savePolicy returned false — check policy/model.conf has [role_definition]',
           );
         }
+        return true;
+      } catch (err) {
+        // Defensive: if savePolicy threw (e.g. EIO), undo the in-memory add.
+        // .catch swallows secondary failures so we always propagate the
+        // original persistence error to the caller.
+        await this.enforcer.removePolicy(sub, obj, act).catch(() => {});
+        throw err;
       }
-      return added;
     });
   }
 
   /**
    * D-22: serialized through writer mutex (D-02). Same Pitfall 1 hardening
-   * as addRule.
+   * as addRule. WR-03: symmetric rollback — re-add the rule if persistence
+   * fails so memory stays consistent with disk.
    */
   async removeRule(sub: string, obj: string, act: string): Promise<boolean> {
     return this.writerMutex.runExclusive(async () => {
       const removed = await this.enforcer.removePolicy(sub, obj, act);
-      if (removed) {
+      if (!removed) return false;
+      try {
         const saved = await this.enforcer.savePolicy();
         if (!saved) {
+          await this.enforcer.addPolicy(sub, obj, act).catch(() => {});
           throw new Error(
             'savePolicy returned false — check policy/model.conf has [role_definition]',
           );
         }
+        return true;
+      } catch (err) {
+        await this.enforcer.addPolicy(sub, obj, act).catch(() => {});
+        throw err;
       }
-      return removed;
     });
   }
 }
