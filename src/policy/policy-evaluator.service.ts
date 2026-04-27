@@ -106,7 +106,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
       this.metrics.errors.inc();
       this.logger.warn(`trust-score error: ${(err as Error).message}`);
       this.metrics.decisions.inc({ decision: 'deny' });
-      this.emitDeny(req, user, 1, obj, act);
+      this.emitDeny(req, user, obj, act);
       return { decision: 'DENY', reason: 'policy_error', score: 1 };
     }
 
@@ -130,7 +130,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
         score,
       };
       this.metrics.decisions.inc({ decision: 'deny' });
-      this.emitDeny(req, user, score, obj, act);
+      this.emitDeny(req, user, obj, act);
       return denyDecision;
     }
 
@@ -173,7 +173,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
         | 'deny',
     });
     if (decision.decision === 'DENY') {
-      this.emitDeny(req, user, score, obj, act);
+      this.emitDeny(req, user, obj, act);
     }
 
     return decision;
@@ -183,11 +183,14 @@ export class PolicyEvaluatorService implements OnModuleInit {
    * D-14: every DENY decision emits a `policy.deny` ThreatSignalPayload onto
    * the event bus. ThreatEscalationService subscribes (Plan 03) and feeds
    * into the sliding window aggregator.
+   *
+   * WR-07: dropped the unused _score parameter — ThreatSignalPayload has no
+   * score field. If a future revision adds one, weight signals by score by
+   * adding it to the payload schema and threading it through here.
    */
   private emitDeny(
     req: Request,
     user: UserClaims,
-    _score: number,
     resource: string,
     action: string,
   ): void {
