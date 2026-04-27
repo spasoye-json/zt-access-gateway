@@ -234,6 +234,11 @@ export class ThreatEscalationService {
     // (since last transition) determines step count. lastSignalAt resets on
     // any signal; lastTransitionAt resets on any level change.
     if (this.manualOverride) return;
+    // WR-06: fast-exit when already at the floor — there is no level below
+    // Normal to step down to. Avoids pointless work after long idle periods
+    // and removes implicit reliance on the 'else break' branch when a future
+    // ThreatLevel (e.g. 'Severe') is added above Critical.
+    if (this.level === 'Normal') return;
     const now = this.clock();
     const idle = now - this.lastSignalAt;
     if (idle < this.cfg.threatCooldownMs) return;
