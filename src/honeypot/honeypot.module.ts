@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { FingerprintModule } from '../fingerprint/fingerprint.module';
 import { ConfigAppModule } from '../config/config.module';
 import { ShadowController } from './shadow.controller';
@@ -10,13 +11,12 @@ import { SecurityMetricsService } from './security-metrics.service';
  * Imported last in AppModule to prevent shadow controller routes from
  * matching before any real routes are registered (T-02-11, Pitfall 3).
  *
- * Phase 6 (WR-04): EventEmitter2 is provided globally by AppModule's single
- * EventEmitterModule.forRoot() registration; ShadowController injects it
- * directly. Avoid calling forRoot() here — sibling forRoot() calls can
- * produce divergent EventEmitter2 instances and silently drop signals.
+ * Phase 6: imports EventEmitterModule so ShadowController can inject
+ * EventEmitter2 for HONEYPOT_TRIGGER signal emission. Idempotent with
+ * the global root that lands in AppModule (Plan 06).
  */
 @Module({
-  imports: [FingerprintModule, ConfigAppModule],
+  imports: [FingerprintModule, ConfigAppModule, EventEmitterModule.forRoot()],
   controllers: [ShadowController],
   providers: [SecurityMetricsService],
   exports: [SecurityMetricsService],

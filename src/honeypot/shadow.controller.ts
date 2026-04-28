@@ -7,7 +7,7 @@ import { AppConfigService } from '../config/config.service';
 import { Honeypot } from './honeypot.decorator';
 import { getFakeResponse } from './honeypot-responses';
 import { sleep, randomDelay } from '../shared/sleep.util';
-import { extractIp, extractJa4h } from '../shared/request-context.util';
+import { extractJa4h } from '../shared/request-context.util';
 import { Public } from '../shared/public.decorator';
 import {
   HONEYPOT_TRIGGER,
@@ -50,12 +50,7 @@ export class ShadowController {
     res: Response,
     path: string,
   ): Promise<void> {
-    // WR-05: route both reads through extractJa4h. Direct (req as any)['x-ja4h']
-    // returned '' for empty fingerprints, registering the empty string as a
-    // terminal blacklist key — trapping every later request with no JA4H at
-    // score 1.0. extractJa4h coerces empty to undefined so '?? 'unknown''
-    // produces a consistent key.
-    const ja4h: string = extractJa4h(req) ?? 'unknown';
+    const ja4h: string = (req as any)['x-ja4h'] ?? 'unknown';
 
     // Blacklist the fingerprint immediately — isTerminal ensures Phase 4 trust score = 1.0
     this.store.add(ja4h, { ttlMs: this.config.blacklistTtlMs, isTerminal: true });
@@ -66,11 +61,9 @@ export class ShadowController {
     // Phase 6 D-14: emit honeypot.trigger to threat-signal bus.
     // Emit lives in the controller (not SecurityMetricsService) because the
     // controller has request context; service stays request-agnostic.
-    // WR-01: extractIp honors x-forwarded-for so honeypot signals attribute
-    // to the real client when the gateway sits behind a reverse proxy.
     const payload: ThreatSignalPayload = {
       type: HONEYPOT_TRIGGER,
-      ip: extractIp(req),
+      ip: req.ip ?? 'unknown',
       ja4h: extractJa4h(req),
       ts: Date.now(),
       resource: path,

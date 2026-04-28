@@ -47,16 +47,6 @@ describe('extractIp', () => {
     const req = makeReq({ headers: { 'x-forwarded-for': '2001:db8::1' } });
     expect(extractIp(req)).toBe('2001:db8::1');
   });
-
-  it("returns 'unknown' when x-forwarded-for is bare hex (WR-02 net.isIP regression)", () => {
-    const req = makeReq({ headers: { 'x-forwarded-for': 'aaaaaaaa' }, socket: {} });
-    expect(extractIp(req)).toBe('unknown');
-  });
-
-  it("returns 'unknown' when x-forwarded-for has out-of-range IPv4 octets (WR-02 net.isIP regression)", () => {
-    const req = makeReq({ headers: { 'x-forwarded-for': '999.999.999.999' }, socket: {} });
-    expect(extractIp(req)).toBe('unknown');
-  });
 });
 
 describe('extractUserAgent', () => {

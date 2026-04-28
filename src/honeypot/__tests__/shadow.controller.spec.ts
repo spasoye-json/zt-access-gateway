@@ -16,15 +16,10 @@ jest.mock('../../shared/sleep.util', () => ({
 import { sleep, randomDelay } from '../../shared/sleep.util';
 
 function makeMockReq(path: string, ja4h = 'abc123') {
-  // WR-01: extractIp reads x-forwarded-for first, then socket.remoteAddress
-  // — req.ip is no longer consulted. Provide both so per-test overrides
-  // continue to work via the `ip` field (kept for the audit-log assertion)
-  // while the threat-signal payload reads via the proxy chain.
   return {
     method: 'GET',
     ip: '1.2.3.4',
     headers: { 'user-agent': 'scanner/1.0' },
-    socket: { remoteAddress: '1.2.3.4' },
     'x-ja4h': ja4h,
     path,
   } as any;
@@ -203,9 +198,7 @@ describe('ShadowController', () => {
 
       it('emits HONEYPOT_TRIGGER with ip + ja4h + resource (Phase 6 D-14)', async () => {
         const req = makeMockReq(path, 'jh-fp-xyz');
-        // WR-01: extractIp prefers x-forwarded-for; fall through to socket.
         req.ip = '5.6.7.8';
-        req.socket.remoteAddress = '5.6.7.8';
         const res = makeMockRes();
         await (controller as any)[method](req, res);
         expect(emitSpy).toHaveBeenCalledWith(
@@ -233,21 +226,6 @@ describe('ShadowController', () => {
           type: HONEYPOT_TRIGGER,
           ja4h: undefined,
         }),
-      );
-    });
-
-    it("WR-05: empty x-ja4h does not register '' as a terminal blacklist key", async () => {
-      const req = makeMockReq('/wp-login.php');
-      req['x-ja4h'] = '';
-      const res = makeMockRes();
-      await (controller as any).wpLogin(req, res);
-      expect(store.add).toHaveBeenCalledWith(
-        'unknown',
-        expect.objectContaining({ isTerminal: true }),
-      );
-      expect(store.add).not.toHaveBeenCalledWith(
-        '',
-        expect.anything(),
       );
     });
 

@@ -9,7 +9,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IS_PUBLIC_KEY } from '../shared/public.decorator';
 import { AuthService } from './auth.service';
 import { TokenRevocationService } from './token-revocation.service';
-import { extractIp, extractJa4h } from '../shared/request-context.util';
+import { extractJa4h } from '../shared/request-context.util';
 import {
   AUTH_INVALID_TOKEN,
   type ThreatSignalPayload,
@@ -74,11 +74,9 @@ export class JwtAuthGuard implements CanActivate {
     request: { ip?: string; socket?: { remoteAddress?: string } },
     userId: string | undefined,
   ): void {
-    // WR-01: route IP through extractIp so x-forwarded-for is honored,
-    // matching PolicyEvaluatorService.emitDeny attribution.
     const payload: ThreatSignalPayload = {
       type: AUTH_INVALID_TOKEN,
-      ip: extractIp(request as never),
+      ip: request.ip ?? request.socket?.remoteAddress ?? 'unknown',
       userId,
       ja4h: extractJa4h(request as never),
       ts: Date.now(),

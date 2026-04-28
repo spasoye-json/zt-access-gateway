@@ -77,38 +77,22 @@ export class PolicyEvaluatorService implements OnModuleInit {
       return { decision: 'DENY', reason: 'no_user', score: 1 };
     }
 
-    // 2) Subject + obj + act (D-04, D-06, D-07) — computed before score so
-    // we can emit a well-formed DENY signal if trust scoring throws (CR-01).
+    // 1) D-09 score seam — mirrors hashcash.guard.ts lines 60-71 verbatim.
+    let score = (req as Request & { trustScore?: number }).trustScore;
+    if (score === undefined) {
+      const ctx: TrustContext = {
+        userId: user.userId,
+        deviceId: user.deviceId ?? '',
+        ip: extractIp(req),
+        ja4h: extractJa4h(req) ?? '',
+      };
+      score = await this.trust.evaluateScore(ctx);
+    }
+
+    // 2) Subject + obj + act (D-04, D-06, D-07).
     const subjects = buildSubjects(user);
     const obj = normalizeResource(req.path);
     const act = normalizeAction(req.method);
-
-    // 1) D-09 score seam — mirrors hashcash.guard.ts lines 60-71 verbatim.
-    // CR-01: wrap fallback to honor the "never throws on policy paths"
-    // contract — TrustScoreService.evaluateScore() can hit DB/repo and
-    // throw; surfacing that as a 500 bypasses metrics + policy.deny emit
-    // and looks like infra failure to the client. Fail closed instead.
-    let score: number;
-    try {
-      const provided = (req as Request & { trustScore?: number }).trustScore;
-      if (provided !== undefined) {
-        score = provided;
-      } else {
-        const ctx: TrustContext = {
-          userId: user.userId,
-          deviceId: user.deviceId ?? '',
-          ip: extractIp(req),
-          ja4h: extractJa4h(req) ?? '',
-        };
-        score = await this.trust.evaluateScore(ctx);
-      }
-    } catch (err) {
-      this.metrics.errors.inc();
-      this.logger.warn(`trust-score error: ${(err as Error).message}`);
-      this.metrics.decisions.inc({ decision: 'deny' });
-      this.emitDeny(req, user, obj, act);
-      return { decision: 'DENY', reason: 'policy_error', score: 1 };
-    }
 
     // 3) Casbin (fail-closed runtime per D-03 / RESEARCH Pitfall 2).
     let casbinAllow = false;
@@ -130,7 +114,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
         score,
       };
       this.metrics.decisions.inc({ decision: 'deny' });
-      this.emitDeny(req, user, obj, act);
+      this.emitDeny(req, user, score, obj, act);
       return denyDecision;
     }
 
@@ -173,7 +157,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
         | 'deny',
     });
     if (decision.decision === 'DENY') {
-      this.emitDeny(req, user, obj, act);
+      this.emitDeny(req, user, score, obj, act);
     }
 
     return decision;
@@ -183,14 +167,11 @@ export class PolicyEvaluatorService implements OnModuleInit {
    * D-14: every DENY decision emits a `policy.deny` ThreatSignalPayload onto
    * the event bus. ThreatEscalationService subscribes (Plan 03) and feeds
    * into the sliding window aggregator.
-   *
-   * WR-07: dropped the unused _score parameter — ThreatSignalPayload has no
-   * score field. If a future revision adds one, weight signals by score by
-   * adding it to the payload schema and threading it through here.
    */
   private emitDeny(
     req: Request,
     user: UserClaims,
+    _score: number,
     resource: string,
     action: string,
   ): void {
@@ -219,57 +200,38 @@ export class PolicyEvaluatorService implements OnModuleInit {
    * savePolicy() returning false means model.conf lacks [role_definition]
    * and the CSV did not actually persist — surface as a runtime error so
    * operators learn at the first admin write rather than after a restart.
-   *
-   * WR-03: when persistence fails (false return OR throw from disk I/O),
-   * roll back the in-memory mutation so the enforcer's RAM state stays in
-   * sync with disk. Without rollback, subsequent enforce() calls treat the
-   * un-persisted rule as authoritative until process restart.
    */
   async addRule(sub: string, obj: string, act: string): Promise<boolean> {
     return this.writerMutex.runExclusive(async () => {
       const added = await this.enforcer.addPolicy(sub, obj, act);
-      if (!added) return false;
-      try {
+      if (added) {
         const saved = await this.enforcer.savePolicy();
         if (!saved) {
-          await this.enforcer.removePolicy(sub, obj, act).catch(() => {});
           throw new Error(
             'savePolicy returned false — check policy/model.conf has [role_definition]',
           );
         }
-        return true;
-      } catch (err) {
-        // Defensive: if savePolicy threw (e.g. EIO), undo the in-memory add.
-        // .catch swallows secondary failures so we always propagate the
-        // original persistence error to the caller.
-        await this.enforcer.removePolicy(sub, obj, act).catch(() => {});
-        throw err;
       }
+      return added;
     });
   }
 
   /**
    * D-22: serialized through writer mutex (D-02). Same Pitfall 1 hardening
-   * as addRule. WR-03: symmetric rollback — re-add the rule if persistence
-   * fails so memory stays consistent with disk.
+   * as addRule.
    */
   async removeRule(sub: string, obj: string, act: string): Promise<boolean> {
     return this.writerMutex.runExclusive(async () => {
       const removed = await this.enforcer.removePolicy(sub, obj, act);
-      if (!removed) return false;
-      try {
+      if (removed) {
         const saved = await this.enforcer.savePolicy();
         if (!saved) {
-          await this.enforcer.addPolicy(sub, obj, act).catch(() => {});
           throw new Error(
             'savePolicy returned false — check policy/model.conf has [role_definition]',
           );
         }
-        return true;
-      } catch (err) {
-        await this.enforcer.addPolicy(sub, obj, act).catch(() => {});
-        throw err;
       }
+      return removed;
     });
   }
 }
