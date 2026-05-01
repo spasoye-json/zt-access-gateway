@@ -32,6 +32,11 @@ if (!process.env.MTLS_ALLOWED_SUBJECTS)
   process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
 if (!process.env.DATABASE_URL)
   process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
+// Phase 7 MFA vars — required by config validation after MfaModule added to AppModule
+if (!process.env.MFA_JWT_SECRET)
+  process.env.MFA_JWT_SECRET = 'mfa-test-secret-that-is-at-least-32-chars!!';
+if (!process.env.MFA_TOTP_ENCRYPTION_KEY)
+  process.env.MFA_TOTP_ENCRYPTION_KEY = Buffer.from('a'.repeat(32)).toString('base64');
 
 import { Test } from '@nestjs/testing';
 import {

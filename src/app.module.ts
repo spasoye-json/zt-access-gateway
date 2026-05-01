@@ -9,9 +9,10 @@ import { Ja4hMiddleware } from './fingerprint/ja4h.middleware';
 import { TrustScoreModule } from './trust-score/trust-score.module';
 import { HashcashModule } from './hashcash/hashcash.module';
 import { PolicyModule } from './policy/policy.module';
+import { MfaModule } from './mfa/mfa.module';
 
 /**
- * AppModule — root module wiring the full Phase 2-6 pipeline.
+ * AppModule — root module wiring the full Phase 2-7 pipeline.
  *
  * Middleware ordering (D-04):
  *   1. Helmet (main.ts — global Express middleware, fires first)
@@ -22,6 +23,8 @@ import { PolicyModule } from './policy/policy.module';
  *   5b. Hashcash PoW guard (Phase 5 — APP_GUARD in HashcashModule, runs after JwtAuthGuard)
  *   6. Policy + Threat Escalation guard (Phase 6 — invoked by Phase 10 GatewayMiddleware,
  *      NOT a global guard yet; PolicyEvaluatorService is exported for that consumer)
+ *   7. MFA challenge endpoints (Phase 7 — MfaController + MfaService; MfaGuard exported
+ *      but NOT APP_GUARD per D-20; Phase 10 registers it in the full pipeline)
  *
  * EventEmitterModule (Phase 6 D-13) is registered globally immediately after
  * ConfigAppModule so all subsequent modules see EventEmitter2 globally.
@@ -39,6 +42,7 @@ import { PolicyModule } from './policy/policy.module';
     TrustScoreModule,
     HashcashModule,
     PolicyModule, // Phase 6 — D-24 module structure (after Hashcash, before Honeypot)
+    MfaModule, // Phase 7 — D-19 (after PolicyModule, before HoneypotModule)
     HoneypotModule, // Pitfall 3: stays last (Phase 2)
   ],
   controllers: [],
