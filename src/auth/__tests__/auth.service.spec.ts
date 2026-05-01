@@ -293,4 +293,36 @@ describe('AuthService', () => {
       );
     });
   });
+
+  describe('MFA token rejection (T-07-fix3, D-10)', () => {
+    it('Test 16: rejects JWT with typ:mfa claim (MFA JWT cannot be used as access token)', async () => {
+      // Forge a JWT that carries typ:'mfa' — signed with the same HS256 secret
+      const key = new TextEncoder().encode(TEST_HS256_SECRET);
+      const mfaToken = await new (await import('jose')).SignJWT({
+        sub: 'u1',
+        jti: 'j1',
+        deviceId: 'd1',
+        typ: 'mfa',
+      } as Record<string, unknown>)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('1h')
+        .sign(key);
+
+      await expect(authService.validateToken(mfaToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('Test 17: accepts normal JWT without typ claim (unaffected by MFA guard)', async () => {
+      // Normal access token — no typ claim
+      const token = await createHs256Token(
+        { sub: 'u1', roles: ['user'] },
+        { jti: 'jti-normal' },
+      );
+
+      const claims = await authService.validateToken(token);
+      expect(claims.userId).toBe('u1');
+    });
+  });
 });
