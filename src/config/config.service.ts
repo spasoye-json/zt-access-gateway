@@ -242,4 +242,36 @@ export class AppConfigService {
   get threatCooldownMs(): number {
     return this.config.get<number>('THREAT_COOLDOWN_MS')!;
   }
+
+  // --- Phase 7: MFA Challenge (D-09, D-15, D-03, D-17) ---
+
+  /** Separate from JWT_SECRET (D-09). Joi min 32 chars. */
+  get mfaJwtSecret(): string {
+    return this.config.get<string>('MFA_JWT_SECRET')!;
+  }
+
+  /** AES-256-GCM key for TOTP secrets at rest (D-15). Base64-encoded 32-byte key. Joi min(44). */
+  get mfaTotpEncryptionKey(): string {
+    return this.config.get<string>('MFA_TOTP_ENCRYPTION_KEY')!;
+  }
+
+  /** Challenge row TTL in ms (D-03). Default 300000 (5min). Must be < mfaTokenTtlMs. */
+  get mfaChallengeTtlMs(): number {
+    return this.config.get<number>('MFA_CHALLENGE_TTL_MS')!;
+  }
+
+  /** MFA JWT TTL in ms (D-03). Default 600000 (10min). */
+  get mfaTokenTtlMs(): number {
+    return this.config.get<number>('MFA_TOKEN_TTL_MS')!;
+  }
+
+  /** Max challenges per user per mfaRateLimitWindowMs (D-17). Default 5. */
+  get mfaRateLimitMax(): number {
+    return this.config.get<number>('MFA_RATE_LIMIT_MAX')!;
+  }
+
+  /** Rate-limit window in ms (D-17). Default 60000. */
+  get mfaRateLimitWindowMs(): number {
+    return this.config.get<number>('MFA_RATE_LIMIT_WINDOW_MS')!;
+  }
 }
