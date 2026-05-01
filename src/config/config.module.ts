@@ -70,6 +70,13 @@ export const validationSchema = Joi.object({
   THREAT_ELEVATED_HONEYPOT: Joi.number().integer().min(1).default(5),
   THREAT_CRITICAL_HONEYPOT: Joi.number().integer().min(1).default(15),
   THREAT_COOLDOWN_MS: Joi.number().integer().min(1000).default(600000),
+  // Phase 7: MFA Challenge (D-09, D-15, D-03, D-17)
+  MFA_JWT_SECRET: Joi.string().min(32).required(),
+  MFA_TOTP_ENCRYPTION_KEY: Joi.string().min(44).required(),
+  MFA_CHALLENGE_TTL_MS: Joi.number().integer().min(1).default(300000),
+  MFA_TOKEN_TTL_MS: Joi.number().integer().min(1).default(600000),
+  MFA_RATE_LIMIT_MAX: Joi.number().integer().min(1).default(5),
+  MFA_RATE_LIMIT_WINDOW_MS: Joi.number().integer().min(1).default(60000),
 }).custom((cfg, helpers) => {
   // D-23 cross-field validator: Elevated/Critical MUST be strictly tighter than Normal.
   // Tighter at higher level (challenge threshold)
@@ -117,6 +124,11 @@ export const validationSchema = Joi.object({
   if (!(cfg.THREAT_ELEVATED_HONEYPOT < cfg.THREAT_CRITICAL_HONEYPOT))
     return helpers.message({
       custom: 'THREAT_ELEVATED_HONEYPOT must be < THREAT_CRITICAL_HONEYPOT',
+    });
+  // D-03 cross-field: challenge TTL must be shorter than token TTL
+  if (!(cfg.MFA_CHALLENGE_TTL_MS < cfg.MFA_TOKEN_TTL_MS))
+    return helpers.message({
+      custom: 'MFA_CHALLENGE_TTL_MS must be < MFA_TOKEN_TTL_MS',
     });
   return cfg;
 });

@@ -4,7 +4,7 @@ import * as Joi from 'joi';
 import { AppConfigService } from '../config.service';
 import { validationSchema as productionSchema } from '../config.module';
 
-// Helper: set all required env vars (mTLS + JWT)
+// Helper: set all required env vars (mTLS + JWT + Phase 7 MFA)
 function setRequiredEnv() {
   process.env.MTLS_CA_CERT_PATH = '/tmp/ca.pem';
   process.env.MTLS_CLIENT_CERT_PATH = '/tmp/client.pem';
@@ -15,6 +15,10 @@ function setRequiredEnv() {
     'postgresql://ztgateway:ztgateway@localhost:5432/ztgateway';
   process.env.HASHCASH_HMAC_SECRET =
     'hashcash-secret-that-is-at-least-32-chars-long!';
+  // Phase 7 MFA required vars (D-09, D-15)
+  process.env.MFA_JWT_SECRET = 'mfa-secret-that-is-at-least-32-chars-long!!';
+  process.env.MFA_TOTP_ENCRYPTION_KEY =
+    'base64-encoded-32-byte-key-here-44-chars-xxx=';
 }
 
 const joiSchema = Joi.object({
@@ -583,6 +587,84 @@ describe('AppConfigService', () => {
       process.env.THREAT_ELEVATED_DENIES = '10';
       const cfg = await createRealModule();
       expect(cfg.threatElevatedDenies).toBe(10);
+    });
+  });
+
+  describe('Phase 7: MFA config schema + cross-field validator (D-09, D-15, D-03, D-17)', () => {
+    function setMfaEnv() {
+      setRequiredEnv();
+      process.env.MFA_JWT_SECRET = 'mfa-secret-that-is-at-least-32-chars-long!!';
+      process.env.MFA_TOTP_ENCRYPTION_KEY =
+        'base64-encoded-32-byte-key-here-44-chars-xxx=';
+    }
+
+    // ignoreEnvFile: true so per-test env manipulation isn't overridden by .env file
+    async function createRealMfaModule() {
+      const module = await Test.createTestingModule({
+        imports: [
+          ConfigModule.forRoot({
+            isGlobal: true,
+            ignoreEnvFile: true,
+            validationSchema: productionSchema,
+            validationOptions: { abortEarly: false },
+          }),
+        ],
+        providers: [AppConfigService],
+      }).compile();
+      return module.get(AppConfigService);
+    }
+
+    it('Test 1 — rejects when MFA_JWT_SECRET is absent', async () => {
+      setRequiredEnv();
+      delete process.env.MFA_JWT_SECRET; // remove the MFA secret set by setRequiredEnv
+      delete process.env.MFA_TOTP_ENCRYPTION_KEY;
+
+      await expect(createRealMfaModule()).rejects.toThrow();
+    });
+
+    it('Test 2 — rejects when MFA_JWT_SECRET length < 32 chars', async () => {
+      setRequiredEnv();
+      process.env.MFA_JWT_SECRET = 'short'; // only 5 chars, well below 32
+
+      await expect(createRealMfaModule()).rejects.toThrow();
+    });
+
+    it('Test 3 — rejects when MFA_TOTP_ENCRYPTION_KEY length < 44 chars', async () => {
+      setRequiredEnv();
+      process.env.MFA_JWT_SECRET = 'mfa-secret-that-is-at-least-32-chars-long!!';
+      process.env.MFA_TOTP_ENCRYPTION_KEY = 'too-short-key'; // < 44 chars
+
+      await expect(createRealMfaModule()).rejects.toThrow();
+    });
+
+    it('Test 4 — rejects when MFA_CHALLENGE_TTL_MS >= MFA_TOKEN_TTL_MS', async () => {
+      setMfaEnv();
+      process.env.MFA_CHALLENGE_TTL_MS = '300000';
+      process.env.MFA_TOKEN_TTL_MS = '300000'; // equal — invalid
+
+      let errMsg = '';
+      try {
+        await createRealMfaModule();
+      } catch (err) {
+        errMsg = err instanceof Error ? err.message : String(err);
+      }
+      expect(errMsg).toContain('MFA_CHALLENGE_TTL_MS must be < MFA_TOKEN_TTL_MS');
+    });
+
+    it('Test 5 — accepts valid MFA config (MFA_CHALLENGE_TTL_MS=300000 < MFA_TOKEN_TTL_MS=600000)', async () => {
+      setMfaEnv();
+      process.env.MFA_CHALLENGE_TTL_MS = '300000';
+      process.env.MFA_TOKEN_TTL_MS = '600000';
+
+      const cfg = await createRealMfaModule();
+      expect(cfg.mfaJwtSecret).toBe('mfa-secret-that-is-at-least-32-chars-long!!');
+      expect(cfg.mfaTotpEncryptionKey).toBe(
+        'base64-encoded-32-byte-key-here-44-chars-xxx=',
+      );
+      expect(cfg.mfaChallengeTtlMs).toBe(300000);
+      expect(cfg.mfaTokenTtlMs).toBe(600000);
+      expect(cfg.mfaRateLimitMax).toBe(5);
+      expect(cfg.mfaRateLimitWindowMs).toBe(60000);
     });
   });
 });
