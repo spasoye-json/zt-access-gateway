@@ -54,6 +54,11 @@ export class AuthService {
       this.mapJoseError(error);
     }
 
+    // T-07-fix3: MFA JWTs (typ:'mfa') must only pass MfaGuard — reject from JwtAuthGuard (D-10).
+    if ((result!.payload as Record<string, unknown>).typ === 'mfa') {
+      throw new UnauthorizedException('MFA token cannot be used as access token');
+    }
+
     return this.extractClaims(result!.payload);
   }
 
