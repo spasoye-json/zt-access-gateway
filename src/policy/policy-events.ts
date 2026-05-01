@@ -12,6 +12,7 @@ export const POLICY_DENY = 'policy.deny';
 export const AUTH_INVALID_TOKEN = 'auth.invalid_token';
 export const HONEYPOT_TRIGGER = 'honeypot.trigger';
 export const MFA_FAILED = 'mfa.failed';
+export const MFA_RATE_LIMITED = 'mfa.rate_limited';
 export const AUDIT_SIGNAL = 'audit.signal';
 
 /**
@@ -33,4 +34,5 @@ export type SignalType =
   | typeof AUTH_INVALID_TOKEN
   | typeof HONEYPOT_TRIGGER
   | typeof MFA_FAILED
+  | typeof MFA_RATE_LIMITED
   | typeof AUDIT_SIGNAL;
