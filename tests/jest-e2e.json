@@ -3,6 +3,7 @@
   "rootDir": "..",
   "testRegex": ".e2e-spec.ts$",
   "transform": { "^.+\\.(t|j)s$": "ts-jest" },
+  "transformIgnorePatterns": ["/node_modules/(?!@scure|@otplib|@noble)"],
   "testEnvironment": "node",
   "roots": ["<rootDir>/tests"],
   "setupFiles": ["<rootDir>/tests/setup-e2e.ts"]
