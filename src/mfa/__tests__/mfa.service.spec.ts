@@ -9,7 +9,12 @@ import { authenticator } from '@otplib/v12-adapter';
 import { Test } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import { MfaService } from '../mfa.service';
+import {
+  MfaService,
+  MfaCreateResult,
+  MfaVerifyResult,
+  MfaValidateResult,
+} from '../mfa.service';
 import { MfaChallengeRepository } from '../repositories/mfa-challenge.repository';
 import { MfaTokenRepository } from '../repositories/mfa-token.repository';
 import { UserSecretsRepository } from '../repositories/user-secrets.repository';
@@ -49,7 +54,7 @@ function buildMockConfig(): Partial<AppConfigService> {
 
 /**
  * Signs an MFA JWT using the TEST_JWT_SECRET.
- * `overrideTyp` lets tests forge a token with a wrong typ.
+ * `typ` lets tests forge a token with a wrong typ claim.
  */
 async function mintMfaJwt(opts: {
   userId?: string;
@@ -72,6 +77,20 @@ async function mintMfaJwt(opts: {
     .setIssuedAt()
     .setExpirationTime(expiresIn)
     .sign(secretBytes());
+}
+
+// Helper type narrowers
+function assertOkTrue<T extends { ok: true }>(
+  result: { ok: boolean },
+  _msg?: string,
+): asserts result is T {
+  if (!result.ok) throw new Error(_msg ?? 'Expected ok:true');
+}
+function assertOkFalse<T extends { ok: false }>(
+  result: { ok: boolean },
+  _msg?: string,
+): asserts result is T {
+  if (result.ok) throw new Error(_msg ?? 'Expected ok:false');
 }
 
 // ---------------------------------------------------------------------------
@@ -134,7 +153,7 @@ describe('MfaService', () => {
       const result = await service.createChallenge(TEST_USER, TEST_IP);
 
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
+      assertOkTrue<Extract<MfaCreateResult, { ok: true }>>(result);
 
       expect(typeof result.challengeId).toBe('string');
       expect(result.challengeId.length).toBeGreaterThan(0);
@@ -150,16 +169,14 @@ describe('MfaService', () => {
     });
 
     it('Test 2: returns rate_limited after MFA_RATE_LIMIT_MAX initiations in window (MFA-08)', async () => {
-      // countRecentChallenges returns 5 (== rateLimitMax)
       challengeRepo.countRecentChallenges.mockResolvedValue(5);
 
       const result = await service.createChallenge(TEST_USER, TEST_IP);
 
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      assertOkFalse<Extract<MfaCreateResult, { ok: false }>>(result);
       expect(result.reason).toBe('rate_limited');
 
-      // insertChallenge must NOT have been called
       expect(challengeRepo.insertChallenge).not.toHaveBeenCalled();
     });
 
@@ -171,7 +188,6 @@ describe('MfaService', () => {
       expect(emitter.emit).toHaveBeenCalledTimes(1);
       const [eventName, payload] = emitter.emit.mock.calls[0] as [string, unknown];
       expect(eventName).toBe(MFA_RATE_LIMITED);
-      // MFA_FAILED must not have been emitted
       const allEventNames = emitter.emit.mock.calls.map(([name]) => name);
       expect(allEventNames).not.toContain(MFA_FAILED);
       expect((payload as { userId: string }).userId).toBe(TEST_USER);
@@ -194,10 +210,10 @@ describe('MfaService', () => {
       );
 
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
+      assertOkTrue<Extract<MfaVerifyResult, { ok: true }>>(result);
 
       expect(typeof result.token).toBe('string');
-      expect(result.token.split('.').length).toBe(3); // JWT format
+      expect(result.token.split('.').length).toBe(3);
       expect(typeof result.expiresAt).toBe('number');
       expect(result.expiresAt).toBeGreaterThan(Date.now());
     });
@@ -214,7 +230,7 @@ describe('MfaService', () => {
       );
 
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
+      assertOkTrue<Extract<MfaVerifyResult, { ok: true }>>(result);
 
       const { payload } = await jwtVerify(result.token, secretBytes(), {
         algorithms: ['HS256'],
@@ -239,19 +255,17 @@ describe('MfaService', () => {
       );
 
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
+      assertOkTrue<Extract<MfaVerifyResult, { ok: true }>>(result);
 
       const expectedFp = expectedFingerprint(TEST_USER, TEST_DEVICE, TEST_IP);
 
-      // Verify JWT payload contains the correct fingerprint
       const { payload } = await jwtVerify(result.token, secretBytes(), {
         algorithms: ['HS256'],
       });
       expect(payload['fpHash']).toBe(expectedFp);
 
-      // Verify the repo was called with the same fingerprint
       expect(tokenRepo.insertMfaToken).toHaveBeenCalledWith(
-        expect.any(String), // jti
+        expect.any(String),
         TEST_USER,
         expectedFp,
         expect.any(Date),
@@ -261,7 +275,7 @@ describe('MfaService', () => {
     it('Test 7: returns { ok: false, reason: expired_challenge } for expired challenge (MFA-01)', async () => {
       challengeRepo.getChallenge.mockResolvedValue({
         userId: TEST_USER,
-        expiresAt: new Date(Date.now() - 1000), // expired
+        expiresAt: new Date(Date.now() - 1000),
       });
 
       const code = authenticator.generate(TEST_TOTP_SECRET);
@@ -274,21 +288,21 @@ describe('MfaService', () => {
       );
 
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      assertOkFalse<Extract<MfaVerifyResult, { ok: false }>>(result);
       expect(result.reason).toBe('expired_challenge');
     });
 
     it('Test 8: returns { ok: false, reason: invalid_code } for wrong TOTP code (MFA-02)', async () => {
       const result = await service.verifyTotp(
         TEST_CHALLENGE_ID,
-        '000000', // definitely wrong code
+        '000000',
         TEST_USER,
         TEST_IP,
         TEST_DEVICE,
       );
 
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      assertOkFalse<Extract<MfaVerifyResult, { ok: false }>>(result);
       expect(result.reason).toBe('invalid_code');
     });
 
@@ -305,12 +319,11 @@ describe('MfaService', () => {
       );
 
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      assertOkFalse<Extract<MfaVerifyResult, { ok: false }>>(result);
       expect(result.reason).toBe('unknown_user');
     });
 
     it('Test 10: verifyTotp failure emits MFA_FAILED with reason (D-12)', async () => {
-      // Force expired challenge to trigger failure
       challengeRepo.getChallenge.mockResolvedValue({
         userId: TEST_USER,
         expiresAt: new Date(Date.now() - 1000),
@@ -346,7 +359,7 @@ describe('MfaService', () => {
       const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
 
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
+      assertOkTrue<Extract<MfaValidateResult, { ok: true }>>(result);
       expect(result.claims.sub).toBe(TEST_USER);
       expect(result.claims.typ).toBe('mfa');
       expect(result.claims.deviceId).toBe(TEST_DEVICE);
@@ -358,15 +371,13 @@ describe('MfaService', () => {
       const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
 
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
       expect(result.reason).toBe('wrong_type');
     });
 
     it('Test 13: returns { ok: false, reason: fingerprint_mismatch } for token from different IP (MFA-05, D-06)', async () => {
-      // Token minted with TEST_IP fingerprint, but request comes from different IP
       const token = await mintMfaJwt({ jti: 'jti-test-1' });
-      // tokenRepo returns fingerprint computed with TEST_IP
-      // but we call validateMfaToken with a different IP
+
       const result = await service.validateMfaToken(
         token,
         TEST_USER,
@@ -375,7 +386,7 @@ describe('MfaService', () => {
       );
 
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
       expect(result.reason).toBe('fingerprint_mismatch');
     });
 
@@ -386,26 +397,32 @@ describe('MfaService', () => {
       const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
 
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
       expect(result.reason).toBe('revoked');
     });
 
     it('Test 14b: returns { ok: false, reason: unknown_jti } for jti not in mfa_tokens (D-11)', async () => {
-      tokenRepo.getMfaTokenStatus.mockResolvedValue(null); // no row in DB
+      tokenRepo.getMfaTokenStatus.mockResolvedValue(null);
       const token = await mintMfaJwt({ jti: 'jti-unknown' });
 
       const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
 
       expect(result.ok).toBe(false);
-      if (result.ok) return;
+      assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
       expect(result.reason).toBe('unknown_jti');
     });
 
     it('Test 15: validateMfaToken failure emits MFA_FAILED (D-12)', async () => {
-      tokenRepo.getMfaTokenStatus.mockResolvedValue(null); // unknown_jti → failure
+      tokenRepo.getMfaTokenStatus.mockResolvedValue(null);
 
       const token = await mintMfaJwt({ jti: 'jti-missing' });
-      const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP, 'ja4h-abc');
+      const result = await service.validateMfaToken(
+        token,
+        TEST_USER,
+        TEST_DEVICE,
+        TEST_IP,
+        'ja4h-abc',
+      );
 
       expect(result.ok).toBe(false);
 

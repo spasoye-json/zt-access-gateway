@@ -82,4 +82,30 @@ export class MfaTokenRepository implements OnModuleDestroy {
   async revokeMfaToken(jti: string): Promise<void> {
     await this.pool.query(`UPDATE mfa_tokens SET revoked_at = NOW() WHERE jti = $1`, [jti]);
   }
+
+  /**
+   * Returns jti status row without applying revoked/expired filters.
+   * Used by validateMfaToken to distinguish unknown_jti from revoked (Fix-2).
+   * Returns null if no row exists for the given jti.
+   */
+  async getMfaTokenStatus(
+    jti: string,
+  ): Promise<{ isRevoked: boolean; isExpired: boolean } | null> {
+    const r = await this.pool.query<{
+      is_revoked: boolean;
+      is_expired: boolean;
+    }>(
+      `SELECT
+         revoked_at IS NOT NULL AS is_revoked,
+         expires_at < NOW()    AS is_expired
+       FROM mfa_tokens
+       WHERE jti = $1`,
+      [jti],
+    );
+    if (!r.rows[0]) return null;
+    return {
+      isRevoked: r.rows[0].is_revoked,
+      isExpired: r.rows[0].is_expired,
+    };
+  }
 }
