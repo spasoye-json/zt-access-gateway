@@ -59,6 +59,19 @@ export class PendingEnrollmentStore {
     this.store.delete(enrollmentId);
   }
 
+  /** Returns true if a non-expired pending entry exists for this userId. */
+  hasPendingForUser(userId: string): boolean {
+    const now = Date.now();
+    for (const [id, entry] of this.store) {
+      if (now >= entry.expiresAt) {
+        this.store.delete(id);
+        continue;
+      }
+      if (entry.userId === userId) return true;
+    }
+    return false;
+  }
+
   /** Returns count of non-expired entries. Sweeps stale entries as a side-effect. */
   size(): number {
     const now = Date.now();

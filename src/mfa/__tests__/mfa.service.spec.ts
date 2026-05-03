@@ -106,7 +106,7 @@ describe('MfaService', () => {
   let tokenRepo: jest.Mocked<MfaTokenRepository>;
   let secretsRepo: jest.Mocked<UserSecretsRepository>;
   let emitter: jest.Mocked<EventEmitter2>;
-  let pendingStore: { set: jest.Mock; get: jest.Mock; delete: jest.Mock; size: jest.Mock; clear: jest.Mock };
+  let pendingStore: { set: jest.Mock; get: jest.Mock; delete: jest.Mock; size: jest.Mock; clear: jest.Mock; hasPendingForUser: jest.Mock };
 
   // PendingEnrollmentStore is provided in Plan 11-01. Use a deferred require for Wave 0.
   let PendingEnrollmentStore: unknown;
@@ -153,6 +153,7 @@ describe('MfaService', () => {
       delete: jest.fn(),
       size: jest.fn().mockReturnValue(0),
       clear: jest.fn(),
+      hasPendingForUser: jest.fn().mockReturnValue(false),
     };
 
     const module = await Test.createTestingModule({
@@ -496,6 +497,15 @@ describe('MfaService', () => {
 
     it('ENROLL-03: returns { ok: false, reason: already_enrolled } when user_secrets row exists', async () => {
       secretsRepo.getEncryptedSecret = jest.fn().mockResolvedValue(TEST_ENC_TOTP); // existing row
+      const result = await service.createEnrollment(TEST_USER, 'alice@example.com');
+      assertOkFalse<Extract<MfaEnrollResult, { ok: false }>>(result);
+      expect(result.reason).toBe('already_enrolled');
+      expect(pendingStore.set).not.toHaveBeenCalled();
+    });
+
+    it('ENROLL-03b: returns { ok: false, reason: already_enrolled } when pending enrollment exists', async () => {
+      pendingStore.hasPendingForUser.mockReturnValue(true);
+      secretsRepo.getEncryptedSecret = jest.fn().mockResolvedValue(null);
       const result = await service.createEnrollment(TEST_USER, 'alice@example.com');
       assertOkFalse<Extract<MfaEnrollResult, { ok: false }>>(result);
       expect(result.reason).toBe('already_enrolled');

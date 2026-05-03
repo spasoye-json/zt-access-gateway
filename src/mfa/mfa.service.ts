@@ -310,7 +310,10 @@ export class MfaService {
    */
   async createEnrollment(userId: string, userEmail?: string): Promise<MfaEnrollResult> {
     try {
-      // D-06: block if already enrolled
+      // D-06: block if already enrolled (confirmed) or pending enrollment exists
+      if (this.pendingStore.hasPendingForUser(userId)) {
+        return { ok: false, reason: 'already_enrolled' };
+      }
       const existing = await this.secretsRepo.getEncryptedSecret(userId);
       if (existing) return { ok: false, reason: 'already_enrolled' };
 
