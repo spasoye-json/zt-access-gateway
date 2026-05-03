@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, Length } from 'class-validator';
+import { IsString, IsNotEmpty, Length, IsNumberString } from 'class-validator';
 
 /**
  * Phase 11 — Body for POST /mfa/enroll/confirm.
@@ -17,6 +17,7 @@ export class EnrollConfirmDto {
 
   @IsString()
   @IsNotEmpty()
+  @IsNumberString()
   @Length(6, 6)
   totpCode!: string;
 }

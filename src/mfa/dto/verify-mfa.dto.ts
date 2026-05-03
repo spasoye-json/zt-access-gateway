@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, Length } from 'class-validator';
+import { IsString, IsNotEmpty, Length, IsNumberString } from 'class-validator';
 
 export class VerifyMfaDto {
   @IsString()
@@ -8,6 +8,7 @@ export class VerifyMfaDto {
   /** TOTP code — exactly 6 digits (D-14: RFC 6238 standard length). */
   @IsString()
   @IsNotEmpty()
+  @IsNumberString()
   @Length(6, 6)
   totpCode: string;
 }
