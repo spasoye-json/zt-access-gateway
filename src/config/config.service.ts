@@ -279,7 +279,7 @@ export class AppConfigService {
 
   /** TOTP issuer name shown in authenticator apps. Joi default 'ZT-Gateway'. */
   get mfaIssuerName(): string {
-    return this.config.get<string>('MFA_ISSUER_NAME') ?? 'ZT-Gateway';
+    return this.config.get<string>('MFA_ISSUER_NAME')!;
   }
 
   /** TTL for pending enrollment entries in ms. Joi default 600000 (10min). */
