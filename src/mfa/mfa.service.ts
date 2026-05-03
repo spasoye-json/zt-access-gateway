@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { authenticator } from '@otplib/v12-adapter';
+import { totp as authenticator } from '../shared/totp.util';
 import { AppConfigService } from '../config/config.service';
 import { MfaChallengeRepository } from './repositories/mfa-challenge.repository';
 import { MfaTokenRepository } from './repositories/mfa-token.repository';

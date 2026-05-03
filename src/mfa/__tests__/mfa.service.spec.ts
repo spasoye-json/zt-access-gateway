@@ -5,7 +5,7 @@
  */
 import { createHash } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
-import { authenticator } from '@otplib/v12-adapter';
+import { totp as authenticator } from '../../shared/totp.util';
 import { Test } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
