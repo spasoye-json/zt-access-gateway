@@ -59,7 +59,12 @@ export class PendingEnrollmentStore {
     this.store.delete(enrollmentId);
   }
 
+  /** Returns count of non-expired entries. Sweeps stale entries as a side-effect. */
   size(): number {
+    const now = Date.now();
+    for (const [id, entry] of this.store) {
+      if (now >= entry.expiresAt) this.store.delete(id);
+    }
     return this.store.size;
   }
 
