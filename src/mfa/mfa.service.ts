@@ -7,8 +7,9 @@ import { AppConfigService } from '../config/config.service';
 import { MfaChallengeRepository } from './repositories/mfa-challenge.repository';
 import { MfaTokenRepository } from './repositories/mfa-token.repository';
 import { UserSecretsRepository } from './repositories/user-secrets.repository';
-import { aesGcmDecrypt } from '../shared/aes-gcm.util';
-import { MFA_FAILED, MFA_RATE_LIMITED } from '../policy/policy-events';
+import { aesGcmDecrypt, aesGcmEncrypt } from '../shared/aes-gcm.util';
+import { MFA_ENROLLMENT_RESET, MFA_FAILED, MFA_RATE_LIMITED } from '../policy/policy-events';
+import { PendingEnrollmentStore } from './enrollment.store';
 import type { MfaTokenClaims } from './interfaces/mfa-token-claims.interface';
 
 export type MfaCreateResult =
@@ -32,6 +33,19 @@ export type MfaValidateResult =
         | 'wrong_type';
     };
 
+// Phase 11 — Enrollment result types (D-10)
+export type MfaEnrollResult =
+  | { ok: true; enrollmentId: string; otpauthUri: string }
+  | { ok: false; reason: 'already_enrolled' | 'internal' };
+
+export type MfaConfirmResult =
+  | { ok: true }
+  | { ok: false; reason: 'expired_enrollment' | 'invalid_totp' | 'user_mismatch' | 'internal' };
+
+export type MfaDeleteEnrollmentResult =
+  | { ok: true; deleted: boolean }
+  | { ok: false; reason: 'internal' };
+
 /**
  * Phase 7 — MfaService: challenge lifecycle, TOTP verification, MFA JWT minting/validation.
  *
@@ -53,6 +67,7 @@ export class MfaService {
   private readonly tokenTtlMs: number;
   private readonly rateLimitMax: number;
   private readonly rateLimitWindowMs: number;
+  private readonly issuerName: string;
 
   constructor(
     cfg: AppConfigService,
@@ -60,6 +75,7 @@ export class MfaService {
     private readonly tokenRepo: MfaTokenRepository,
     private readonly secretsRepo: UserSecretsRepository,
     private readonly events: EventEmitter2,
+    private readonly pendingStore: PendingEnrollmentStore,
   ) {
     this.jwtSecretBytes = new TextEncoder().encode(cfg.mfaJwtSecret);
     this.encryptionKey = cfg.mfaTotpEncryptionKey;
@@ -67,6 +83,7 @@ export class MfaService {
     this.tokenTtlMs = cfg.mfaTokenTtlMs;
     this.rateLimitMax = cfg.mfaRateLimitMax;
     this.rateLimitWindowMs = cfg.mfaRateLimitWindowMs;
+    this.issuerName = cfg.mfaIssuerName;
   }
 
   /**
@@ -272,6 +289,116 @@ export class MfaService {
     } catch {
       emitFail('signature');
       return { ok: false, reason: 'signature' };
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Phase 11 — Enrollment (D-01..D-10)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Phase 11 — Generate a TOTP secret + otpauth URI for a non-enrolled user (D-01).
+   *
+   * Two-step flow: this method DOES NOT persist the secret. It stores a pending
+   * entry in PendingEnrollmentStore (10-min TTL) keyed by a fresh UUIDv4 so the
+   * client can complete a TOTP round-trip before commit. confirmEnrollment writes
+   * to user_secrets only on a valid code (Pitfall 1).
+   *
+   * Returns 'already_enrolled' when user_secrets row exists (D-06 → 409 in controller).
+   * Falls back to userId when userEmail absent (Pitfall 3).
+   * Builds URI manually to comply with D-03 (Pitfall 4 — keyuri omits SHA1/6/30).
+   */
+  async createEnrollment(userId: string, userEmail?: string): Promise<MfaEnrollResult> {
+    try {
+      // D-06: block if already enrolled
+      const existing = await this.secretsRepo.getEncryptedSecret(userId);
+      if (existing) return { ok: false, reason: 'already_enrolled' };
+
+      // D-03: generate base32 secret + manual otpauth URI (algorithm/digits/period explicit)
+      const secret = authenticator.generateSecret();
+      const label = userEmail ?? userId;
+      const issuer = this.issuerName;
+      const otpauthUri =
+        `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(label)}` +
+        `?secret=${secret}&issuer=${encodeURIComponent(issuer)}` +
+        `&algorithm=SHA1&digits=6&period=30`;
+
+      // D-02: stash pending entry; secret never leaves memory until confirm
+      const enrollmentId = randomUUID();
+      this.pendingStore.set(enrollmentId, { userId, secret });
+
+      return { ok: true, enrollmentId, otpauthUri };
+    } catch {
+      return { ok: false, reason: 'internal' };
+    }
+  }
+
+  /**
+   * Phase 11 — Validate the TOTP code against the pending secret and commit (D-04).
+   *
+   * Failure modes (none throw):
+   *   - expired_enrollment: pending entry missing or TTL expired
+   *   - user_mismatch (T-11-01): caller userId doesn't match the pending entry's userId
+   *   - invalid_totp: code didn't verify; pending entry is NOT deleted (retry within TTL)
+   *
+   * Success: AES-256-GCM-encrypts the secret, upserts user_secrets, deletes the pending
+   * entry (Pitfall 1).
+   */
+  async confirmEnrollment(
+    enrollmentId: string,
+    totpCode: string,
+    userId: string,
+  ): Promise<MfaConfirmResult> {
+    try {
+      const pending = this.pendingStore.get(enrollmentId);
+      if (!pending) return { ok: false, reason: 'expired_enrollment' };
+
+      // T-11-01: enrollment must be confirmed by the same user who started it
+      if (pending.userId !== userId) {
+        return { ok: false, reason: 'user_mismatch' };
+      }
+
+      // D-04: same verify call as Phase 7 verifyTotp (window ±1, 30s period)
+      const isValid = authenticator.verify({ token: totpCode, secret: pending.secret });
+      if (!isValid) {
+        // D-04: do NOT delete pending — user can retry within TTL
+        return { ok: false, reason: 'invalid_totp' };
+      }
+
+      // Encrypt at rest (D-15) before persisting
+      const encrypted = aesGcmEncrypt(pending.secret, this.encryptionKey);
+      await this.secretsRepo.save(userId, encrypted);
+
+      // Pitfall 1: drop pending entry on success
+      this.pendingStore.delete(enrollmentId);
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: 'internal' };
+    }
+  }
+
+  /**
+   * Phase 11 — Admin-triggered enrollment reset (D-07, T-11-04).
+   *
+   * Deletes the user_secrets row and emits MFA_ENROLLMENT_RESET so audit/observability
+   * can record the privilege-bearing action. Does NOT invalidate live MFA JWTs — those
+   * expire naturally via mfa_tokens.expires_at (D-08).
+   *
+   * Authorization is enforced upstream at the controller (method-level @Roles('admin')).
+   */
+  async deleteEnrollment(userId: string): Promise<MfaDeleteEnrollmentResult> {
+    try {
+      const deleted = await this.secretsRepo.deleteByUserId(userId);
+      // Emit on every call (deleted true or false) so admin reset attempts are auditable
+      this.events.emit(MFA_ENROLLMENT_RESET, {
+        type: MFA_ENROLLMENT_RESET,
+        userId,
+        deleted,
+        ts: Date.now(),
+      });
+      return { ok: true, deleted };
+    } catch {
+      return { ok: false, reason: 'internal' };
     }
   }
 }
