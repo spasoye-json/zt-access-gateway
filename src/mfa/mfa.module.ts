@@ -7,6 +7,7 @@ import { MfaGuard } from './mfa.guard';
 import { MfaChallengeRepository } from './repositories/mfa-challenge.repository';
 import { MfaTokenRepository } from './repositories/mfa-token.repository';
 import { UserSecretsRepository } from './repositories/user-secrets.repository';
+import { PendingEnrollmentStore } from './enrollment.store';
 
 /**
  * Phase 7 — MfaModule (D-19).
@@ -26,6 +27,7 @@ import { UserSecretsRepository } from './repositories/user-secrets.repository';
     MfaChallengeRepository,
     MfaTokenRepository,
     UserSecretsRepository,
+    PendingEnrollmentStore,
   ],
   exports: [MfaService, MfaGuard],
 })
