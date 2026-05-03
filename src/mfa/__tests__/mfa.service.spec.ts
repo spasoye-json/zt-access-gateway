@@ -15,11 +15,12 @@ import {
   MfaVerifyResult,
   MfaValidateResult,
 } from '../mfa.service';
+import type { MfaEnrollResult, MfaConfirmResult, MfaDeleteEnrollmentResult } from '../mfa.service';
 import { MfaChallengeRepository } from '../repositories/mfa-challenge.repository';
 import { MfaTokenRepository } from '../repositories/mfa-token.repository';
 import { UserSecretsRepository } from '../repositories/user-secrets.repository';
 import { AppConfigService } from '../../config/config.service';
-import { aesGcmEncrypt } from '../../shared/aes-gcm.util';
+import { aesGcmEncrypt, aesGcmDecrypt } from '../../shared/aes-gcm.util';
 import { MFA_FAILED, MFA_RATE_LIMITED } from '../../policy/policy-events';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,9 @@ function buildMockConfig(): Partial<AppConfigService> {
     mfaTokenTtlMs: 600_000,
     mfaRateLimitMax: 5,
     mfaRateLimitWindowMs: 60_000,
+    // Phase 11
+    mfaIssuerName: 'Test-Issuer',
+    mfaEnrollPendingTtlMs: 600_000,
   };
 }
 
@@ -102,6 +106,16 @@ describe('MfaService', () => {
   let tokenRepo: jest.Mocked<MfaTokenRepository>;
   let secretsRepo: jest.Mocked<UserSecretsRepository>;
   let emitter: jest.Mocked<EventEmitter2>;
+  let pendingStore: { set: jest.Mock; get: jest.Mock; delete: jest.Mock; size: jest.Mock; clear: jest.Mock };
+
+  // PendingEnrollmentStore is provided in Plan 11-01. Use a deferred require for Wave 0.
+  let PendingEnrollmentStore: unknown;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    PendingEnrollmentStore = require('../enrollment.store').PendingEnrollmentStore;
+  } catch {
+    PendingEnrollmentStore = class {};
+  }
 
   beforeEach(async () => {
     challengeRepo = {
@@ -125,11 +139,21 @@ describe('MfaService', () => {
 
     secretsRepo = {
       getEncryptedSecret: jest.fn().mockResolvedValue(TEST_ENC_TOTP),
+      save: jest.fn().mockResolvedValue(undefined),
+      deleteByUserId: jest.fn().mockResolvedValue(true),
     } as unknown as jest.Mocked<UserSecretsRepository>;
 
     emitter = {
       emit: jest.fn(),
     } as unknown as jest.Mocked<EventEmitter2>;
+
+    pendingStore = {
+      set: jest.fn(),
+      get: jest.fn().mockReturnValue(null),
+      delete: jest.fn(),
+      size: jest.fn().mockReturnValue(0),
+      clear: jest.fn(),
+    };
 
     const module = await Test.createTestingModule({
       providers: [
@@ -139,6 +163,7 @@ describe('MfaService', () => {
         { provide: MfaTokenRepository, useValue: tokenRepo },
         { provide: UserSecretsRepository, useValue: secretsRepo },
         { provide: EventEmitter2, useValue: emitter },
+        { provide: PendingEnrollmentStore as never, useValue: pendingStore },
       ],
     }).compile();
 
@@ -429,6 +454,159 @@ describe('MfaService', () => {
       expect(emitter.emit).toHaveBeenCalledTimes(1);
       const [eventName] = emitter.emit.mock.calls[0] as [string];
       expect(eventName).toBe(MFA_FAILED);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // createEnrollment() — Phase 11
+  // -------------------------------------------------------------------------
+  describe('createEnrollment()', () => {
+    it('ENROLL-01: returns { enrollmentId, otpauthUri } for unenrolled user', async () => {
+      secretsRepo.getEncryptedSecret = jest.fn().mockResolvedValue(null);
+      const result: MfaEnrollResult = await service.createEnrollment(TEST_USER, 'alice@example.com');
+      assertOkTrue<Extract<MfaEnrollResult, { ok: true }>>(result);
+      expect(result.enrollmentId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(result.otpauthUri).toMatch(/^otpauth:\/\/totp\//);
+      expect(pendingStore.set).toHaveBeenCalledTimes(1);
+      const [eid, entry] = pendingStore.set.mock.calls[0];
+      expect(eid).toBe(result.enrollmentId);
+      expect(entry.userId).toBe(TEST_USER);
+      expect(typeof entry.secret).toBe('string');
+      expect(entry.secret.length).toBeGreaterThanOrEqual(16);
+    });
+
+    it('ENROLL-02: otpauthUri contains algorithm=SHA1, digits=6, period=30, issuer, label', async () => {
+      secretsRepo.getEncryptedSecret = jest.fn().mockResolvedValue(null);
+      const result = await service.createEnrollment(TEST_USER, 'alice@example.com');
+      assertOkTrue<Extract<MfaEnrollResult, { ok: true }>>(result);
+      expect(result.otpauthUri).toContain('algorithm=SHA1');
+      expect(result.otpauthUri).toContain('digits=6');
+      expect(result.otpauthUri).toContain('period=30');
+      expect(result.otpauthUri).toContain('issuer=Test-Issuer');
+      expect(result.otpauthUri).toContain('Test-Issuer:alice%40example.com');
+    });
+
+    it('ENROLL-02b: falls back to userId as label when email is absent', async () => {
+      secretsRepo.getEncryptedSecret = jest.fn().mockResolvedValue(null);
+      const result = await service.createEnrollment(TEST_USER /* no email */);
+      assertOkTrue<Extract<MfaEnrollResult, { ok: true }>>(result);
+      expect(result.otpauthUri).toContain(`Test-Issuer:${TEST_USER}`);
+      expect(result.otpauthUri).not.toContain('undefined');
+    });
+
+    it('ENROLL-03: returns { ok: false, reason: already_enrolled } when user_secrets row exists', async () => {
+      secretsRepo.getEncryptedSecret = jest.fn().mockResolvedValue(TEST_ENC_TOTP); // existing row
+      const result = await service.createEnrollment(TEST_USER, 'alice@example.com');
+      assertOkFalse<Extract<MfaEnrollResult, { ok: false }>>(result);
+      expect(result.reason).toBe('already_enrolled');
+      expect(pendingStore.set).not.toHaveBeenCalled();
+    });
+
+    it('returns { ok: false, reason: internal } if repo throws', async () => {
+      secretsRepo.getEncryptedSecret = jest.fn().mockRejectedValue(new Error('db down'));
+      const result = await service.createEnrollment(TEST_USER, 'alice@example.com');
+      assertOkFalse<Extract<MfaEnrollResult, { ok: false }>>(result);
+      expect(result.reason).toBe('internal');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // confirmEnrollment() — Phase 11
+  // -------------------------------------------------------------------------
+  describe('confirmEnrollment()', () => {
+    const ENROLL_ID = 'enroll-uuid-001';
+    const TEST_PENDING_SECRET = authenticator.generateSecret();
+    const validCode = (): string => authenticator.generate(TEST_PENDING_SECRET);
+
+    beforeEach(() => {
+      pendingStore.get.mockReturnValue({
+        userId: TEST_USER,
+        secret: TEST_PENDING_SECRET,
+        expiresAt: Date.now() + 60_000,
+      });
+    });
+
+    it('ENROLL-04: writes encrypted secret and deletes pending entry on valid TOTP', async () => {
+      const result: MfaConfirmResult = await service.confirmEnrollment(ENROLL_ID, validCode(), TEST_USER);
+      assertOkTrue<Extract<MfaConfirmResult, { ok: true }>>(result);
+      expect(secretsRepo.save).toHaveBeenCalledTimes(1);
+      const [savedUser, savedEnc] = (secretsRepo.save as jest.Mock).mock.calls[0];
+      expect(savedUser).toBe(TEST_USER);
+      // Round-trip: decrypt should match the pending secret
+      expect(aesGcmDecrypt(savedEnc, TEST_ENC_KEY)).toBe(TEST_PENDING_SECRET);
+      expect(pendingStore.delete).toHaveBeenCalledWith(ENROLL_ID);
+    });
+
+    it('ENROLL-05: returns invalid_totp on wrong code; pending entry NOT deleted', async () => {
+      const result = await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER);
+      assertOkFalse<Extract<MfaConfirmResult, { ok: false }>>(result);
+      expect(result.reason).toBe('invalid_totp');
+      expect(pendingStore.delete).not.toHaveBeenCalled();
+      expect(secretsRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('ENROLL-06b: returns expired_enrollment when pending entry missing/expired', async () => {
+      pendingStore.get.mockReturnValue(null);
+      const result = await service.confirmEnrollment(ENROLL_ID, validCode(), TEST_USER);
+      assertOkFalse<Extract<MfaConfirmResult, { ok: false }>>(result);
+      expect(result.reason).toBe('expired_enrollment');
+      expect(secretsRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('T-11-01: returns user_mismatch when pending.userId differs from caller userId', async () => {
+      pendingStore.get.mockReturnValue({
+        userId: 'other-user',
+        secret: TEST_PENDING_SECRET,
+        expiresAt: Date.now() + 60_000,
+      });
+      const result = await service.confirmEnrollment(ENROLL_ID, validCode(), TEST_USER);
+      assertOkFalse<Extract<MfaConfirmResult, { ok: false }>>(result);
+      expect(result.reason).toBe('user_mismatch');
+      expect(secretsRepo.save).not.toHaveBeenCalled();
+      expect(pendingStore.delete).not.toHaveBeenCalled();
+    });
+
+    it('returns internal when secretsRepo.save throws', async () => {
+      (secretsRepo.save as jest.Mock).mockRejectedValueOnce(new Error('db down'));
+      const result = await service.confirmEnrollment(ENROLL_ID, validCode(), TEST_USER);
+      assertOkFalse<Extract<MfaConfirmResult, { ok: false }>>(result);
+      expect(result.reason).toBe('internal');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // deleteEnrollment() — Phase 11 admin reset
+  // -------------------------------------------------------------------------
+  describe('deleteEnrollment()', () => {
+    it('ENROLL-07: returns { ok: true, deleted: true } when row exists', async () => {
+      (secretsRepo.deleteByUserId as jest.Mock).mockResolvedValueOnce(true);
+      const result: MfaDeleteEnrollmentResult = await service.deleteEnrollment(TEST_USER);
+      assertOkTrue<Extract<MfaDeleteEnrollmentResult, { ok: true }>>(result);
+      expect(result.deleted).toBe(true);
+      expect(secretsRepo.deleteByUserId).toHaveBeenCalledWith(TEST_USER);
+    });
+
+    it('ENROLL-08: returns { ok: true, deleted: false } when row does not exist', async () => {
+      (secretsRepo.deleteByUserId as jest.Mock).mockResolvedValueOnce(false);
+      const result = await service.deleteEnrollment(TEST_USER);
+      assertOkTrue<Extract<MfaDeleteEnrollmentResult, { ok: true }>>(result);
+      expect(result.deleted).toBe(false);
+    });
+
+    it('emits mfa.enrollment_reset event on successful delete (admin reset audit)', async () => {
+      (secretsRepo.deleteByUserId as jest.Mock).mockResolvedValueOnce(true);
+      await service.deleteEnrollment(TEST_USER);
+      expect(emitter.emit).toHaveBeenCalledWith(
+        'mfa.enrollment_reset',
+        expect.objectContaining({ type: 'mfa.enrollment_reset', userId: TEST_USER }),
+      );
+    });
+
+    it('returns internal when repo throws', async () => {
+      (secretsRepo.deleteByUserId as jest.Mock).mockRejectedValueOnce(new Error('db down'));
+      const result = await service.deleteEnrollment(TEST_USER);
+      assertOkFalse<Extract<MfaDeleteEnrollmentResult, { ok: false }>>(result);
+      expect(result.reason).toBe('internal');
     });
   });
 });
