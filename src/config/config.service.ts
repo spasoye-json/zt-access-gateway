@@ -274,4 +274,16 @@ export class AppConfigService {
   get mfaRateLimitWindowMs(): number {
     return this.config.get<number>('MFA_RATE_LIMIT_WINDOW_MS')!;
   }
+
+  // --- Phase 11: MFA Enrollment (D-11) ---
+
+  /** TOTP issuer name shown in authenticator apps. Joi default 'ZT-Gateway'. */
+  get mfaIssuerName(): string {
+    return this.config.get<string>('MFA_ISSUER_NAME') ?? 'ZT-Gateway';
+  }
+
+  /** TTL for pending enrollment entries in ms. Joi default 600000 (10min). */
+  get mfaEnrollPendingTtlMs(): number {
+    return this.config.get<number>('MFA_ENROLL_PENDING_TTL_MS')!;
+  }
 }

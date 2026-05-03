@@ -4,8 +4,10 @@
  * Phase 6 publishes: POLICY_DENY (PolicyEvaluator), AUTH_INVALID_TOKEN (JwtAuthGuard
  * patch), HONEYPOT_TRIGGER (ShadowController patch).
  *
- * Phase 7 will emit MFA_FAILED. Phase 9 may emit AUDIT_SIGNAL.
- * ThreatEscalationService subscribes to all five from day one — missing emitters are silent.
+ * Phase 7 emits MFA_FAILED + MFA_RATE_LIMITED.
+ * Phase 11 adds MFA_ENROLLMENT_RESET on admin enrollment reset (CONTEXT specifics).
+ * Phase 9 may emit AUDIT_SIGNAL.
+ * ThreatEscalationService subscribes to all from day one — missing emitters are silent.
  */
 
 export const POLICY_DENY = 'policy.deny';
@@ -13,6 +15,7 @@ export const AUTH_INVALID_TOKEN = 'auth.invalid_token';
 export const HONEYPOT_TRIGGER = 'honeypot.trigger';
 export const MFA_FAILED = 'mfa.failed';
 export const MFA_RATE_LIMITED = 'mfa.rate_limited';
+export const MFA_ENROLLMENT_RESET = 'mfa.enrollment_reset';
 export const AUDIT_SIGNAL = 'audit.signal';
 
 /**
@@ -35,4 +38,5 @@ export type SignalType =
   | typeof HONEYPOT_TRIGGER
   | typeof MFA_FAILED
   | typeof MFA_RATE_LIMITED
+  | typeof MFA_ENROLLMENT_RESET
   | typeof AUDIT_SIGNAL;
