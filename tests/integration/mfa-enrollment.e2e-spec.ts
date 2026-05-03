@@ -20,6 +20,7 @@ async function bootstrapApp() {
   const { Test } = await import('@nestjs/testing');
   const { AppModule } = await import('../../src/app.module');
   const { TrustScoreService } = await import('../../src/trust-score/trust-score.service');
+  const { ValidationPipe } = await import('@nestjs/common');
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(TrustScoreService)
     .useValue({
@@ -28,6 +29,9 @@ async function bootstrapApp() {
     })
     .compile();
   const app = moduleRef.createNestApplication();
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+  );
   await app.init();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return app as any;
