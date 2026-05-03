@@ -16,6 +16,7 @@ export const HONEYPOT_TRIGGER = 'honeypot.trigger';
 export const MFA_FAILED = 'mfa.failed';
 export const MFA_RATE_LIMITED = 'mfa.rate_limited';
 export const MFA_ENROLLMENT_RESET = 'mfa.enrollment_reset';
+export const MFA_ENROLLMENT_CONFIRMED = 'mfa.enrollment_confirmed';
 export const AUDIT_SIGNAL = 'audit.signal';
 
 /**
@@ -39,4 +40,5 @@ export type SignalType =
   | typeof MFA_FAILED
   | typeof MFA_RATE_LIMITED
   | typeof MFA_ENROLLMENT_RESET
+  | typeof MFA_ENROLLMENT_CONFIRMED
   | typeof AUDIT_SIGNAL;

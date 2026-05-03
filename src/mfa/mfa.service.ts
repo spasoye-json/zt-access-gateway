@@ -8,7 +8,7 @@ import { MfaChallengeRepository } from './repositories/mfa-challenge.repository'
 import { MfaTokenRepository } from './repositories/mfa-token.repository';
 import { UserSecretsRepository } from './repositories/user-secrets.repository';
 import { aesGcmDecrypt, aesGcmEncrypt } from '../shared/aes-gcm.util';
-import { MFA_ENROLLMENT_RESET, MFA_FAILED, MFA_RATE_LIMITED } from '../policy/policy-events';
+import { MFA_ENROLLMENT_CONFIRMED, MFA_ENROLLMENT_RESET, MFA_FAILED, MFA_RATE_LIMITED } from '../policy/policy-events';
 import { PendingEnrollmentStore } from './enrollment.store';
 import type { MfaTokenClaims } from './interfaces/mfa-token-claims.interface';
 
@@ -371,6 +371,13 @@ export class MfaService {
 
       // Pitfall 1: drop pending entry on success
       this.pendingStore.delete(enrollmentId);
+
+      // Audit trail: new TOTP device registered is a high-value security event
+      this.events.emit(MFA_ENROLLMENT_CONFIRMED, {
+        type: MFA_ENROLLMENT_CONFIRMED,
+        userId,
+        ts: Date.now(),
+      });
       return { ok: true };
     } catch {
       return { ok: false, reason: 'internal' };
