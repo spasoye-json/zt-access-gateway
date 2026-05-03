@@ -2,13 +2,32 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { Client } from 'pg';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/config.service';
 import { HttpExceptionFilter } from './shared/http-exception.filter';
 
+async function runMigrations(databaseUrl: string): Promise<void> {
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+  try {
+    const dir = path.join(__dirname, '..', 'sql', 'migrations');
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+    for (const file of files) {
+      await client.query(fs.readFileSync(path.join(dir, file), 'utf8'));
+    }
+  } finally {
+    await client.end();
+  }
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(AppConfigService);
+
+  await runMigrations(config.databaseUrl);
 
   // 1. Security headers — must be first to apply to every response (T-01-10, RESEARCH.md Pattern 6)
   app.use(helmet());
