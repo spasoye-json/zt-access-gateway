@@ -77,6 +77,9 @@ export const validationSchema = Joi.object({
   MFA_TOKEN_TTL_MS: Joi.number().integer().min(1).default(600000),
   MFA_RATE_LIMIT_MAX: Joi.number().integer().min(1).default(5),
   MFA_RATE_LIMIT_WINDOW_MS: Joi.number().integer().min(1).default(60000),
+  // Phase 11: MFA Enrollment (D-11)
+  MFA_ISSUER_NAME: Joi.string().default('ZT-Gateway'),
+  MFA_ENROLL_PENDING_TTL_MS: Joi.number().integer().min(1).default(600000),
 }).custom((cfg, helpers) => {
   // D-23 cross-field validator: Elevated/Critical MUST be strictly tighter than Normal.
   // Tighter at higher level (challenge threshold)
