@@ -36,6 +36,9 @@ describe('Policy E2E — fail-closed startup (D-03)', () => {
       process.env.MFA_JWT_SECRET = 'mfa-test-secret-that-is-at-least-32-chars!!';
     if (!process.env.MFA_TOTP_ENCRYPTION_KEY)
       process.env.MFA_TOTP_ENCRYPTION_KEY = Buffer.from('a'.repeat(32)).toString('base64');
+    // Phase 8 Proxy vars — required by config validation after ProxyModule added to AppModule
+    if (!process.env.PROXY_SERVICE_REGISTRY)
+      process.env.PROXY_SERVICE_REGISTRY = JSON.stringify({ dummy: 'https://dummy.test:8443' });
     process.env.POLICY_MODEL_PATH = '/no/such/model.conf';
     process.env.POLICY_CSV_PATH = '/no/such/policy.csv';
 
