@@ -32,4 +32,9 @@ export class SecurityMetricsService {
   async getMetrics(): Promise<string> {
     return this.registry.metrics();
   }
+
+  /** Expose registry for Phase 9 MetricsService Registry.merge() aggregation. */
+  getRegistry(): Registry {
+    return this.registry;
+  }
 }
