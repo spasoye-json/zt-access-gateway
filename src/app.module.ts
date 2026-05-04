@@ -10,9 +10,10 @@ import { TrustScoreModule } from './trust-score/trust-score.module';
 import { HashcashModule } from './hashcash/hashcash.module';
 import { PolicyModule } from './policy/policy.module';
 import { MfaModule } from './mfa/mfa.module';
+import { ProxyModule } from './proxy/proxy.module';
 
 /**
- * AppModule — root module wiring the full Phase 2-7 pipeline.
+ * AppModule — root module wiring the full Phase 2-8 pipeline.
  *
  * Middleware ordering (D-04):
  *   1. Helmet (main.ts — global Express middleware, fires first)
@@ -25,6 +26,8 @@ import { MfaModule } from './mfa/mfa.module';
  *      NOT a global guard yet; PolicyEvaluatorService is exported for that consumer)
  *   7. MFA challenge endpoints (Phase 7 — MfaController + MfaService; MfaGuard exported
  *      but NOT APP_GUARD per D-20; Phase 10 registers it in the full pipeline)
+ *   8. ProxyModule — mTLS forwarding + BOPLA stripping (D-01..D-12); ProxyService +
+ *      BoPlaInterceptor exported for Phase 10 GatewayMiddleware injection
  *
  * EventEmitterModule (Phase 6 D-13) is registered globally immediately after
  * ConfigAppModule so all subsequent modules see EventEmitter2 globally.
@@ -43,6 +46,7 @@ import { MfaModule } from './mfa/mfa.module';
     HashcashModule,
     PolicyModule, // Phase 6 — D-24 module structure (after Hashcash, before Honeypot)
     MfaModule, // Phase 7 — D-19 (after PolicyModule, before HoneypotModule)
+    ProxyModule, // Phase 8 — D-01..D-12 (wave 3; before HoneypotModule)
     HoneypotModule, // Pitfall 3: stays last (Phase 2)
   ],
   controllers: [],
