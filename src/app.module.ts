@@ -11,9 +11,11 @@ import { HashcashModule } from './hashcash/hashcash.module';
 import { PolicyModule } from './policy/policy.module';
 import { MfaModule } from './mfa/mfa.module';
 import { ProxyModule } from './proxy/proxy.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { AuditModule } from './audit/audit.module';
 
 /**
- * AppModule — root module wiring the full Phase 2-8 pipeline.
+ * AppModule — root module wiring the full Phase 2-9 pipeline.
  *
  * Middleware ordering (D-04):
  *   1. Helmet (main.ts — global Express middleware, fires first)
@@ -28,6 +30,12 @@ import { ProxyModule } from './proxy/proxy.module';
  *      but NOT APP_GUARD per D-20; Phase 10 registers it in the full pipeline)
  *   8. ProxyModule — mTLS forwarding + BOPLA stripping (D-01..D-12); ProxyService +
  *      BoPlaInterceptor exported for Phase 10 GatewayMiddleware injection
+ *   9. MetricsModule + AuditModule — Phase 9 (D-01..D-10);
+ *      MetricsModule comes AFTER HashcashModule/PolicyModule/HoneypotModule peers exist
+ *      via the DI graph (Pitfall 7) but BEFORE HoneypotModule's controller registration
+ *      (Pitfall 3 — Honeypot stays last). MetricsService.getAggregatedMetrics() merges
+ *      all 4 registries on every /metrics scrape; AuditService is exported for Phase 10
+ *      GatewayMiddleware (audit-before-allow + best-effort record).
  *
  * EventEmitterModule (Phase 6 D-13) is registered globally immediately after
  * ConfigAppModule so all subsequent modules see EventEmitter2 globally.
@@ -47,6 +55,8 @@ import { ProxyModule } from './proxy/proxy.module';
     PolicyModule, // Phase 6 — D-24 module structure (after Hashcash, before Honeypot)
     MfaModule, // Phase 7 — D-19 (after PolicyModule, before HoneypotModule)
     ProxyModule, // Phase 8 — D-01..D-12 (wave 3; before HoneypotModule)
+    MetricsModule, // Phase 9 — registry merge (after Hashcash/Policy peers, before Honeypot last)
+    AuditModule, // Phase 9 — WAL writer + admin query endpoint
     HoneypotModule, // Pitfall 3: stays last (Phase 2)
   ],
   controllers: [],
