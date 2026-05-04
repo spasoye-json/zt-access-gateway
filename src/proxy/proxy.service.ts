@@ -88,9 +88,12 @@ export class ProxyService implements OnModuleInit {
       throw new NotFoundException('Cannot extract service name from path');
     }
     const baseUrl = this.registry.resolve(serviceName); // throws NotFoundException for unknown services
-    const forwardedPath = this.registry.stripPrefix(req.path);
+    // Use req.url (pathname + query string) to preserve query params; strip only the path prefix.
+    const parsed = new URL(req.url, 'http://placeholder');
+    const strippedPathname = this.registry.stripPrefix(parsed.pathname);
+    const forwardedPath = strippedPathname + parsed.search;
 
-    const target = new URL(forwardedPath, baseUrl);
+    const target = new URL(forwardedPath, baseUrl.endsWith('/') ? baseUrl : baseUrl + '/');
     await this.dnsGuard.assertSafe(target.hostname); // throws ForbiddenException
 
     const breaker = this.breakers.get(serviceName);
@@ -149,7 +152,8 @@ export class ProxyService implements OnModuleInit {
             lastErr = new Error(`Upstream ${response.status}`);
             continue;
           }
-          return response; // exhausted retries — return upstream response (validator will throw on 5xx if ≥500)
+          // Throw so opossum records a failure and can open the circuit.
+          throw new Error(`Upstream ${response.status} after ${maxRetries} retries`);
         }
         return response; // success or non-retriable status (4xx / 500 / 501)
       } catch (err) {

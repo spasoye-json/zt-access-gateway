@@ -87,9 +87,10 @@ function makeClaims(overrides?: Partial<UserClaims>): UserClaims {
 }
 
 function makeRequest(overrides?: Partial<Request>): Request {
-  return {
+  const req = {
     method: 'GET',
     path: '/users/profile',
+    url: '/users/profile',
     headers: {
       'accept': 'application/json',
       'user-agent': 'test-agent',
@@ -97,6 +98,11 @@ function makeRequest(overrides?: Partial<Request>): Request {
     body: undefined,
     ...overrides,
   } as unknown as Request;
+  // If url wasn't explicitly provided, sync it to path so existing tests keep working.
+  if (!overrides?.url && overrides?.path) {
+    (req as any).url = overrides.path;
+  }
+  return req;
 }
 
 function makeOkResponse(overrides?: Partial<AxiosResponse>): AxiosResponse {
