@@ -159,7 +159,7 @@ Plans:
 Plans:
 - [x] 08-00-PLAN.md — Wave 0: install opossum + @types, Joi/getter group, express.d.ts, field-policy.json starter, RED test stubs
 - [x] 08-01-PLAN.md — ServiceRegistryService + DnsRebindingGuard + ResponseValidator (independent helpers)
-- [ ] 08-02-PLAN.md — ProxyService: opossum per-service breakers + retry loop + header sanitization + mTLS forwarding
+- [x] 08-02-PLAN.md — ProxyService: opossum per-service breakers + retry loop + header sanitization + mTLS forwarding
 - [ ] 08-03-PLAN.md — BoPlaInterceptor: field-policy.json load + recursive role-based field stripping (BOPL-01..04)
 - [ ] 08-04-PLAN.md — ProxyModule + AppModule wiring + module bootstrap integration test
 
