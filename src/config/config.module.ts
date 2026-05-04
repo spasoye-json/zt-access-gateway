@@ -80,6 +80,13 @@ export const validationSchema = Joi.object({
   // Phase 11: MFA Enrollment (D-11)
   MFA_ISSUER_NAME: Joi.string().default('ZT-Gateway'),
   MFA_ENROLL_PENDING_TTL_MS: Joi.number().integer().min(1).default(600000),
+  // Phase 8: Proxy + BOPLA (D-01, D-12)
+  PROXY_SERVICE_REGISTRY: Joi.string().required(),
+  PROXY_CB_VOLUME_THRESHOLD: Joi.number().integer().min(1).default(5),
+  PROXY_CB_ERROR_THRESHOLD: Joi.number().min(1).max(100).default(50),
+  PROXY_CB_RESET_TIMEOUT: Joi.number().integer().min(1000).default(10000),
+  PROXY_MAX_RETRIES: Joi.number().integer().min(0).max(10).default(3),
+  BOPLA_POLICY_PATH: Joi.string().default('policy/field-policy.json'),
 }).custom((cfg, helpers) => {
   // D-23 cross-field validator: Elevated/Critical MUST be strictly tighter than Normal.
   // Tighter at higher level (challenge threshold)

@@ -286,4 +286,36 @@ export class AppConfigService {
   get mfaEnrollPendingTtlMs(): number {
     return this.config.get<number>('MFA_ENROLL_PENDING_TTL_MS')!;
   }
+
+  // ── Phase 8: Proxy + BOPLA (D-01, D-12) ──
+
+  /** JSON string mapping serviceName → baseUrl. Required (D-03/D-04). Parsed by ServiceRegistryService.onModuleInit. */
+  get proxyServiceRegistry(): string {
+    return this.config.get<string>('PROXY_SERVICE_REGISTRY')!;
+  }
+
+  /** opossum volumeThreshold — min requests before tripping (default 5, D-12). */
+  get proxyCbVolumeThreshold(): number {
+    return this.config.get<number>('PROXY_CB_VOLUME_THRESHOLD')!;
+  }
+
+  /** opossum errorThresholdPercentage — % failure rate to open (default 50, D-12). */
+  get proxyCbErrorThreshold(): number {
+    return this.config.get<number>('PROXY_CB_ERROR_THRESHOLD')!;
+  }
+
+  /** opossum resetTimeout — ms OPEN before HALF-OPEN probe (default 10000, D-12). */
+  get proxyCbResetTimeout(): number {
+    return this.config.get<number>('PROXY_CB_RESET_TIMEOUT')!;
+  }
+
+  /** Max retries inside opossum action function (default 3, D-12). */
+  get proxyMaxRetries(): number {
+    return this.config.get<number>('PROXY_MAX_RETRIES')!;
+  }
+
+  /** Path to BOPLA field policy JSON (default 'policy/field-policy.json', D-05). */
+  get boplaPolicyPath(): string {
+    return this.config.get<string>('BOPLA_POLICY_PATH')!;
+  }
 }
