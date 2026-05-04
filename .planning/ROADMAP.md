@@ -161,7 +161,7 @@ Plans:
 - [x] 08-01-PLAN.md — ServiceRegistryService + DnsRebindingGuard + ResponseValidator (independent helpers)
 - [x] 08-02-PLAN.md — ProxyService: opossum per-service breakers + retry loop + header sanitization + mTLS forwarding
 - [ ] 08-03-PLAN.md — BoPlaInterceptor: field-policy.json load + recursive role-based field stripping (BOPL-01..04)
-- [ ] 08-04-PLAN.md — ProxyModule + AppModule wiring + module bootstrap integration test
+- [x] 08-04-PLAN.md — ProxyModule + AppModule wiring + module bootstrap integration test
 
 ### Phase 9: Audit + Metrics
 **Goal**: Every gateway decision is durably recorded to an audit log before the request is allowed through, and all pipeline activity is observable via Prometheus
