@@ -87,6 +87,9 @@ export const validationSchema = Joi.object({
   PROXY_CB_RESET_TIMEOUT: Joi.number().integer().min(1000).default(10000),
   PROXY_MAX_RETRIES: Joi.number().integer().min(0).max(10).default(3),
   BOPLA_POLICY_PATH: Joi.string().default('policy/field-policy.json'),
+  // Phase 9: Audit WAL (D-06)
+  AUDIT_WAL_BASE_DELAY_MS: Joi.number().integer().min(1).default(50),
+  AUDIT_WAL_MAX_RETRIES: Joi.number().integer().min(1).max(10).default(3),
 }).custom((cfg, helpers) => {
   // D-23 cross-field validator: Elevated/Critical MUST be strictly tighter than Normal.
   // Tighter at higher level (challenge threshold)
