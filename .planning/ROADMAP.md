@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Trust Score** - 7-signal risk scoring model with Postgres persistence and DB test isolation (completed 2026-04-22)
 - [x] **Phase 5: Hashcash PoW** - Proof-of-work guard for high-risk requests with difficulty scaling (completed 2026-04-26)
 - [x] **Phase 6: Policy + Threat Escalation** - Casbin RBAC evaluation, ALLOW/CHALLENGE/DENY, and auto-tightening thresholds (completed 2026-04-26)
-- [ ] **Phase 7: MFA Challenge** - Fingerprint-bound TOTP challenge lifecycle and CHALLENGE-to-ALLOW promotion
+- [x] **Phase 7: MFA Challenge** - Fingerprint-bound TOTP challenge lifecycle and CHALLENGE-to-ALLOW promotion (completed 2026-05-03)
 - [ ] **Phase 8: Proxy + BOPLA** - mTLS forwarding with circuit breaker/retries/SSRF and role-based response field stripping
 - [ ] **Phase 9: Audit + Metrics** - Write-ahead audit buffer and Prometheus security metrics
 - [ ] **Phase 10: Gateway Integration** - 10-step fail-fast GatewayMiddleware orchestrating the full hardened pipeline
@@ -155,7 +155,13 @@ Plans:
   3. DnsRebindingGuard prevents forwarding to private/loopback/metadata IP ranges resolved at connection time
   4. After a configured failure threshold the circuit breaker opens; failing fast until half-open probe succeeds
   5. Admin-role callers receive all response fields; lower-privilege roles receive progressively restricted field sets per the field policy
-**Plans:** TBD (not yet planned)
+**Plans:** 5 plans
+Plans:
+- [x] 08-00-PLAN.md — Wave 0: install opossum + @types, Joi/getter group, express.d.ts, field-policy.json starter, RED test stubs
+- [x] 08-01-PLAN.md — ServiceRegistryService + DnsRebindingGuard + ResponseValidator (independent helpers)
+- [ ] 08-02-PLAN.md — ProxyService: opossum per-service breakers + retry loop + header sanitization + mTLS forwarding
+- [ ] 08-03-PLAN.md — BoPlaInterceptor: field-policy.json load + recursive role-based field stripping (BOPL-01..04)
+- [ ] 08-04-PLAN.md — ProxyModule + AppModule wiring + module bootstrap integration test
 
 ### Phase 9: Audit + Metrics
 **Goal**: Every gateway decision is durably recorded to an audit log before the request is allowed through, and all pipeline activity is observable via Prometheus
@@ -193,11 +199,11 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 4. Trust Score | 3/3 | Complete | 2026-04-22 |
 | 5. Hashcash PoW | 9/9 | Complete | 2026-04-26 |
 | 6. Policy + Threat Escalation | 7/7 | Complete | 2026-04-26 |
-| 7. MFA Challenge | 0/4 | Not started | - |
-| 8. Proxy + BOPLA | 0/TBD | Not started | - |
+| 7. MFA Challenge | 4/4 | Complete | 2026-05-03 |
+| 8. Proxy + BOPLA | 0/5 | Planned | - |
 | 9. Audit + Metrics | 0/TBD | Not started | - |
 | 10. Gateway Integration | 0/TBD | Not started | - |
-| 11. MFA Enrollment | 0/5 | Not started | - |
+| 11. MFA Enrollment | 5/5 | Complete | 2026-05-03 |
 
 ### Phase 11: MFA Enrollment
 
