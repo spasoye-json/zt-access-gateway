@@ -27,6 +27,6 @@ import { UsedNonceStore } from './used-nonce-store';
     },
     { provide: APP_GUARD, useClass: HashcashGuard },
   ],
-  exports: [HashcashService],
+  exports: [HashcashService, HashcashMetrics],
 })
 export class HashcashModule {}

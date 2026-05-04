@@ -318,4 +318,16 @@ export class AppConfigService {
   get boplaPolicyPath(): string {
     return this.config.get<string>('BOPLA_POLICY_PATH')!;
   }
+
+  // ── Phase 9: Audit WAL (D-06) ──
+
+  /** Base delay in ms for WAL exponential backoff. Default 50. */
+  get auditWalBaseDelayMs(): number {
+    return this.config.get<number>('AUDIT_WAL_BASE_DELAY_MS')!;
+  }
+
+  /** Max retries for WAL before throwing AuditExhaustedException. Default 3. */
+  get auditWalMaxRetries(): number {
+    return this.config.get<number>('AUDIT_WAL_MAX_RETRIES')!;
+  }
 }
