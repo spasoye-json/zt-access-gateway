@@ -1,10 +1,35 @@
+// Set required env BEFORE importing config.module — ConfigModule.forRoot in @Module()
+// evaluates the Joi schema immediately when the module file is first require()-d.
+// Phase 8: PROXY_SERVICE_REGISTRY is now required; must be set before module load.
+if (!process.env.PROXY_SERVICE_REGISTRY)
+  process.env.PROXY_SERVICE_REGISTRY = JSON.stringify({
+    dummy: 'https://dummy.test:8443',
+  });
+if (!process.env.MTLS_CA_CERT_PATH) process.env.MTLS_CA_CERT_PATH = '/dev/null';
+if (!process.env.MTLS_CLIENT_CERT_PATH)
+  process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
+if (!process.env.MTLS_CLIENT_KEY_PATH)
+  process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
+if (!process.env.MTLS_ALLOWED_SUBJECTS)
+  process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
+if (!process.env.JWT_SECRET)
+  process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long!';
+if (!process.env.DATABASE_URL)
+  process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
+if (!process.env.HASHCASH_HMAC_SECRET)
+  process.env.HASHCASH_HMAC_SECRET = 'a'.repeat(64);
+if (!process.env.MFA_JWT_SECRET)
+  process.env.MFA_JWT_SECRET = 'mfa-test-secret-that-is-at-least-32-chars!!';
+if (!process.env.MFA_TOTP_ENCRYPTION_KEY)
+  process.env.MFA_TOTP_ENCRYPTION_KEY = Buffer.from('a'.repeat(32)).toString('base64');
+
 import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { AppConfigService } from '../config.service';
 import { validationSchema as productionSchema } from '../config.module';
 
-// Helper: set all required env vars (mTLS + JWT + Phase 7 MFA)
+// Helper: set all required env vars (mTLS + JWT + Phase 7 MFA + Phase 8 Proxy)
 function setRequiredEnv() {
   process.env.MTLS_CA_CERT_PATH = '/tmp/ca.pem';
   process.env.MTLS_CLIENT_CERT_PATH = '/tmp/client.pem';
@@ -19,6 +44,11 @@ function setRequiredEnv() {
   process.env.MFA_JWT_SECRET = 'mfa-secret-that-is-at-least-32-chars-long!!';
   process.env.MFA_TOTP_ENCRYPTION_KEY =
     'base64-encoded-32-byte-key-here-44-chars-xxx=';
+  // Phase 8 Proxy required vars (D-03)
+  if (!process.env.PROXY_SERVICE_REGISTRY)
+    process.env.PROXY_SERVICE_REGISTRY = JSON.stringify({
+      dummy: 'https://dummy.test:8443',
+    });
 }
 
 const joiSchema = Joi.object({
