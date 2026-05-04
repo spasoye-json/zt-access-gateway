@@ -1,0 +1,13 @@
+{
+  "/users/**": {
+    "admin": ["*"],
+    "user": ["id", "email", "name"]
+  },
+  "/orders/**": {
+    "admin": ["*"],
+    "user": ["id", "status", "total"]
+  },
+  "/billing/**": {
+    "admin": ["*"]
+  }
+}
