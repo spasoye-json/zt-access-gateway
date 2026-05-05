@@ -62,29 +62,25 @@ export class AuditRepository implements OnModuleDestroy {
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-    // Items query — append limit/offset as the last two params
-    const itemsParams = [...params, filters.limit, filters.offset];
+    // Single query with window function — items + total in one consistent read,
+    // avoiding a TOCTOU gap between separate items and count round-trips.
     const limitIdx = params.length + 1;
     const offsetIdx = params.length + 2;
-    const itemsRes = await this.pool.query<AuditLogRow>(
+    const queryParams = [...params, filters.limit, filters.offset];
+    const res = await this.pool.query<AuditLogRow & { total_count: string }>(
       `SELECT id, user_id, resource, action, decision, trust_score, ja4h_fingerprint,
-              ip_address, user_agent, request_id, event_type, created_at
+              ip_address, user_agent, request_id, event_type, created_at,
+              COUNT(*) OVER() AS total_count
        FROM audit_logs
        ${whereSql}
        ORDER BY created_at DESC
        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
-      itemsParams,
-    );
-
-    // Count query — same WHERE, no LIMIT/OFFSET
-    const countRes = await this.pool.query<{ total: string }>(
-      `SELECT COUNT(*)::text AS total FROM audit_logs ${whereSql}`,
-      params,
+      queryParams,
     );
 
     return {
-      items: itemsRes.rows.map(this.toAuditLog),
-      total: Number(countRes.rows[0]?.total ?? 0),
+      items: res.rows.map(this.toAuditLog),
+      total: Number(res.rows[0]?.total_count ?? 0),
     };
   }
 
