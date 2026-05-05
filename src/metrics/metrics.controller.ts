@@ -1,5 +1,6 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import type { Response } from 'express';
+import { Registry } from 'prom-client';
 import { Public } from '../shared/public.decorator';
 import { MetricsService } from './metrics.service';
 
@@ -8,7 +9,8 @@ import { MetricsService } from './metrics.service';
  *
  * @Public() applied at class level so JwtAuthGuard skips authentication
  * (mirrors HealthController). Returns Prometheus exposition format with
- * Content-Type: text/plain; charset=utf-8 — bypasses NestJS JSON via @Res().
+ * Content-Type per Registry.PROMETHEUS_CONTENT_TYPE (text/plain; version=0.0.4; charset=utf-8)
+ * — bypasses NestJS JSON via @Res().
  */
 @Public()
 @Controller('metrics')
@@ -19,7 +21,7 @@ export class MetricsController {
   async getMetrics(@Res() res: Response): Promise<void> {
     const body = await this.metricsService.getAggregatedMetrics();
     res
-      .set('Content-Type', 'text/plain; charset=utf-8')
+      .set('Content-Type', Registry.PROMETHEUS_CONTENT_TYPE)
       .status(200)
       .send(body);
   }

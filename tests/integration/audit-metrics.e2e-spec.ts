@@ -66,10 +66,10 @@ describe('Phase 9 — Audit + Metrics e2e', () => {
   });
 
   describe('GET /metrics (MTRC-03, MTRC-04)', () => {
-    it('returns 200 with text/plain; charset=utf-8 content-type without auth (MTRC-03)', async () => {
+    it('returns 200 with text/plain; version=0.0.4; charset=utf-8 content-type without auth (MTRC-03)', async () => {
       const res = await request(app.getHttpServer()).get('/metrics');
       expect(res.status).toBe(200);
-      expect(res.headers['content-type']).toMatch(/^text\/plain; charset=utf-8/);
+      expect(res.headers['content-type']).toMatch(/^text\/plain; version=0\.0\.4; charset=utf-8/);
     });
 
     it('body contains metric names from all 4 registries (MTRC-04)', async () => {
