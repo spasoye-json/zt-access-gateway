@@ -90,12 +90,12 @@ describe('AuditService', () => {
     });
 
     it('AuditExhaustedException carries name="AuditExhaustedException" for instanceof-free callers', async () => {
+      expect.assertions(1);
       const repo = makeRepo();
       repo.insert.mockRejectedValue(new Error('db'));
       const svc = new AuditService(makeConfig(1, 50), repo, makeEmitter());
       try {
         await svc.writeBlocking({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' });
-        fail('expected throw');
       } catch (e) {
         expect((e as Error).name).toBe('AuditExhaustedException');
       }
