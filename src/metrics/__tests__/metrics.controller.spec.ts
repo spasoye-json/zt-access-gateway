@@ -35,10 +35,13 @@ describe('MetricsController', () => {
     expect(res.send).toHaveBeenCalledWith('# HELP zt_gateway_requests_total ...\n');
   });
 
-  it('sets Content-Type: text/plain; charset=utf-8 (MTRC-03)', async () => {
+  it('sets Content-Type: text/plain; version=0.0.4; charset=utf-8 (MTRC-03)', async () => {
     svc.getAggregatedMetrics.mockResolvedValueOnce('');
     const res = makeRes();
     await ctrl.getMetrics(res);
-    expect(res.set).toHaveBeenCalledWith('Content-Type', 'text/plain; charset=utf-8');
+    expect(res.set).toHaveBeenCalledWith(
+      'Content-Type',
+      'text/plain; version=0.0.4; charset=utf-8',
+    );
   });
 });
