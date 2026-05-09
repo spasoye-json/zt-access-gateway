@@ -69,7 +69,14 @@ function solvePoW(nonce: string, difficulty: number): string {
   }
 }
 
-describe('Hashcash e2e', () => {
+// Phase 10 D-02: HashcashGuard APP_GUARD removed (plan 10-05 T2). Hashcash
+// enforcement migrated into GatewayMiddleware. This test was specifically
+// designed against the guard-on-route model and therefore no longer exercises
+// the live codepath (the gateway pipeline now denies unregistered proxy routes
+// like `/_test/protected` before reaching the hashcash step). Plan 10-06 owns
+// the new full-pipeline e2e sweep that validates hashcash via GatewayMiddleware
+// against a registered service. Skipping here documents the migration.
+describe.skip('Hashcash e2e (superseded by plan 10-06 GatewayMiddleware e2e)', () => {
   let app: INestApplication;
   const evaluateScore = jest.fn();
   let token: string;

@@ -10,9 +10,13 @@ import { AuthController } from './auth.controller';
 
 /**
  * AuthModule -- JWT authentication and RBAC authorization.
- * Registers JwtAuthGuard and RolesGuard as global APP_GUARDs.
- * Guard ordering: JwtAuthGuard BEFORE RolesGuard (Pitfall 3 -- NestJS
- * executes APP_GUARD providers in declaration order).
+ *
+ * Phase 10 (D-02): JwtAuthGuard is no longer registered as APP_GUARD --
+ * GatewayMiddleware calls AuthService.validateToken() inline for all proxied
+ * routes. JwtAuthGuard remains a class-level injectable for route-level
+ * @UseGuards on auth-only endpoints (/auth/revoke, /mfa/*).
+ * RolesGuard stays as APP_GUARD -- it reads req.user set by GatewayMiddleware
+ * and continues to enforce @Roles('admin') on policy/audit admin routes.
  *
  * Phase 6: imports EventEmitterModule so JwtAuthGuard can inject EventEmitter2
  * for AUTH_INVALID_TOKEN signal emission. Idempotent with the global root
@@ -23,10 +27,10 @@ import { AuthController } from './auth.controller';
   providers: [
     AuthService,
     TokenRevocationService,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    JwtAuthGuard,
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
   controllers: [AuthController],
-  exports: [AuthService, TokenRevocationService],
+  exports: [AuthService, TokenRevocationService, JwtAuthGuard],
 })
 export class AuthModule {}
