@@ -23,10 +23,10 @@ describe('MetricsService', () => {
       expect(text).toContain('zt_gateway_requests_total{decision="deny"} 1');
     });
 
-    it('zt_gateway_stage_duration_seconds histogram has 8 stage labels (MTRC-02)', () => {
+    it('zt_gateway_stage_duration_seconds histogram has 9 stage labels (MTRC-02 + Phase 10 D-08)', () => {
       expect(STAGE_LABELS).toEqual([
         'ja4h', 'blacklist', 'auth', 'revocation',
-        'trust_score', 'hashcash', 'policy', 'proxy',
+        'trust_score', 'hashcash', 'policy', 'mfa', 'proxy',
       ]);
     });
 

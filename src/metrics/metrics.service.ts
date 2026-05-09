@@ -17,6 +17,7 @@ export const STAGE_LABELS = [
   'trust_score',
   'hashcash',
   'policy',
+  'mfa', // Phase 10 D-08 — MFA promotion stage between policy and proxy
   'proxy',
 ] as const;
 export type PipelineStage = (typeof STAGE_LABELS)[number];
@@ -97,6 +98,15 @@ export class MetricsService {
     registers: [this.registry],
   });
 
+  // ── MFA promotion outcomes (D-08) ──
+
+  private readonly mfaPromotions = new Counter({
+    name: 'zt_gateway_mfa_promotions_total',
+    help: 'MFA promotion outcomes on CHALLENGE decisions',
+    labelNames: ['result'] as const, // values: allow | reject
+    registers: [this.registry],
+  });
+
   constructor(
     private readonly securityMetrics: SecurityMetricsService,
     private readonly hashcashMetrics: HashcashMetrics,
@@ -119,6 +129,15 @@ export class MetricsService {
 
   incrementAuditFailure(): void {
     this.auditFailuresTotal.inc();
+  }
+
+  /**
+   * D-08 — Increment MFA promotion outcome counter.
+   * Called by GatewayMiddleware when a CHALLENGE decision is resolved (allow)
+   * or rejected (reject) via X-MFA-Token validation.
+   */
+  incrementMfaPromotion(result: 'allow' | 'reject'): void {
+    this.mfaPromotions.inc({ result });
   }
 
   incrementTokenRevocation(): void {
