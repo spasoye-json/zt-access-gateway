@@ -13,6 +13,8 @@ import { MfaModule } from './mfa/mfa.module';
 import { ProxyModule } from './proxy/proxy.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { AuditModule } from './audit/audit.module';
+import { GatewayModule } from './gateway/gateway.module';
+import { GatewayMiddleware } from './gateway/gateway.middleware';
 
 /**
  * AppModule — root module wiring the full Phase 2-9 pipeline.
@@ -42,6 +44,12 @@ import { AuditModule } from './audit/audit.module';
  *
  * HoneypotModule imported last to prevent shadow controller routes from
  * matching before any real routes (T-02-11, Pitfall 3 in 02-RESEARCH.md).
+ *
+ * Phase 10 (D-01..D-16): Wave 3 wired GatewayMiddleware after Ja4hMiddleware
+ * (D-01) and removed APP_GUARD registrations of JwtAuthGuard / HashcashGuard
+ * (D-02). Auth-only endpoints (/auth/revoke, /mfa/*) now use route-level
+ * @UseGuards(JwtAuthGuard) instead. GatewayModule is imported BEFORE
+ * HoneypotModule (Pitfall 6 — closes the FingerprintStore DI cycle).
  */
 @Module({
   imports: [
@@ -57,6 +65,7 @@ import { AuditModule } from './audit/audit.module';
     ProxyModule, // Phase 8 — D-01..D-12 (wave 3; before HoneypotModule)
     MetricsModule, // Phase 9 — registry merge (after Hashcash/Policy peers, before Honeypot last)
     AuditModule, // Phase 9 — WAL writer + admin query endpoint
+    GatewayModule, // Phase 10 — orchestrator wiring (D-01); MUST be before HoneypotModule (Pitfall 6)
     HoneypotModule, // Pitfall 3: stays last (Phase 2)
   ],
   controllers: [],
@@ -64,8 +73,9 @@ import { AuditModule } from './audit/audit.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Apply JA4H fingerprinting to all routes — runs after global Express
-    // middleware (Helmet, CORS, rate-limit) but before NestJS guards (auth).
+    // D-01: Ja4hMiddleware FIRST (it stamps req['x-ja4h']),
+    //       GatewayMiddleware SECOND (orchestrates 10-step pipeline).
     consumer.apply(Ja4hMiddleware).forRoutes('*');
+    consumer.apply(GatewayMiddleware).forRoutes('*');
   }
 }
