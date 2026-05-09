@@ -150,4 +150,59 @@ describe('MetricsService', () => {
       }).not.toThrow();
     });
   });
+
+  describe('Phase 10 — D-08 mfa stage + promotions counter', () => {
+    it('Test A: STAGE_LABELS has length 9 with mfa at index 7', () => {
+      expect(STAGE_LABELS.length).toBe(9);
+      expect(STAGE_LABELS[7]).toBe('mfa');
+    });
+
+    it('Test B: STAGE_LABELS deep-equals canonical 9-stage list with mfa between policy and proxy', () => {
+      expect(STAGE_LABELS).toEqual([
+        'ja4h', 'blacklist', 'auth', 'revocation',
+        'trust_score', 'hashcash', 'policy', 'mfa', 'proxy',
+      ]);
+    });
+
+    it('Test C: observeStageDuration(\'mfa\', 0.005) does not throw and records the bucket', async () => {
+      const m = makeService();
+      expect(() => m.observeStageDuration('mfa', 0.005)).not.toThrow();
+      const text = await m.getAggregatedMetrics();
+      expect(text).toMatch(/zt_gateway_stage_duration_seconds_count\{stage="mfa"\} 1/);
+    });
+
+    it('Test D: incrementMfaPromotion(\'allow\') and (\'reject\') exposes correct labelled counters', async () => {
+      const m = makeService();
+      m.incrementMfaPromotion('allow');
+      m.incrementMfaPromotion('reject');
+      m.incrementMfaPromotion('reject');
+      const text = await m.getAggregatedMetrics();
+      expect(text).toMatch(/zt_gateway_mfa_promotions_total\{result="allow"\} 1/);
+      expect(text).toMatch(/zt_gateway_mfa_promotions_total\{result="reject"\} 2/);
+    });
+
+    it('Test E: mfa_promotions counter lives on the same private registry as zt_gateway_requests_total', async () => {
+      const m = makeService();
+      m.incrementRequest('allow');
+      m.incrementMfaPromotion('allow');
+      const text = await m.getAggregatedMetrics();
+      // Both must appear in the SAME merged blob — confirms shared private registry.
+      expect(text).toContain('zt_gateway_requests_total{decision="allow"} 1');
+      expect(text).toContain('zt_gateway_mfa_promotions_total{result="allow"} 1');
+    });
+
+    it('Test F: observeStageDuration accepts each of the 9 STAGE_LABELS values (regression guard)', async () => {
+      const m = makeService();
+      for (const stage of STAGE_LABELS) {
+        m.observeStageDuration(stage, 0.001);
+      }
+      const text = await m.getAggregatedMetrics();
+      const countLines = text.match(/zt_gateway_stage_duration_seconds_count\{stage="[^"]+"\} \d+/g) ?? [];
+      expect(countLines.length).toBe(9);
+      // Each canonical label must produce its own _count line.
+      for (const stage of STAGE_LABELS) {
+        expect(text).toMatch(new RegExp(`zt_gateway_stage_duration_seconds_count\\{stage="${stage}"\\} 1`));
+      }
+    });
+  });
 });
