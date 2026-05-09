@@ -6,13 +6,21 @@ import {
   ForbiddenException,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { TokenRevocationService } from './token-revocation.service';
 import { RevokeTokenDto } from './dto/revoke-token.dto';
 import { UserClaims } from './interfaces/user-claims.interface';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 /**
  * Auth controller -- POST /auth/revoke endpoint (TREV-03).
+ *
+ * Phase 10 (D-02 + D-04): JwtAuthGuard was previously global via APP_GUARD;
+ * now applied per-method with @UseGuards because /auth/revoke is an AUTH_ONLY
+ * path (D-04) -- GatewayMiddleware runs auth+revocation on the AUTH_ONLY
+ * codepath but does NOT attach the guard, so we re-attach explicitly here.
+ * Idempotent -- the guard recognizes when req.user is already populated.
  *
  * Ownership rules (D-07):
  * - Any authenticated user can revoke their OWN tokens
@@ -31,6 +39,7 @@ export class AuthController {
    * @param dto - { jti, exp } where exp is Unix seconds
    * @param req - Express request with user attached by JwtAuthGuard
    */
+  @UseGuards(JwtAuthGuard)
   @Post('revoke')
   @HttpCode(HttpStatus.OK)
   revoke(@Body() dto: RevokeTokenDto, @Req() req: any): { message: string } {

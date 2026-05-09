@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
 import { AuthController } from '../auth.controller';
 import { TokenRevocationService } from '../token-revocation.service';
+import { JwtAuthGuard } from '../jwt-auth.guard';
 
 /**
  * AuthController unit tests -- TDD RED phase.
@@ -21,6 +22,10 @@ describe('AuthController', () => {
       size: jest.fn().mockReturnValue(0),
     };
 
+    // Phase 10 D-02: APP_GUARD removed; JwtAuthGuard now route-level via
+    // @UseGuards on AuthController.revoke. Override the guard so DI doesn't
+    // pull in AuthService/EventEmitter — these unit tests bypass the pipeline
+    // and call controller.revoke() directly.
     const module = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
@@ -29,7 +34,10 @@ describe('AuthController', () => {
           useValue: revocationService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get(AuthController);
   });
