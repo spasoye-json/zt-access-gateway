@@ -70,7 +70,16 @@ import {
 } from '../policy-events';
 import { createHs256Token } from '../../auth/__tests__/test-keys';
 
-describe('Policy + Threat Escalation — E2E', () => {
+// Phase 10 D-01/D-02: GatewayMiddleware now runs as global middleware in
+// AppModule and the JwtAuthGuard / HashcashGuard APP_GUARDs were removed
+// (plan 10-05). This e2e was authored against the pre-Phase-10 model where
+// Casbin policy decisions were enforced via per-route guards on raw paths.
+// In the new model the gateway pipeline either short-circuits AUTH_ONLY paths
+// or rewrites the dispatch to mTLS proxy forwarding — neither of which the
+// existing assertions expect. Plan 10-06 owns the rewritten full-pipeline
+// e2e (ALLOW/CHALLENGE/DENY/honeypot/auth_only branches against a registered
+// proxy service). Skipping here documents the migration.
+describe.skip('Policy + Threat Escalation — E2E (superseded by plan 10-06 GatewayMiddleware e2e)', () => {
   let app: INestApplication;
   let adminToken: string;
   let userToken: string;
