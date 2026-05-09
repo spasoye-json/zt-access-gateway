@@ -29,7 +29,14 @@ export class AuthService {
    * @throws UnauthorizedException on any validation failure
    */
   async validateToken(token: string): Promise<UserClaims> {
-    const header = decodeProtectedHeader(token);
+    let header: ReturnType<typeof decodeProtectedHeader>;
+    try {
+      header = decodeProtectedHeader(token);
+    } catch (error) {
+      // Malformed token (not a JWT) — map to UnauthorizedException so callers
+      // can return 401 instead of leaking a 500 with a JOSE error message.
+      this.mapJoseError(error); // never-returns — TS narrows below
+    }
 
     const options = {
       algorithms: ['HS256', 'RS256', 'ES256'],

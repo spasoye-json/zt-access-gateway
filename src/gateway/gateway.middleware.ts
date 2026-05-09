@@ -67,11 +67,23 @@ export class GatewayMiddleware implements NestMiddleware {
       | string
       | undefined;
 
+    // NestJS `consumer.apply(...).forRoutes('*')` mounts this middleware as a
+    // sub-app per matched route, which causes `req.path` to be '/' and the
+    // matched route to live in `req.baseUrl`. We therefore derive the request
+    // path from `req.originalUrl` (always preserved across nesting) and strip
+    // any query string. Falls back to `req.path` for unit tests that pass a
+    // bare mock request without `originalUrl`.
+    const reqPath: string = (() => {
+      const raw = req.originalUrl ?? req.url ?? req.path;
+      const q = raw.indexOf('?');
+      return q >= 0 ? raw.slice(0, q) : raw;
+    })();
+
     // D-03 — PUBLIC bypass (GTWY-08)
-    if (PUBLIC_PATHS.has(req.path)) return next();
+    if (PUBLIC_PATHS.has(reqPath)) return next();
 
     // D-05 — HONEYPOT bypass (GTWY-09); ShadowController handles the rest
-    if (HONEYPOT_PATHS.has(req.path)) return next();
+    if (HONEYPOT_PATHS.has(reqPath)) return next();
 
     // Per-stage timing (D-14, Pitfall 7): every observe call divides ms by 1000
     // EXPLICITLY at the callsite so reviewers and grep audits can confirm every
@@ -141,10 +153,10 @@ export class GatewayMiddleware implements NestMiddleware {
       observe('revocation', (Date.now() - t0) / 1000);
 
       // D-04 — AUTH_ONLY early exit (audit allow, then next())
-      if (isAuthOnlyPath(req.path)) {
+      if (isAuthOnlyPath(reqPath)) {
         await this.audit.record({
           userId: claims.userId,
-          resource: req.path,
+          resource: reqPath,
           action: req.method,
           decision: 'allow',
           ja4hFingerprint: ja4h,
@@ -249,7 +261,7 @@ export class GatewayMiddleware implements NestMiddleware {
           observe('mfa', (Date.now() - t0) / 1000);
           await recordWithTimeout({
             userId: claims.userId,
-            resource: req.path,
+            resource: reqPath,
             action: req.method,
             decision: 'challenge',
             trustScore: trustScoreValue,
@@ -269,7 +281,7 @@ export class GatewayMiddleware implements NestMiddleware {
       } else if (decision.decision === 'DENY') {
         await recordWithTimeout({
           userId: claims.userId,
-          resource: req.path,
+          resource: reqPath,
           action: req.method,
           decision: 'deny',
           trustScore: trustScoreValue,
@@ -289,7 +301,7 @@ export class GatewayMiddleware implements NestMiddleware {
       // ── Step 10: ALLOW path (D-09 audit BEFORE proxy) ──────────────
       const allowEntry: AuditEntry = {
         userId: claims.userId,
-        resource: req.path,
+        resource: reqPath,
         action: req.method,
         decision: 'allow',
         trustScore: trustScoreValue,
@@ -308,7 +320,7 @@ export class GatewayMiddleware implements NestMiddleware {
       // GTWY-06 BOPLA stripping
       const stripped = this.boPla.strip(
         upstreamRes.data,
-        req.path,
+        reqPath,
         claims.roles ?? [],
       );
 
@@ -330,7 +342,7 @@ export class GatewayMiddleware implements NestMiddleware {
           userId: claims?.userId,
           ja4h,
           ts: Date.now(),
-          resource: req.path,
+          resource: reqPath,
           action: req.method,
           requestId,
         });
