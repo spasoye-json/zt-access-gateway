@@ -79,6 +79,10 @@ export class GatewayMiddleware implements NestMiddleware {
       return q >= 0 ? raw.slice(0, q) : raw;
     })();
 
+    // Phase 12 — F-p — CORS preflight bypass.
+    // app.enableCors() (main.ts:36) writes the reply; we just must not 401 here.
+    if (req.method === 'OPTIONS') return next();
+
     // D-03 — PUBLIC bypass (GTWY-08)
     if (PUBLIC_PATHS.has(reqPath)) return next();
 
