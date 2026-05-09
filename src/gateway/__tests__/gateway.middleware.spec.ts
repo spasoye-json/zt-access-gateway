@@ -323,14 +323,18 @@ describe('GatewayMiddleware', () => {
   describe('Hashcash', () => {
     it('reads threshold via cfg.hashcashTriggerThreshold and passes through when score below threshold', async () => {
       const m = makeMocks();
-      m.cfg = { hashcashTriggerThreshold: 0.5 };
-      const cfgSpy = jest.spyOn(m.cfg, 'hashcashTriggerThreshold', 'get');
+      const getterSpy = jest.fn(() => 0.5);
+      m.cfg = {};
+      Object.defineProperty(m.cfg, 'hashcashTriggerThreshold', {
+        get: getterSpy,
+        configurable: true,
+      });
       m.auth.validateToken.mockResolvedValue(defaultClaims());
       m.trustScore.evaluateScore.mockResolvedValue(0.1);
       const req = mockReq({ headers: { authorization: BEARER } });
       const res = mockRes();
       await build(m).use(req, res, next);
-      expect(cfgSpy).toHaveBeenCalled();
+      expect(getterSpy).toHaveBeenCalled();
       expect(m.hashcash.verifySolution).not.toHaveBeenCalled();
       expect(m.proxy.forward).toHaveBeenCalled();
     });
