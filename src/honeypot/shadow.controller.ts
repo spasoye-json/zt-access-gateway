@@ -1,4 +1,4 @@
-import { Controller, Get, Req, Res } from '@nestjs/common';
+import { Controller, Get, OnModuleInit, Req, Res } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Request, Response } from 'express';
 import { FingerprintStore } from '../fingerprint/fingerprint.store';
@@ -6,6 +6,7 @@ import { SecurityMetricsService } from './security-metrics.service';
 import { AppConfigService } from '../config/config.service';
 import { Honeypot } from './honeypot.decorator';
 import { getFakeResponse } from './honeypot-responses';
+import { HONEYPOT_PATHS } from './honeypot.constants';
 import { sleep, randomDelay } from '../shared/sleep.util';
 import { extractJa4h } from '../shared/request-context.util';
 import { Public } from '../shared/public.decorator';
@@ -33,13 +34,37 @@ import {
  */
 @Controller()
 @Public()
-export class ShadowController {
+export class ShadowController implements OnModuleInit {
   constructor(
     private readonly store: FingerprintStore,
     private readonly metrics: SecurityMetricsService,
     private readonly config: AppConfigService,
     private readonly events: EventEmitter2,
   ) {}
+
+  onModuleInit(): void {
+    // Phase 10 D-16 / GTWY-09 — controller routes MUST match the bypass set.
+    // Without this guard, an added @Get('/foo') without a corresponding
+    // HONEYPOT_PATHS entry would cause GatewayMiddleware to run the FULL pipeline
+    // on the new decoy path (auth required), defeating the honeypot.
+    const expected = new Set([
+      '/wp-login.php',
+      '/.env',
+      '/admin/config.json',
+      '/api/v1/debug',
+      '/graphql/introspection',
+      '/actuator/health',
+      '/api/v1/internal/keys',
+    ]);
+    if (
+      expected.size !== HONEYPOT_PATHS.size ||
+      [...expected].some((p) => !HONEYPOT_PATHS.has(p))
+    ) {
+      throw new Error(
+        'ShadowController routes drifted from HONEYPOT_PATHS — update src/honeypot/honeypot.constants.ts',
+      );
+    }
+  }
 
   /**
    * Core trap sequence — shared by all 7 handlers.

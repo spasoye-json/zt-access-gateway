@@ -49,7 +49,9 @@ describe('HONEYPOT_PATHS', () => {
       path.resolve(__dirname, '../shadow.controller.ts'),
       'utf8',
     );
-    const decoratorPaths = [...src.matchAll(/@Get\('([^']+)'\)/g)]
+    // Match only decorator usage at start of a line (allowing leading whitespace),
+    // not occurrences of @Get(...) embedded in comments.
+    const decoratorPaths = [...src.matchAll(/^\s*@Get\('([^']+)'\)/gm)]
       .map((m) => m[1])
       .sort();
     const constPaths = [...HONEYPOT_PATHS].sort();
