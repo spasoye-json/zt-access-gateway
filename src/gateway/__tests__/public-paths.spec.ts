@@ -10,20 +10,21 @@ describe('public-paths', () => {
     expect([...PUBLIC_PATHS].sort()).toEqual(['/health', '/metrics']);
   });
 
-  it('AUTH_ONLY_EXACT contains exactly the five auth-only routes', () => {
+  it('AUTH_ONLY_EXACT contains exactly the six auth-only routes', () => {
     expect([...AUTH_ONLY_EXACT].sort()).toEqual(
       [
+        '/audit/logs',
         '/auth/revoke',
-        '/mfa/initiate',
-        '/mfa/verify',
         '/mfa/enroll',
         '/mfa/enroll/confirm',
+        '/mfa/initiate',
+        '/mfa/verify',
       ].sort(),
     );
   });
 
-  it('AUTH_ONLY_PREFIXES contains /mfa/admin/enrollment', () => {
-    expect([...AUTH_ONLY_PREFIXES]).toEqual(['/mfa/admin/enrollment']);
+  it('AUTH_ONLY_PREFIXES contains /mfa/admin/enrollment and /policy/admin', () => {
+    expect([...AUTH_ONLY_PREFIXES].sort()).toEqual(['/mfa/admin/enrollment', '/policy/admin'].sort());
   });
 
   it('isAuthOnlyPath returns true for /auth/revoke (exact)', () => {
@@ -60,5 +61,29 @@ describe('public-paths', () => {
 
   it('isAuthOnlyPath returns false for /mfa (over-match guard)', () => {
     expect(isAuthOnlyPath('/mfa')).toBe(false);
+  });
+
+  it('isAuthOnlyPath returns true for /audit/logs (exact set member, Phase 12)', () => {
+    expect(isAuthOnlyPath('/audit/logs')).toBe(true);
+  });
+
+  it('isAuthOnlyPath returns true for /policy/admin (exact prefix match, Phase 12)', () => {
+    expect(isAuthOnlyPath('/policy/admin')).toBe(true);
+  });
+
+  it('isAuthOnlyPath returns true for /policy/admin/rules (prefix child, Phase 12)', () => {
+    expect(isAuthOnlyPath('/policy/admin/rules')).toBe(true);
+  });
+
+  it('isAuthOnlyPath returns true for /policy/admin/escalation (prefix child, Phase 12)', () => {
+    expect(isAuthOnlyPath('/policy/admin/escalation')).toBe(true);
+  });
+
+  it('isAuthOnlyPath returns false for /policy (over-match guard, Phase 12)', () => {
+    expect(isAuthOnlyPath('/policy')).toBe(false);
+  });
+
+  it('isAuthOnlyPath returns false for /audit (over-match guard, Phase 12)', () => {
+    expect(isAuthOnlyPath('/audit')).toBe(false);
   });
 });
