@@ -191,6 +191,39 @@ describe('GatewayMiddleware', () => {
     });
   });
 
+  // ── OPTIONS preflight bypass (Phase 12, F-p) ───────────────────────
+  describe('OPTIONS preflight bypass (Phase 12)', () => {
+    it('calls next() and touches no service when method is OPTIONS on /audit/logs', async () => {
+      const m = makeMocks();
+      const req = mockReq({ method: 'OPTIONS', path: '/audit/logs' });
+      const res = mockRes();
+      await build(m).use(req, res, next);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(m.auth.validateToken).not.toHaveBeenCalled();
+      expect(m.policy.evaluate).not.toHaveBeenCalled();
+      expect(m.proxy.forward).not.toHaveBeenCalled();
+    });
+
+    it('OPTIONS bypass takes precedence over auth gate on /policy/admin/rules', async () => {
+      const m = makeMocks();
+      const req = mockReq({ method: 'OPTIONS', path: '/policy/admin/rules' });
+      const res = mockRes();
+      await build(m).use(req, res, next);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(m.auth.validateToken).not.toHaveBeenCalled();
+    });
+
+    it('OPTIONS on a proxied path /api/users bypasses auth (CORS handler will reply)', async () => {
+      const m = makeMocks();
+      const req = mockReq({ method: 'OPTIONS', path: '/api/users' });
+      const res = mockRes();
+      await build(m).use(req, res, next);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(m.auth.validateToken).not.toHaveBeenCalled();
+      expect(m.proxy.forward).not.toHaveBeenCalled();
+    });
+  });
+
   // ── Auth short-circuit (GTWY-03) ───────────────────────────────────
   describe('Auth short-circuit', () => {
     it('returns 401 {error:"auth_required"} when Authorization header missing', async () => {
