@@ -104,9 +104,16 @@ export class JwtAuthGuard implements CanActivate {
     this.events.emit(AUTH_INVALID_TOKEN, payload);
   }
 
-  private extractTokenFromHeader(request: { headers?: Record<string, string> }): string {
-    const authorization = request.headers?.authorization;
-    if (!authorization) {
+  private extractTokenFromHeader(request: {
+    headers?: Record<string, string | string[] | undefined>;
+  }): string {
+    // WR-02: Express IncomingHttpHeaders typings allow string | string[] |
+    // undefined. A client sending duplicate Authorization headers produces an
+    // array, and calling .split on an array throws TypeError — bypassing
+    // the D-14 UnauthorizedException emission path. Normalize first.
+    const raw = request.headers?.authorization;
+    const authorization = Array.isArray(raw) ? raw[0] : raw;
+    if (!authorization || typeof authorization !== 'string') {
       throw new UnauthorizedException('Missing authorization header');
     }
     const [scheme, token] = authorization.split(' ');
