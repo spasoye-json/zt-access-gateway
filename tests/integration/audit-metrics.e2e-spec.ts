@@ -66,10 +66,16 @@ describe('Phase 9 — Audit + Metrics e2e', () => {
   });
 
   describe('GET /metrics (MTRC-03, MTRC-04)', () => {
-    it('returns 200 with text/plain; version=0.0.4; charset=utf-8 content-type without auth (MTRC-03)', async () => {
+    it('returns 200 with prom-client text/plain content-type (order-agnostic, MTRC-03)', async () => {
       const res = await request(app.getHttpServer()).get('/metrics');
       expect(res.status).toBe(200);
-      expect(res.headers['content-type']).toMatch(/^text\/plain; version=0\.0\.4; charset=utf-8/);
+      // Phase 13 SC-3 — D-11: split-and-assert to accept both prom-client
+      // orderings (`text/plain; version=...; charset=...` and
+      // `text/plain; charset=...; version=...`). Order-agnostic by construction.
+      const ct = res.headers['content-type'] as string;
+      expect(ct).toContain('text/plain');
+      expect(ct).toMatch(/version=0\.0\.4/);
+      expect(ct).toMatch(/charset=utf-8/);
     });
 
     it('body contains metric names from all 4 registries (MTRC-04)', async () => {
