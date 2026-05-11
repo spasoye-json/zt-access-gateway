@@ -1,9 +1,11 @@
 /**
  * Phase 5 — augment Express Request with fields populated by the gateway pipeline.
  *
- * D-07: HashcashGuard reads request.trustScore. Phase 10 GatewayMiddleware will set this
- * upstream so the guard avoids a duplicate evaluateScore call. In Phase 5 standalone E2E
- * the field is undefined and the guard falls back to TrustScoreService.evaluateScore.
+ * D-07: request.trustScore is populated by GatewayMiddleware pipeline step 5
+ * (Phase 10) for downstream consumers that need a single canonical score per
+ * request without re-evaluating. Standalone routes (no GatewayMiddleware) leave
+ * the field undefined; consumers MUST tolerate that and recompute via
+ * TrustScoreService.evaluateScore.
  *
  * Phase 7 — adds mfaToken for MfaGuard (D-10).
  *

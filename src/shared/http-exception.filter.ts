@@ -19,7 +19,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
-    // A guard or interceptor that wrote the response itself (e.g. HashcashGuard
+    // A guard or interceptor that wrote the response itself (e.g. a 429 challenge issuer
     // issuing a 429 challenge directly) and then returned `false` causes Nest
     // to throw an implicit ForbiddenException. Trying to set headers again
     // produces ERR_HTTP_HEADERS_SENT. The first write is the truth — no-op here.

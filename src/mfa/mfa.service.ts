@@ -50,7 +50,7 @@ export type MfaDeleteEnrollmentResult =
  * Phase 7 — MfaService: challenge lifecycle, TOTP verification, MFA JWT minting/validation.
  *
  * NEVER throws — all methods return discriminated unions.
- * MfaController maps ok:false results to HTTP responses (same pattern as HashcashGuard).
+ * MfaController maps ok:false results to HTTP responses (controller-owned mapping idiom).
  *
  * Security notes:
  * - Fingerprint = SHA-256(userId|deviceId|ip) captured ONLY at verifyTotp time (D-05, Pitfall 5).

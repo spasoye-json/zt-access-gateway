@@ -25,10 +25,20 @@ describe('HashcashGuard regression guard (Phase 13 D-03)', () => {
         `grep -rE '\\bHashcashGuard\\b' ${dir} --include='*.ts' || true`,
         { cwd: repoRoot, encoding: 'utf8' },
       );
-      // Filter out this spec file's own self-reference.
+      // Filter out this spec file's own self-reference + D-09 allowlist.
       return out
         .split('\n')
-        .filter((line) => line && !line.startsWith(selfRelative + ':'))
+        .filter((line) => {
+          if (!line) return false;
+          if (line.startsWith(selfRelative + ':')) return false;
+          // D-09 allowlist: past-tense historical breadcrumbs documenting Phase 10 D-02.
+          const allowlist = [
+            'src/app.module.ts',
+            'src/hashcash/__tests__/hashcash.e2e.spec.ts',
+            'src/policy/__tests__/policy.e2e.spec.ts',
+          ];
+          return !allowlist.some((p) => line.startsWith(p + ':'));
+        })
         .join('\n');
     } catch (err) {
       // grep with `|| true` swallows non-zero; any throw here is a real failure.
