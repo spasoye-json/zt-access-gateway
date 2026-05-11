@@ -6,6 +6,7 @@ import { AuthService } from '../auth.service';
 import { TokenRevocationService } from '../token-revocation.service';
 import { IS_PUBLIC_KEY } from '../../shared/public.decorator';
 import { AUTH_INVALID_TOKEN } from '../../policy/policy-events';
+import { GATEWAY_VALIDATED } from '../../gateway/gateway-validated.symbol';
 import {
   TEST_HS256_SECRET,
   createHs256Token,
@@ -30,6 +31,8 @@ describe('JwtAuthGuard', () => {
     roles?: string[];
     ip?: string;
     ja4h?: string;
+    gatewayValidated?: boolean;
+    user?: unknown;
   }): ExecutionContext {
     const request: Record<string, unknown> = {
       headers: {
@@ -42,6 +45,12 @@ describe('JwtAuthGuard', () => {
     };
     if (overrides?.ja4h !== undefined) {
       request['x-ja4h'] = overrides.ja4h;
+    }
+    if (overrides?.gatewayValidated === true) {
+      (request as Record<symbol, unknown>)[GATEWAY_VALIDATED] = true;
+    }
+    if (overrides?.user !== undefined) {
+      request.user = overrides.user;
     }
 
     const handler = {} as () => void;
@@ -116,6 +125,81 @@ describe('JwtAuthGuard', () => {
 
       await guard.canActivate(ctx);
       expect(authService.validateToken).toHaveBeenCalledWith(token);
+    });
+  });
+
+  describe('GatewayMiddleware sentinel short-circuit (Phase 13 D-04/D-05)', () => {
+    it('sentinel-present → returns true and does NOT call validateToken / isRevoked / emit', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      const emitSpy = jest.spyOn(events, 'emit');
+
+      const ctx = createMockExecutionContext({
+        gatewayValidated: true,
+        user: {
+          userId: 'u-gw',
+          roles: ['user'],
+          jti: 'jti-gw',
+          exp: Math.floor(Date.now() / 1000) + 3600,
+        },
+      });
+
+      const result = await guard.canActivate(ctx);
+
+      expect(result).toBe(true);
+      expect(authService.validateToken).not.toHaveBeenCalled();
+      expect(revocationService.isRevoked).not.toHaveBeenCalled();
+      expect(emitSpy).not.toHaveBeenCalled();
+    });
+
+    it('sentinel-absent → calls validateToken exactly once (standalone-route fallback per D-07)', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      (authService.validateToken as jest.Mock).mockResolvedValue({
+        userId: 'u-standalone',
+        roles: ['user'],
+        jti: 'jti-standalone',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+
+      const token = await createHs256Token(
+        { sub: 'u-standalone', roles: ['user'] },
+        { jti: 'jti-standalone' },
+      );
+      const ctx = createMockExecutionContext({
+        authorization: `Bearer ${token}`,
+        // gatewayValidated NOT set
+      });
+
+      const result = await guard.canActivate(ctx);
+
+      expect(result).toBe(true);
+      expect(authService.validateToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('string-valued sentinel header does NOT bypass (D-04 spoof safety — Symbol identity is the only authority)', async () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      (authService.validateToken as jest.Mock).mockResolvedValue({
+        userId: 'u-spoof',
+        roles: ['user'],
+        jti: 'jti-spoof',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+
+      const token = await createHs256Token(
+        { sub: 'u-spoof', roles: ['user'] },
+        { jti: 'jti-spoof' },
+      );
+      const ctx = createMockExecutionContext({
+        authorization: `Bearer ${token}`,
+      });
+      // Attempt spoof — string key, NOT the Symbol.
+      const req = ctx.switchToHttp().getRequest() as Record<string, unknown>;
+      req['GATEWAY_VALIDATED'] = true;
+      (req.headers as Record<string, string>)['x-gateway-validated'] = 'true';
+
+      await guard.canActivate(ctx);
+
+      // Spoof failed: full validation path ran.
+      expect(authService.validateToken).toHaveBeenCalledTimes(1);
     });
   });
 

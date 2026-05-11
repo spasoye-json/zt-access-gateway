@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-status: ready_to_plan
-stopped_at: Phase 7 + 11 UAT verified; ready to plan Phase 8
-last_updated: "2026-05-04T15:16:54.851Z"
-last_activity: 2026-05-04 -- Phase 08 execution started
+milestone_name: Tech Debt Cleanup
+status: executing
+stopped_at: Phase 13 context gathered
+last_updated: "2026-05-11T19:51:10.751Z"
+last_activity: 2026-05-11
 progress:
-  total_phases: 11
-  completed_phases: 9
-  total_plans: 41
-  completed_plans: 36
-  percent: 82
+  total_phases: 1
+  completed_phases: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-11)
 
 **Core value:** Every request is verified, scored, and authorized before reaching any downstream service
-**Current focus:** Phase 08 — proxy-bopla
+**Current focus:** Phase 13 — v1-0-tech-debt-cleanup
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-05-04
+Phase: 13 (v1-0-tech-debt-cleanup) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-05-11
 
-Progress: [██████████] 100%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 25 (Phases 1–5)
+- Total plans completed: 35 (Phases 1–5)
 - Average duration: -
 - Total execution time: 0 hours
 
@@ -50,6 +50,8 @@ Progress: [██████████] 100%
 | 4 | 3 | - | - |
 | 5 | 9 | ~26min | ~3min |
 | 08 | 5 | - | - |
+| 09 | 4 | - | - |
+| 12 | 2 | - | - |
 
 **Recent Trend:**
 
@@ -73,6 +75,15 @@ Progress: [██████████] 100%
 | Phase 06 P04 | 5min | 2 tasks tasks | 4 files files |
 | Phase 06 P05 | 3.5min | 2 tasks | 6 files |
 | Phase 06 P06 | 12min | 4 tasks | 5 files |
+| Phase 10 P01 | 2min | 2 tasks | 2 files |
+| Phase 10 P02 | 4min | 2 tasks | 3 files |
+| Phase 10 PP03 | 3min | 2 tasks tasks | 2 files files |
+| Phase 10 P04 | 7min | 2 tasks tasks | 3 files files |
+| Phase 10 P05 | 6min | 3 tasks tasks | 7 files files |
+| Phase 10 P06 | 25min | 1 tasks | 3 files |
+| Phase 12 P01 | 17min | 2 tasks | 4 files |
+| Phase 12 P02 | 5min | 1 tasks | 1 files |
+| Phase 13 P01 | 3min | 3 tasks | 7 files |
 
 ## Quick Tasks Completed
 
@@ -83,6 +94,7 @@ Progress: [██████████] 100%
 | 2026-04-26 | update-progress-docs | Ticked Phase 4/5 + plans 05-02..05-08 in ROADMAP; cleaned malformed JSON in STATE.md; advanced Current focus to Phase 6; flipped commit_docs to false |
 | 2026-04-29 | update-stale-planning-docs | Synced PROJECT/REQUIREMENTS/ROADMAP/STATE through Phase 6; promoted decisions, fixed corrupted Phase 7-10 plan lists in ROADMAP, advanced focus to Phase 07 |
 | 2026-05-03 | update-docs-post-phase-7-11 | Phase 7 + 11 UAT verified (all tests pass); ROADMAP + STATE advanced to Phase 8 |
+| 2026-05-04 | complete-phase-8 | Phase 8 UAT 8/8 passed, security review 29/29 threats closed, docs updated; ROADMAP + STATE advanced to Phase 9 |
 
 ## Accumulated Context
 
@@ -128,6 +140,21 @@ Recent decisions affecting current work:
 - [Phase 06-06]: STATE.md blocker resolved — Casbin reload semantics under concurrent requests closed by D-01 + D-02 (file-backed write-through CSV + writer mutex)
 - [Phase 06-06]: EventEmitterModule.forRoot() at AppModule root (D-13); per-module forRoot in Auth/Honeypot remains idempotent with v3 global:true default
 - [Phase 06-06]: Fail-closed startup spec isolated to its own file with jest.resetModules() (W4) — prevents AppModule cache contamination across tests
+- [Phase 10]: Plan 10-01: PUBLIC_PATHS + isAuthOnlyPath as pure module-scope ReadonlySet exports; prefix match uses p.startsWith(prefix + '/') to close T-10-01 over-match
+- [Phase 10]: Plan 10-02: HONEYPOT_PATHS as ReadonlySet<string> in src/honeypot/honeypot.constants.ts (D-16); ShadowController.onModuleInit runtime parity guard + CI parity test (regex over @Get decorators) provide two-layer drift detection. Static-import only — Wave 2 GatewayMiddleware avoids HoneypotModule DI cycle (Pitfall 6 via FingerprintStore). Parity-test regex anchored ^\s*@Get\( to ignore inline JSDoc references.
+- [Phase 10]: Plan 10-03: STAGE_LABELS extended additively to 9 entries (mfa at index 7); PipelineStage union auto-widens via tuple inference; new mfaPromotions Counter on private registry (Pitfall 2); labelNames fixed to ['result'] with 'allow'|'reject' values to mitigate T-10-08 (cardinality + identity leak)
+- [Phase ?]: [Phase 10]: Plan 10-04: GatewayMiddleware 11-dep constructor (9 services + AppConfigService + EventEmitter2); recordWithTimeout helper for D-11 (200ms cap, on timeout incrementAuditFailure + warn-log); AUDIT_SIGNAL emit ONLY on D-10 WAL exhaustion (not D-11 timeouts); per-stage (Date.now()-t0)/1000 inline at every observe callsite for grep-auditable Pitfall 7; GatewayModule omits HoneypotModule (Pitfall 6 — DI cycle via FingerprintStore)
+- [Phase ?]: Plan 10-05: GatewayMiddleware wired into AppModule (D-01) — Ja4hMiddleware first, GatewayMiddleware second; GatewayModule placed AFTER AuditModule and BEFORE HoneypotModule (Pitfall 6)
+- [Phase ?]: Plan 10-05: JwtAuthGuard + HashcashGuard APP_GUARDs removed (D-02); enforcement migrated to GatewayMiddleware. JwtAuthGuard re-exported from AuthModule for route-level @UseGuards; RolesGuard APP_GUARD preserved (Pitfall 1)
+- [Phase ?]: Plan 10-05: AuthController.revoke decorated with @UseGuards(JwtAuthGuard) (D-04); spec uses overrideGuard().useValue({canActivate:()=>true})
+- [Phase ?]: Plan 10-05: Pre-Phase-10 hashcash.e2e + policy.e2e skipped with documented justification — per-route-guard model dismantled; plan 10-06 owns the rewritten full-pipeline e2e
+- [Phase ?]: [Phase 10]: Plan 10-06: e2e gateway spec uses override-providers for Proxy/Audit/TrustScore/Policy/Mfa; recordTrustContextAfterAllow spy substitutes for the must_haves trust_signals row count (deferred to UAT)
+- [Phase ?]: [Phase 10]: Plan 10-06: Auto-fix Rule 1 — GatewayMiddleware uses reqPath derived from req.originalUrl/req.url because NestJS forRoutes('*') leaves req.path === '/'; AuthService wraps decodeProtectedHeader in try/catch so malformed Authorization → 401 not 500
+- [Phase 12]: Plan 12-01: /audit/logs added to AUTH_ONLY_EXACT (not PUBLIC_PATHS) — auth+revocation still runs before AuditController; RolesGuard enforces @Roles('admin') (closes I-01, AUDT-05)
+- [Phase 12]: Plan 12-01: /policy/admin added to AUTH_ONLY_PREFIXES — covers /policy/admin/rules and /policy/admin/escalation via existing startsWith matcher (closes I-02, PLCY-06, PLCY-11)
+- [Phase 12]: Plan 12-01: OPTIONS early-return placed inline in GatewayMiddleware.use() after reqPath IIFE, before PUBLIC_PATHS check — locally auditable, mirrors existing idiom, avoids MiddlewareConsumer.exclude() complexity (closes I-08, F-p)
+- [Phase 12]: Plan 12-02: EscalationLevelDto @IsIn(['Normal','Elevated','Critical']) is Title case — e2e sends 'Elevated' not 'elevated'; ThreatLevel type and setManualLevel match Title case convention
+- [Phase ?]: [Phase 13]: Plan 13-01: HashcashGuard orphan deleted; regression spec uses grep-allowlist hybrid — single source of truth for what's permitted to mention deleted class (D-03+D-09 fused)
 
 ### Roadmap Evolution
 
@@ -139,13 +166,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 8 (Proxy): opossum + @nestjs/axios httpsAgent wiring pattern needs a spike to avoid mTLS bugs
-
 _Resolved 2026-04-26 in Phase 6 Plan 06: Casbin reload semantics under concurrent requests closed by D-01 (file-backed write-through CSV) + D-02 (single shared Enforcer behind async-mutex writer mutex). See 06-06-SUMMARY.md._
+
+_Resolved 2026-05-04: Phase 8 opossum/mTLS wiring — MtlsService.getHttpsAgent() is async; ProxyService awaits it per-request. opossum wraps the full retry loop (not individual attempts) so transient failures don't prematurely trip the breaker. See 08-02-SUMMARY.md._
 
 ## Session Continuity
 
-Last session: 2026-05-03T00:00:00.000Z
-Stopped at: Phase 7 + 11 UAT verified; ready to plan Phase 8
+Last session: 2026-05-11T19:50:58.903Z
+Stopped at: Phase 13 context gathered
 
 **Planned Phase:** 05 (hashcash-pow) — 9 plans — 2026-04-26T08:20:40.720Z

@@ -219,7 +219,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 10. Gateway Integration | 6/6 | Complete   | 2026-05-09 |
 | 11. MFA Enrollment | 5/5 | Complete | 2026-05-03 |
 | 12. Admin Route Allowlist Closure | 2/2 | Complete    | 2026-05-09 |
-| 13. v1.0 Tech Debt Cleanup | 0/0 | Pending | — |
+| 13. v1.0 Tech Debt Cleanup | 1/3 | In Progress|  |
 
 ### Phase 11: MFA Enrollment
 
@@ -269,4 +269,10 @@ Plans:
   2. JwtAuthGuard short-circuits validation when `req.user` is already populated by GatewayMiddleware on AUTH_ONLY routes (/auth/revoke, /mfa/*); validateToken is invoked at most once per request
   3. `tests/integration/audit-metrics.e2e-spec.ts` content-type assertion accepts both `text/plain; version=0.0.4; charset=utf-8` and `text/plain; charset=utf-8; version=0.0.4` orderings
   4. Full unit + e2e suite remains green; `npm run lint` clean
-**Plans:** 0/0 plans (to be planned via /gsd-plan-phase 13)
+**Plans:** 1/3 plans executed
+
+Plans:
+**Wave 1**
+- [x] 13-01-PLAN.md — SC-1: delete orphan HashcashGuard + its spec + drop kept-for-ref comment + permanent grep regression spec + D-09 dangling comment scrub
+- [ ] 13-02-PLAN.md — SC-2: non-spoofable Symbol sentinel closes JwtAuthGuard double-validation on AUTH_ONLY routes (unit + live e2e proves validateToken called exactly once)
+- [ ] 13-03-PLAN.md — SC-3: split-and-assert rewrite of audit-metrics content-type assertion (order-agnostic, D-11)
