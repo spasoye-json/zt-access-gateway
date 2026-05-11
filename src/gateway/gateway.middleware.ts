@@ -13,7 +13,7 @@ import { TokenRevocationService } from '../auth/token-revocation.service';
 import { TrustScoreService } from '../trust-score/trust-score.service';
 import { HashcashService } from '../hashcash/hashcash.service';
 import { PolicyEvaluatorService } from '../policy/policy-evaluator.service';
-import { AUDIT_SIGNAL } from '../policy/policy-events';
+import { AUDIT_SIGNAL, AUTH_INVALID_TOKEN } from '../policy/policy-events';
 import { MfaService, type MfaCreateResult } from '../mfa/mfa.service';
 import { ProxyService } from '../proxy/proxy.service';
 import { BoPlaInterceptor } from '../proxy/bopla.interceptor';
@@ -116,18 +116,34 @@ export class GatewayMiddleware implements NestMiddleware {
     let claims: UserClaims | undefined;
     let trustScoreValue: number | undefined;
 
+    // WR-01: D-14 contract — every auth failure must publish AUTH_INVALID_TOKEN
+    // so ThreatEscalationService aggregates consistently regardless of whether
+    // the route is gateway-mounted or hits JwtAuthGuard directly. Mirror the
+    // payload shape used by JwtAuthGuard.emitInvalid.
+    const emitAuthInvalid = (): void => {
+      this.events.emit(AUTH_INVALID_TOKEN, {
+        type: AUTH_INVALID_TOKEN,
+        ip: extractIp(req),
+        userId: claims?.userId,
+        ja4h,
+        ts: Date.now(),
+      });
+    };
+
     try {
       // ── Step 5: Auth ───────────────────────────────────────────────
       let t0 = Date.now();
       const authHeader = req.headers['authorization'];
       if (!authHeader || typeof authHeader !== 'string') {
         observe('auth', (Date.now() - t0) / 1000);
+        emitAuthInvalid();
         res.status(401).json({ error: 'auth_required', requestId });
         return;
       }
       const [scheme, token] = authHeader.split(' ');
       if (scheme !== 'Bearer' || !token) {
         observe('auth', (Date.now() - t0) / 1000);
+        emitAuthInvalid();
         res.status(401).json({ error: 'auth_required', requestId });
         return;
       }
@@ -136,6 +152,7 @@ export class GatewayMiddleware implements NestMiddleware {
       } catch (e) {
         observe('auth', (Date.now() - t0) / 1000);
         if (e instanceof UnauthorizedException) {
+          emitAuthInvalid();
           res.status(401).json({
             error: 'auth_invalid',
             message: (e as Error).message,
