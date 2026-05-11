@@ -176,8 +176,12 @@ export class GatewayMiddleware implements NestMiddleware {
       (req as unknown as Record<symbol, boolean>)[GATEWAY_VALIDATED] = true;
 
       // D-04 — AUTH_ONLY early exit (audit allow, then next())
+      // WR-03: wrap in recordWithTimeout so a hung Postgres insert cannot
+      // block /auth/revoke, /mfa/*, /policy/admin/*, /audit/logs — exactly
+      // the routes hit during a security incident. Best-effort audit is the
+      // documented contract (CLAUDE.md: "Audit logging is best-effort").
       if (isAuthOnlyPath(reqPath)) {
-        await this.audit.record({
+        await recordWithTimeout({
           userId: claims.userId,
           resource: reqPath,
           action: req.method,
