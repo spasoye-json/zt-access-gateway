@@ -19,9 +19,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Hashcash PoW** - Proof-of-work guard for high-risk requests with difficulty scaling (completed 2026-04-26)
 - [x] **Phase 6: Policy + Threat Escalation** - Casbin RBAC evaluation, ALLOW/CHALLENGE/DENY, and auto-tightening thresholds (completed 2026-04-26)
 - [x] **Phase 7: MFA Challenge** - Fingerprint-bound TOTP challenge lifecycle and CHALLENGE-to-ALLOW promotion (completed 2026-05-03)
-- [ ] **Phase 8: Proxy + BOPLA** - mTLS forwarding with circuit breaker/retries/SSRF and role-based response field stripping
-- [ ] **Phase 9: Audit + Metrics** - Write-ahead audit buffer and Prometheus security metrics
-- [ ] **Phase 10: Gateway Integration** - 10-step fail-fast GatewayMiddleware orchestrating the full hardened pipeline
+- [x] **Phase 8: Proxy + BOPLA** - mTLS forwarding with circuit breaker/retries/SSRF and role-based response field stripping (completed 2026-05-04)
+- [x] **Phase 9: Audit + Metrics** - Write-ahead audit buffer and Prometheus security metrics (completed 2026-05-09)
+- [x] **Phase 10: Gateway Integration** - 10-step fail-fast GatewayMiddleware orchestrating the full hardened pipeline (completed 2026-05-09)
+- [x] **Phase 12: Admin Route Allowlist Closure** - Close v1.0 milestone audit BLOCKERS: route /audit/logs and /policy/admin/* through gateway, whitelist OPTIONS preflight, live e2e (completed 2026-05-09)
+- [ ] **Phase 13: v1.0 Tech Debt Cleanup** - Remove orphaned HashcashGuard, short-circuit double JwtAuthGuard validation on AUTH_ONLY routes, and fix audit-metrics.e2e content-type ordering assertion
 
 ## Phase Details
 
@@ -172,7 +174,12 @@ Plans:
   2. An ALLOW request is denied if the write-ahead audit buffer exhausts all retries (max 3) without successfully persisting the audit record
   3. GET /metrics returns Prometheus-format counters for allow/challenge/deny decisions, latency histograms per pipeline stage, and security-specific metrics (honeypot triggers, hashcash challenges, escalation level changes, token revocations)
   4. An audit persistence failure never throws an unhandled exception; it increments audit_failure_total and logs a warning
-**Plans:** TBD (not yet planned)
+**Plans:** 4 plans
+Plans:
+- [x] 09-00-PLAN.md — Wave 0: 6 RED test stubs + 006_audit_logs migration + AUDIT_WAL config getters/Joi + cross-module visibility fixes (Gap 1: SecurityMetricsService.getRegistry; Gap 2: HashcashModule exports HashcashMetrics)
+- [x] 09-01-PLAN.md — AuditModule: AuditEntry/AuditLog/AuditExhaustedException/AuditLogsQueryDto + AuditRepository (raw pg insert + findLogs) + AuditService (writeBlocking WAL + record + queryLogs) + AuditController + AuditModule
+- [x] 09-02-PLAN.md — MetricsModule: MetricsService (private Registry + 7 metrics + Registry.merge across 4 registries + 7 seam methods) + MetricsController (@Public GET /metrics, text/plain) + MetricsModule
+- [x] 09-03-PLAN.md — AppModule wiring (MetricsModule + AuditModule before HoneypotModule) + cross-module e2e (GET /metrics public + GET /audit/logs auth/role flow)
 
 ### Phase 10: Gateway Integration
 **Goal**: All 10 pipeline steps execute in the correct fail-fast order for every request, with public routes bypassed, trust context written only on ALLOW, and MFA promotion working end-to-end
@@ -184,7 +191,14 @@ Plans:
   3. A CHALLENGE decision triggers the MFA flow; a valid MFA token presented on the next request promotes it to ALLOW without re-evaluating policy
   4. Trust signals are written to Postgres after a successful proxy response on ALLOW; a CHALLENGE or DENY produces zero new trust_signals rows
   5. GET /health and GET /metrics are reachable without a JWT and without triggering any pipeline stage
-**Plans:** TBD (not yet planned)
+**Plans:** 6/6 plans complete
+Plans:
+- [x] 10-01-PLAN.md — public-paths.ts constants + isAuthOnlyPath helper (GTWY-02, GTWY-07, GTWY-08)
+- [x] 10-02-PLAN.md — honeypot.constants.ts HONEYPOT_PATHS + ShadowController parity refactor (GTWY-09)
+- [x] 10-03-PLAN.md — MetricsService extension: 9-stage label + mfa promotions counter (GTWY-08)
+- [x] 10-04-PLAN.md — GatewayMiddleware orchestrator + GatewayModule (GTWY-01..09)
+- [x] 10-05-PLAN.md — AppModule wiring + APP_GUARD removal + AuthController @UseGuards (GTWY-01, GTWY-04, GTWY-08)
+- [x] 10-06-PLAN.md — Full pipeline e2e spec covering GTWY-01..09 (GTWY-01..09)
 
 ## Progress
 
@@ -200,10 +214,12 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 5. Hashcash PoW | 9/9 | Complete | 2026-04-26 |
 | 6. Policy + Threat Escalation | 7/7 | Complete | 2026-04-26 |
 | 7. MFA Challenge | 4/4 | Complete | 2026-05-03 |
-| 8. Proxy + BOPLA | 0/5 | Planned | - |
-| 9. Audit + Metrics | 0/TBD | Not started | - |
-| 10. Gateway Integration | 0/TBD | Not started | - |
+| 8. Proxy + BOPLA | 5/5 | Complete | 2026-05-04 |
+| 9. Audit + Metrics | 4/4 | Complete | 2026-05-09 |
+| 10. Gateway Integration | 6/6 | Complete   | 2026-05-09 |
 | 11. MFA Enrollment | 5/5 | Complete | 2026-05-03 |
+| 12. Admin Route Allowlist Closure | 2/2 | Complete    | 2026-05-09 |
+| 13. v1.0 Tech Debt Cleanup | 0/0 | Pending | — |
 
 ### Phase 11: MFA Enrollment
 
@@ -223,3 +239,34 @@ Plans:
 - [x] 11-02-PLAN.md — UserSecretsRepository write methods (save upsert, deleteByUserId) + EnrollConfirmDto
 - [x] 11-03-PLAN.md — MfaService createEnrollment / confirmEnrollment / deleteEnrollment + MfaModule wiring
 - [x] 11-04-PLAN.md — MfaController routes + REQUIREMENTS.md amendment + ROADMAP finalization
+
+### Phase 12: Admin Route Allowlist Closure
+**Goal**: Admin endpoints (/audit/logs, /policy/admin/rules, /policy/admin/escalation) and CORS preflight reach their controllers through the running gateway pipeline, proven by a live e2e
+**Depends on**: Phase 10
+**Requirements**: AUDT-05, PLCY-06, PLCY-11
+**Gap Closure**: Closes v1.0 milestone audit BLOCKERS I-01, I-02, F-i, F-j, F-k and WARNING I-08 / F-p
+**Success Criteria** (what must be TRUE):
+  1. GET /audit/logs with admin JWT returns 200 through the running gateway (not 404 from proxy fallback)
+  2. POST /policy/admin/rules and POST/DELETE /policy/admin/escalation with admin JWT reach PolicyAdminController through the running gateway
+  3. Non-admin JWT against any of the above routes receives 403 from RolesGuard, not 404 from proxy fallback
+  4. Browser CORS preflight (OPTIONS) bypasses the auth gate and returns the configured CORS headers
+  5. A live e2e exercises all admin admin endpoints + an OPTIONS preflight through the full GatewayMiddleware pipeline (replaces the skipped tests/integration/policy.e2e-spec.ts)
+**Plans:** 2/2 plans complete
+Plans:
+**Wave 1**
+- [x] 12-01-PLAN.md — Extend AUTH_ONLY_* allowlist with /audit/logs and /policy/admin + OPTIONS preflight short-circuit in GatewayMiddleware (+ unit specs)
+
+**Wave 2**
+- [x] 12-02-PLAN.md — Live e2e covering all 5 Phase 12 success criteria + proxy.forward regression guard
+
+### Phase 13: v1.0 Tech Debt Cleanup
+**Goal**: Eliminate three non-functional tech-debt items flagged by the v1.0 milestone audit (HashcashGuard orphaned, AUTH_ONLY double-validation, audit-metrics content-type test brittleness) so the milestone closes clean
+**Depends on**: Phase 12
+**Requirements**: (none — pure cleanup; no new REQ-IDs)
+**Gap Closure**: Closes v1.0 milestone audit tech-debt items 5, 6, 7
+**Success Criteria** (what must be TRUE):
+  1. `src/hashcash/hashcash.guard.ts` is removed (or its kept-for-override intent is documented), HashcashModule exports updated, and no test/import references remain
+  2. JwtAuthGuard short-circuits validation when `req.user` is already populated by GatewayMiddleware on AUTH_ONLY routes (/auth/revoke, /mfa/*); validateToken is invoked at most once per request
+  3. `tests/integration/audit-metrics.e2e-spec.ts` content-type assertion accepts both `text/plain; version=0.0.4; charset=utf-8` and `text/plain; charset=utf-8; version=0.0.4` orderings
+  4. Full unit + e2e suite remains green; `npm run lint` clean
+**Plans:** 0/0 plans (to be planned via /gsd-plan-phase 13)
