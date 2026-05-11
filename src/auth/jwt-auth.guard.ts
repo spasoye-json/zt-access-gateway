@@ -10,7 +10,7 @@ import { IS_PUBLIC_KEY } from '../shared/public.decorator';
 import { GATEWAY_VALIDATED } from '../gateway/gateway-validated.symbol';
 import { AuthService } from './auth.service';
 import { TokenRevocationService } from './token-revocation.service';
-import { extractJa4h } from '../shared/request-context.util';
+import { extractIp, extractJa4h } from '../shared/request-context.util';
 import {
   AUTH_INVALID_TOKEN,
   type ThreatSignalPayload,
@@ -84,12 +84,19 @@ export class JwtAuthGuard implements CanActivate {
   }
 
   private emitInvalid(
-    request: { ip?: string; socket?: { remoteAddress?: string } },
+    request: {
+      ip?: string;
+      headers?: Record<string, string | string[] | undefined>;
+      socket?: { remoteAddress?: string };
+    },
     userId: string | undefined,
   ): void {
+    // WR-04: route IP extraction through the canonical extractIp helper so
+    // trusted-proxy X-Forwarded-For handling matches the rest of the pipeline
+    // (gateway.middleware.ts uses extractIp for all telemetry).
     const payload: ThreatSignalPayload = {
       type: AUTH_INVALID_TOKEN,
-      ip: request.ip ?? request.socket?.remoteAddress ?? 'unknown',
+      ip: extractIp(request as never),
       userId,
       ja4h: extractJa4h(request as never),
       ts: Date.now(),

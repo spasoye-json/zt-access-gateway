@@ -34,13 +34,19 @@ describe('JwtAuthGuard', () => {
     gatewayValidated?: boolean;
     user?: unknown;
   }): ExecutionContext {
+    // WR-04: emitInvalid now routes through extractIp, which reads
+    // headers['x-forwarded-for'] then falls back to socket.remoteAddress.
+    // Tests still pass `ip` for readability; the mock plumbs it through
+    // socket.remoteAddress so extractIp returns the expected value.
+    const ip = overrides?.ip ?? '1.2.3.4';
     const request: Record<string, unknown> = {
       headers: {
         ...(overrides?.authorization !== undefined
           ? { authorization: overrides.authorization }
           : {}),
       },
-      ip: overrides?.ip ?? '1.2.3.4',
+      ip,
+      socket: { remoteAddress: ip },
       user: undefined as unknown,
     };
     if (overrides?.ja4h !== undefined) {
