@@ -36,9 +36,11 @@ import { PolicyEvaluatorService } from '../../src/policy/policy-evaluator.servic
 import { ThreatEscalationService } from '../../src/policy/threat-escalation.service';
 import { ProxyService } from '../../src/proxy/proxy.service';
 import { createHs256Token } from '../../src/auth/__tests__/test-keys';
+import { AuthService } from '../../src/auth/auth.service';
 
 describe('Phase 12 — Admin route allowlist closure (live e2e)', () => {
   let app: INestApplication;
+  let validateTokenSpy: jest.SpyInstance;
 
   const fakeAudit = {
     insert: jest.fn().mockResolvedValue(undefined),
@@ -83,6 +85,9 @@ describe('Phase 12 — Admin route allowlist closure (live e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
     app.enableCors({ origin: '*' });    // mirror src/main.ts:36 so OPTIONS preflight returns CORS headers
     await app.init();
+
+    const realAuth = moduleRef.get(AuthService);
+    validateTokenSpy = jest.spyOn(realAuth, 'validateToken');
   });
 
   afterAll(async () => {
@@ -98,6 +103,7 @@ describe('Phase 12 — Admin route allowlist closure (live e2e)', () => {
     fakeThreat.snapshot.mockClear();
     fakeThreat.setManualLevel.mockClear();
     fakeThreat.clearManualLevel.mockClear();
+    validateTokenSpy.mockClear();
   });
 
   // ── Success criterion 1: GET /audit/logs (AUDT-05) ──────────────────────
@@ -267,6 +273,54 @@ describe('Phase 12 — Admin route allowlist closure (live e2e)', () => {
       expect(res.headers['access-control-allow-origin']).toBeDefined();
       expect(fakeProxy.forward).not.toHaveBeenCalled();
       expect(fakePolicy.addRule).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Phase 13 SC-2 — JwtAuthGuard double-validation closure ───────────────
+  describe('Phase 13 SC-2 — validateToken called exactly once per request (D-08)', () => {
+    it('GET /policy/admin/rules with admin JWT — AuthService.validateToken called EXACTLY ONCE', async () => {
+      const token = await createHs256Token(
+        { sub: 'admin-1', roles: ['admin'] },
+        { jti: 'p13-sc2-pol-rules' },
+      );
+      const res = await request(app.getHttpServer())
+        .get('/policy/admin/rules')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(validateTokenSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('POST /auth/revoke with admin JWT — AuthService.validateToken called EXACTLY ONCE', async () => {
+      const token = await createHs256Token(
+        { sub: 'admin-1', roles: ['admin'] },
+        { jti: 'p13-sc2-auth-revoke' },
+      );
+      const res = await request(app.getHttpServer())
+        .post('/auth/revoke')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          jti: 'some-other-jti-to-revoke',
+          exp: Math.floor(Date.now() / 1000) + 3600,
+        });
+
+      // /auth/revoke may return 200, 201, or 204 depending on controller wiring;
+      // what matters for SC-2 is the call count, not the body.
+      expect([200, 201, 204]).toContain(res.status);
+      expect(validateTokenSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('regression — spy count is not silently 0 (would indicate @UseGuards bypass)', async () => {
+      const token = await createHs256Token(
+        { sub: 'admin-1', roles: ['admin'] },
+        { jti: 'p13-sc2-not-zero' },
+      );
+      await request(app.getHttpServer())
+        .get('/policy/admin/rules')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(validateTokenSpy.mock.calls.length).toBeGreaterThan(0);
+      expect(validateTokenSpy.mock.calls.length).toBe(1);
     });
   });
 });
