@@ -30,12 +30,29 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ? exception.getStatus()
       : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message = isHttp ? exception.message : 'Internal server error';
-
     if (!isHttp) {
-      // Log full error server-side only — never in the response body
+      // Log full error server-side only — never in the response body.
+      // T-01-05: never leak stack traces or internal messages to clients.
       console.error('Unhandled exception:', exception);
+      response.status(statusCode).json({
+        statusCode,
+        message: 'Internal server error',
+        timestamp: new Date().toISOString(),
+      });
+      return;
     }
+
+    // WR-05: HttpException.message is the constant 'Bad Request Exception'
+    // for class-validator pipe failures; the real constraint violations live
+    // in getResponse(). Prefer the structured response body so API consumers
+    // see which field failed. Fall back to exception.message for plain
+    // HttpException instances whose response body is a string equal to
+    // the message (e.g. new HttpException('Forbidden', 403)).
+    const body = exception.getResponse();
+    const message =
+      typeof body === 'string'
+        ? body
+        : ((body as { message?: unknown }).message ?? exception.message);
 
     response.status(statusCode).json({
       statusCode,
