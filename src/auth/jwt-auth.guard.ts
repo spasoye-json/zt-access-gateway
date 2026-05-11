@@ -7,6 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IS_PUBLIC_KEY } from '../shared/public.decorator';
+import { GATEWAY_VALIDATED } from '../gateway/gateway-validated.symbol';
 import { AuthService } from './auth.service';
 import { TokenRevocationService } from './token-revocation.service';
 import { extractJa4h } from '../shared/request-context.util';
@@ -44,6 +45,18 @@ export class JwtAuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest();
+
+    // Phase 13 D-05 — sentinel short-circuit.
+    // GatewayMiddleware set this property AFTER successfully running auth step 5
+    // (validateToken) and step 6 (isRevoked). Re-running them here would double
+    // the work for every AUTH_ONLY route (/auth/revoke, /mfa/*). Only the Symbol
+    // identity is trusted — string-keyed properties or headers cannot spoof it
+    // (Phase 13 D-04). Standalone routes (no GatewayMiddleware) leave this
+    // property unset and fall through to the full validation path (D-07).
+    if ((request as Record<symbol, unknown>)[GATEWAY_VALIDATED] === true) {
+      return true;
+    }
+
     let userId: string | undefined;
     try {
       const token = this.extractTokenFromHeader(request);

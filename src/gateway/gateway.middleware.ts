@@ -24,6 +24,7 @@ import { AppConfigService } from '../config/config.service';
 import { extractIp } from '../shared/request-context.util';
 import { sleep } from '../shared/sleep.util';
 import { PUBLIC_PATHS, isAuthOnlyPath } from './public-paths';
+import { GATEWAY_VALIDATED } from './gateway-validated.symbol';
 import { HONEYPOT_PATHS } from '../honeypot/honeypot.constants';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
 import type { TrustContext } from '../trust-score/trust-context';
@@ -155,6 +156,7 @@ export class GatewayMiddleware implements NestMiddleware {
         return;
       }
       observe('revocation', (Date.now() - t0) / 1000);
+      (req as unknown as Record<symbol, boolean>)[GATEWAY_VALIDATED] = true;
 
       // D-04 — AUTH_ONLY early exit (audit allow, then next())
       if (isAuthOnlyPath(reqPath)) {
