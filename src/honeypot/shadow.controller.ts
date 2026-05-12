@@ -68,7 +68,7 @@ export class ShadowController implements OnModuleInit {
    * Extracted to avoid 7x duplication of the same tarpit+blacklist+audit logic.
    */
   private async trapAndRespond(req: Request, res: Response, path: string): Promise<void> {
-    const ja4h: string = (req as any)['x-ja4h'] ?? 'unknown';
+    const ja4h: string = (req as Request & { 'x-ja4h'?: string })['x-ja4h'] ?? 'unknown';
 
     // Blacklist the fingerprint immediately — isTerminal ensures Phase 4 trust score = 1.0
     this.store.add(ja4h, { ttlMs: this.config.blacklistTtlMs, isTerminal: true });

@@ -7,6 +7,14 @@ import { AuthService } from './auth.service';
 import { TokenRevocationService } from './token-revocation.service';
 import { extractIp, extractJa4h } from '../shared/request-context.util';
 import { AUTH_INVALID_TOKEN, type ThreatSignalPayload } from '../policy/policy-events';
+import type { UserClaims } from './interfaces/user-claims.interface';
+
+interface AuthRequest {
+  ip?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  socket?: { remoteAddress?: string };
+  user?: UserClaims;
+}
 
 /**
  * Global JWT authentication guard (APP_GUARD).
@@ -36,7 +44,7 @@ export class JwtAuthGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthRequest>();
 
     // Phase 13 D-05 — sentinel short-circuit.
     // GatewayMiddleware set this property AFTER successfully running auth step 5

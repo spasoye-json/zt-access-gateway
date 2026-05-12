@@ -20,7 +20,7 @@ export class Ja4hMiddleware implements NestMiddleware {
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     const fingerprint = computeJa4h(req);
-    (req as any)['x-ja4h'] = fingerprint;
+    (req as Request & { 'x-ja4h': string })['x-ja4h'] = fingerprint;
 
     if (this.store.isBlacklisted(fingerprint)) {
       // Tarpit: hold the connection briefly to slow down scanners (D-05, T-02-05)

@@ -89,7 +89,7 @@ export const validationSchema = Joi.object({
   // Phase 9: Audit WAL (D-06)
   AUDIT_WAL_BASE_DELAY_MS: Joi.number().integer().min(1).default(50),
   AUDIT_WAL_MAX_RETRIES: Joi.number().integer().min(1).max(10).default(3),
-}).custom((cfg, helpers) => {
+}).custom((cfg: Record<string, number>, helpers) => {
   // D-23 cross-field validator: Elevated/Critical MUST be strictly tighter than Normal.
   // Tighter at higher level (challenge threshold)
   if (!(cfg.POLICY_ELEVATED_CHALLENGE_THRESHOLD < cfg.POLICY_CHALLENGE_THRESHOLD))
