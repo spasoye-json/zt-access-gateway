@@ -177,7 +177,17 @@ export class MfaService {
       }
       const plainSecret = aesGcmDecrypt(encryptedSecret, this.encryptionKey);
       if (!plainSecret) {
-        // Decryption failure — treat as missing secret (never reveal key state)
+        // WR-02 (phase 14): the response stays 'unknown_user' to preserve
+        // enumeration resistance ("never reveal key state") — but the
+        // internal observability MUST distinguish a corrupted / key-rotated
+        // secret store from a genuinely missing row. Without this dashboards
+        // could not alert on a spike of decrypt failures from a botched
+        // MFA_TOTP_ENCRYPTION_KEY rotation.
+        this.logger.warn('TOTP secret decrypt failed', { userId });
+        this.events.emit('mfa.secret_decrypt_failed', {
+          userId,
+          ts: Date.now(),
+        });
         emitFail('unknown_user');
         return { ok: false, reason: 'unknown_user' };
       }

@@ -351,6 +351,30 @@ describe('MfaService', () => {
       expect(result.reason).toBe('invalid_code');
     });
 
+    // WR-02 (phase 14): preserve enumeration-resistant response but emit an
+    // internal-only signal so ops dashboards can alert on a spike of decrypt
+    // failures (e.g., botched MFA_TOTP_ENCRYPTION_KEY rotation).
+    it('WR-02: decrypt failure emits internal mfa.secret_decrypt_failed; response stays unknown_user', async () => {
+      const foreignKey = Buffer.alloc(32, 0x33).toString('base64');
+      const corruptCiphertext = aesGcmEncrypt(TEST_TOTP_SECRET, foreignKey);
+      secretsRepo.getEncryptedSecret.mockResolvedValue(corruptCiphertext);
+
+      const result = await service.verifyTotp(
+        TEST_CHALLENGE_ID,
+        '000000',
+        TEST_USER,
+        TEST_IP,
+        TEST_DEVICE,
+      );
+      assertOkFalse<Extract<MfaVerifyResult, { ok: false }>>(result);
+      expect(result.reason).toBe('unknown_user');
+
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).toContain('mfa.secret_decrypt_failed');
+      // Threat ladder still observes MFA_FAILED with reason='unknown_user'.
+      expect(eventNames).toContain(MFA_FAILED);
+    });
+
     it('Test 9: returns { ok: false, reason: unknown_user } when user has no secret (D-16)', async () => {
       secretsRepo.getEncryptedSecret.mockResolvedValue(null);
 
