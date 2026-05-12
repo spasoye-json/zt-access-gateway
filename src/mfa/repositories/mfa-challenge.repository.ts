@@ -31,25 +31,6 @@ export class MfaChallengeRepository implements OnModuleDestroy {
   }
 
   /**
-   * Count challenges created for userId within windowMs milliseconds.
-   * Used for per-user rate limiting (D-17, MFA-08).
-   * Postgres INTERVAL cast: ($2::bigint * INTERVAL '1 millisecond') — Pitfall 7.
-   *
-   * NOTE (phase 14 WR-05): kept for legacy callers but the service no longer
-   * uses this in the rate-limit hot path — see insertChallengeIfUnderLimit
-   * which fuses count + insert into one atomic statement.
-   */
-  async countRecentChallenges(userId: string, windowMs: number): Promise<number> {
-    const r = await this.pool.query<{ c: number }>(
-      `SELECT COUNT(*)::int AS c
-       FROM mfa_challenges
-       WHERE user_id = $1 AND created_at > NOW() - ($2::bigint * INTERVAL '1 millisecond')`,
-      [userId, windowMs],
-    );
-    return r.rows[0]?.c ?? 0;
-  }
-
-  /**
    * WR-05 (phase 14): atomic rate-limited insert. Inserts the challenge row
    * iff the count of rows for this userId within the past windowMs is strictly
    * less than maxCount. Returns true on insert, false when the rate limit

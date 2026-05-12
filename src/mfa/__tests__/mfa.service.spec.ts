@@ -133,7 +133,6 @@ describe('MfaService', () => {
 
   beforeEach(async () => {
     challengeRepo = {
-      countRecentChallenges: jest.fn().mockResolvedValue(0),
       insertChallenge: jest.fn().mockResolvedValue(undefined),
       // WR-05 (phase 14): atomic conditional insert. Default to success (true).
       insertChallengeIfUnderLimit: jest.fn().mockResolvedValue(true),
@@ -227,9 +226,10 @@ describe('MfaService', () => {
     });
 
     // WR-05 (phase 14): atomic conditional insert closes count+insert TOCTOU.
-    it('WR-05: does NOT call the racy two-query pair (countRecentChallenges + insertChallenge)', async () => {
+    // IN-02 (phase 14, iter3): countRecentChallenges has been deleted; the
+    // legacy insertChallenge sibling must still not be the hot path.
+    it('WR-05: does NOT call the legacy insertChallenge two-query partner', async () => {
       await service.createChallenge(TEST_USER, TEST_IP);
-      expect(challengeRepo.countRecentChallenges).not.toHaveBeenCalled();
       expect(challengeRepo.insertChallenge).not.toHaveBeenCalled();
     });
 

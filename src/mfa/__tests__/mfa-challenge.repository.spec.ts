@@ -49,17 +49,6 @@ describeDb('MfaChallengeRepository', () => {
     expect(result?.expiresAt).toBeInstanceOf(Date);
   });
 
-  it('countRecentChallenges returns 0 when no recent rows exist', async () => {
-    expect(await repo.countRecentChallenges(TEST_UID, 60_000)).toBe(0);
-  });
-
-  it('countRecentChallenges counts rows created within windowMs (MFA-08)', async () => {
-    await repo.insertChallenge('test-chal-3', TEST_UID, new Date(Date.now() + 300_000));
-    await repo.insertChallenge('test-chal-4', TEST_UID, new Date(Date.now() + 300_000));
-    const count = await repo.countRecentChallenges(TEST_UID, 60_000);
-    expect(count).toBe(2);
-  });
-
   // WR-05 (phase 14): atomic insert-if-under-limit.
   it('WR-05: insertChallengeIfUnderLimit inserts when count < max', async () => {
     const ok = await repo.insertChallengeIfUnderLimit(
