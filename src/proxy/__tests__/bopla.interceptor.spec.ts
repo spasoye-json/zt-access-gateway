@@ -8,7 +8,6 @@ jest.mock('node:fs', () => ({
   promises: { readFile: jest.fn() },
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require('node:fs') as { promises: { readFile: jest.Mock } };
 
 // Import after mocking

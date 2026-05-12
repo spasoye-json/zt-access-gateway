@@ -4,10 +4,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtAuthGuard } from '../jwt-auth.guard';
 import { AuthService } from '../auth.service';
 import { TokenRevocationService } from '../token-revocation.service';
-import { IS_PUBLIC_KEY } from '../../shared/public.decorator';
 import { AUTH_INVALID_TOKEN } from '../../policy/policy-events';
 import { GATEWAY_VALIDATED } from '../../gateway/gateway-validated.symbol';
-import { TEST_HS256_SECRET, createHs256Token } from './test-keys';
+import { createHs256Token } from './test-keys';
 
 /**
  * JwtAuthGuard unit tests -- TDD RED phase.

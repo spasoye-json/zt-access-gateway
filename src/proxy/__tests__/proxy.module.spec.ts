@@ -16,7 +16,6 @@
  */
 
 import * as path from 'node:path';
-import * as fs from 'node:fs';
 
 /** Path to the real field-policy.json shipped in plan 08-00. */
 const REAL_POLICY_PATH = path.resolve(process.cwd(), 'policy/field-policy.json');

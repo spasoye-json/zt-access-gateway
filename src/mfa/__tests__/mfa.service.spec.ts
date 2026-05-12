@@ -120,7 +120,6 @@ describe('MfaService', () => {
   // PendingEnrollmentStore is provided in Plan 11-01. Use a deferred require for Wave 0.
   let PendingEnrollmentStore: unknown;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
     PendingEnrollmentStore = require('../enrollment.store').PendingEnrollmentStore;
   } catch {
     PendingEnrollmentStore = class {};
