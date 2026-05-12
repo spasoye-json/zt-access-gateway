@@ -1,6 +1,6 @@
 # Requirements: Zero-Trust Access Gateway
 
-**Defined:** 2026-04-11 · **Traceability refresh:** 2026-04-18
+**Defined:** 2026-04-11 · **Traceability refresh:** 2026-05-12
 **Core Value:** Every request is verified, scored, and authorized before reaching any downstream service
 
 ## v1 Requirements
@@ -106,76 +106,76 @@ Requirements for initial release. Full hardened architecture including fail-fast
 
 ### MFA
 
-- [ ] **MFA-01**: MfaService creates challenge records in mfa_challenges table tied to authenticated user
-- [ ] **MFA-02**: MfaService validates TOTP codes against stored challenge
-- [ ] **MFA-03**: Valid MFA verification produces a signed MFA JWT (using MFA_JWT_SECRET, separate from main JWT_SECRET)
-- [ ] **MFA-04**: MFA token is bound to device + IP fingerprint (SHA-256 of userId|deviceId|ip) — geolocation and user-agent excluded per D-07 (Phase 4 D-14 alignment)
-- [ ] **MFA-05**: MFA token redemption rejects tokens whose fingerprint doesn't match current request context
-- [ ] **MFA-06**: MfaController exposes endpoint for challenge submission and token verification
-- [ ] **MFA-07**: MFA tokens are stored in mfa_tokens table with expiry
-- [ ] **MFA-08**: MFA challenge initiation is rate-limited per user per time window
+- [x] **MFA-01**: MfaService creates challenge records in mfa_challenges table tied to authenticated user
+- [x] **MFA-02**: MfaService validates TOTP codes against stored challenge
+- [x] **MFA-03**: Valid MFA verification produces a signed MFA JWT (using MFA_JWT_SECRET, separate from main JWT_SECRET)
+- [x] **MFA-04**: MFA token is bound to device + IP fingerprint (SHA-256 of userId|deviceId|ip) — geolocation and user-agent excluded per D-07 (Phase 4 D-14 alignment)
+- [x] **MFA-05**: MFA token redemption rejects tokens whose fingerprint doesn't match current request context
+- [x] **MFA-06**: MfaController exposes endpoint for challenge submission and token verification
+- [x] **MFA-07**: MFA tokens are stored in mfa_tokens table with expiry
+- [x] **MFA-08**: MFA challenge initiation is rate-limited per user per time window
 
 ### MFA Enrollment (Phase 11)
 
-- [ ] **ENROLL-01**: POST /mfa/enroll generates a TOTP secret and returns 201 with { enrollmentId, otpauthUri } for an authenticated, unenrolled user (D-01)
-- [ ] **ENROLL-02**: otpauthUri is D-03 compliant — contains scheme `otpauth://totp/`, label `<issuer>:<email-or-userId>` (URL-encoded), and explicit `secret`, `issuer`, `algorithm=SHA1`, `digits=6`, `period=30` query params
-- [ ] **ENROLL-03**: POST /mfa/enroll returns 409 Conflict with `{ error: 'already_enrolled' }` when the user already has a user_secrets row (D-06)
-- [ ] **ENROLL-04**: POST /mfa/enroll/confirm with a valid 6-digit TOTP writes the AES-256-GCM-encrypted secret to user_secrets and returns 200 (D-04)
-- [ ] **ENROLL-05**: POST /mfa/enroll/confirm with an invalid TOTP returns 400 with reason `invalid_totp` and does NOT delete the pending enrollment entry (D-04 retry semantic)
-- [ ] **ENROLL-06**: PendingEnrollmentStore evicts pending entries lazily after MFA_ENROLL_PENDING_TTL_MS (default 600000 ms) on next read (D-02)
-- [ ] **ENROLL-07**: DELETE /mfa/admin/enrollment/:userId requires the `admin` role and returns 200 with `{ deleted: <bool> }` indicating whether a row was removed (D-07)
-- [ ] **ENROLL-08**: DELETE /mfa/admin/enrollment/:userId emits `mfa.enrollment_reset` event so admin resets are audit-observable
-- [ ] **ENROLL-09**: All enrollment endpoints return 401 when no Authorization header is present (JwtAuthGuard at class level)
-- [ ] **ENROLL-10**: DELETE /mfa/admin/enrollment/:userId returns 403 for callers without the `admin` role (method-level @Roles)
-- [ ] **CONF-11**: AppConfigService exposes typed `mfaIssuerName` (default `ZT-Gateway`) and `mfaEnrollPendingTtlMs` (default 600000) getters validated by Joi (D-11)
+- [x] **ENROLL-01**: POST /mfa/enroll generates a TOTP secret and returns 201 with { enrollmentId, otpauthUri } for an authenticated, unenrolled user (D-01)
+- [x] **ENROLL-02**: otpauthUri is D-03 compliant — contains scheme `otpauth://totp/`, label `<issuer>:<email-or-userId>` (URL-encoded), and explicit `secret`, `issuer`, `algorithm=SHA1`, `digits=6`, `period=30` query params
+- [x] **ENROLL-03**: POST /mfa/enroll returns 409 Conflict with `{ error: 'already_enrolled' }` when the user already has a user_secrets row (D-06)
+- [x] **ENROLL-04**: POST /mfa/enroll/confirm with a valid 6-digit TOTP writes the AES-256-GCM-encrypted secret to user_secrets and returns 200 (D-04)
+- [x] **ENROLL-05**: POST /mfa/enroll/confirm with an invalid TOTP returns 400 with reason `invalid_totp` and does NOT delete the pending enrollment entry (D-04 retry semantic)
+- [x] **ENROLL-06**: PendingEnrollmentStore evicts pending entries lazily after MFA_ENROLL_PENDING_TTL_MS (default 600000 ms) on next read (D-02)
+- [x] **ENROLL-07**: DELETE /mfa/admin/enrollment/:userId requires the `admin` role and returns 200 with `{ deleted: <bool> }` indicating whether a row was removed (D-07)
+- [x] **ENROLL-08**: DELETE /mfa/admin/enrollment/:userId emits `mfa.enrollment_reset` event so admin resets are audit-observable
+- [x] **ENROLL-09**: All enrollment endpoints return 401 when no Authorization header is present (JwtAuthGuard at class level)
+- [x] **ENROLL-10**: DELETE /mfa/admin/enrollment/:userId returns 403 for callers without the `admin` role (method-level @Roles)
+- [x] **CONF-11**: AppConfigService exposes typed `mfaIssuerName` (default `ZT-Gateway`) and `mfaEnrollPendingTtlMs` (default 600000) getters validated by Joi (D-11)
 
 ### Proxy
 
-- [ ] **PRXY-01**: ProxyService forwards allowed requests to downstream services via mTLS
-- [ ] **PRXY-02**: ProxyService strips Authorization/Cookie headers and injects x-user-id, x-roles, x-trust-score, x-gateway-request headers
-- [ ] **PRXY-03**: ServiceRegistryService validates target against PROXY_SERVICE_REGISTRY allowlist (SSRF protection)
-- [ ] **PRXY-04**: ProxyService implements circuit breaker (CLOSED -> OPEN -> HALF-OPEN state machine)
-- [ ] **PRXY-05**: ProxyService retries failed requests with exponential backoff
-- [ ] **PRXY-06**: Proxy rejects requests targeting services not in the registry
-- [ ] **PRXY-07**: DnsRebindingGuard resolves hostnames to IPs before connecting and validates resolved IP is not in private/loopback/metadata ranges
-- [ ] **PRXY-08**: DNS resolution cross-checks resolved IP against service registry allowlist
-- [ ] **PRXY-09**: ResponseValidator validates downstream response before returning to client
+- [x] **PRXY-01**: ProxyService forwards allowed requests to downstream services via mTLS
+- [x] **PRXY-02**: ProxyService strips Authorization/Cookie headers and injects x-user-id, x-roles, x-trust-score, x-gateway-request headers
+- [x] **PRXY-03**: ServiceRegistryService validates target against PROXY_SERVICE_REGISTRY allowlist (SSRF protection)
+- [x] **PRXY-04**: ProxyService implements circuit breaker (CLOSED -> OPEN -> HALF-OPEN state machine)
+- [x] **PRXY-05**: ProxyService retries failed requests with exponential backoff
+- [x] **PRXY-06**: Proxy rejects requests targeting services not in the registry
+- [x] **PRXY-07**: DnsRebindingGuard resolves hostnames to IPs before connecting and validates resolved IP is not in private/loopback/metadata ranges
+- [x] **PRXY-08**: DNS resolution cross-checks resolved IP against service registry allowlist
+- [x] **PRXY-09**: ResponseValidator validates downstream response before returning to client
 
 ### BOPLA Response Interceptor
 
-- [ ] **BOPL-01**: BOPLA interceptor strips unauthorized fields from downstream JSON responses based on user roles
-- [ ] **BOPL-02**: @AuthorizedFields decorator or field-policy.json defines which roles can see which fields per route
-- [ ] **BOPL-03**: Field stripping handles nested objects and arrays of objects recursively
-- [ ] **BOPL-04**: Admin role sees all fields; lower roles see progressively restricted field sets
+- [x] **BOPL-01**: BOPLA interceptor strips unauthorized fields from downstream JSON responses based on user roles
+- [x] **BOPL-02**: @AuthorizedFields decorator or field-policy.json defines which roles can see which fields per route
+- [x] **BOPL-03**: Field stripping handles nested objects and arrays of objects recursively
+- [x] **BOPL-04**: Admin role sees all fields; lower roles see progressively restricted field sets
 
 ### Audit
 
-- [ ] **AUDT-01**: AuditService logs every gateway decision (ALLOW/CHALLENGE/DENY) to audit_logs table
-- [ ] **AUDT-02**: Audit log includes userId, resource, action, decision, trust score, timestamp, request metadata, and JA4H fingerprint
-- [ ] **AUDT-03**: WriteAheadBuffer guarantees audit entries are persisted before allowing requests through (audit-before-allow for ALLOW decisions)
-- [ ] **AUDT-04**: WAL retries with exponential backoff (max 3 retries); if exhausted, DENY the request
-- [ ] **AUDT-05**: AuditController exposes read-only endpoint for audit log queries
-- [ ] **AUDT-06**: Honeypot triggers are logged with HONEYPOT_TRIGGERED event type
+- [x] **AUDT-01**: AuditService logs every gateway decision (ALLOW/CHALLENGE/DENY) to audit_logs table
+- [x] **AUDT-02**: Audit log includes userId, resource, action, decision, trust score, timestamp, request metadata, and JA4H fingerprint
+- [x] **AUDT-03**: WriteAheadBuffer guarantees audit entries are persisted before allowing requests through (audit-before-allow for ALLOW decisions)
+- [x] **AUDT-04**: WAL retries with exponential backoff (max 3 retries); if exhausted, DENY the request
+- [x] **AUDT-05**: AuditController exposes read-only endpoint for audit log queries
+- [x] **AUDT-06**: Honeypot triggers are logged with HONEYPOT_TRIGGERED event type
 
 ### Metrics
 
-- [ ] **MTRC-01**: MetricsService exposes Prometheus counters for requests by decision type (allow/challenge/deny)
-- [ ] **MTRC-02**: MetricsService exposes histograms for request latency per pipeline stage
-- [ ] **MTRC-03**: MetricsController serves metrics at GET /metrics in Prometheus exposition format
-- [ ] **MTRC-04**: SecurityMetrics tracks honeypot triggers, hashcash challenges/solutions, threat escalation level changes, token revocations
-- [ ] **MTRC-05**: SecurityMetrics tracks JA4H blacklist size and fingerprint drift detections
+- [x] **MTRC-01**: MetricsService exposes Prometheus counters for requests by decision type (allow/challenge/deny)
+- [x] **MTRC-02**: MetricsService exposes histograms for request latency per pipeline stage
+- [x] **MTRC-03**: MetricsController serves metrics at GET /metrics in Prometheus exposition format
+- [x] **MTRC-04**: SecurityMetrics tracks honeypot triggers, hashcash challenges/solutions, threat escalation level changes, token revocations
+- [x] **MTRC-05**: SecurityMetrics tracks JA4H blacklist size and fingerprint drift detections
 
 ### Gateway Integration (10-Step Fail-Fast Pipeline)
 
-- [ ] **GTWY-01**: GatewayMiddleware orchestrates the 10-step fail-fast pipeline: JA4H -> Blacklist check -> Rate limit -> Honeypot -> Auth -> Token revocation -> Trust score -> Hashcash PoW -> Policy -> Proxy
-- [ ] **GTWY-02**: Pipeline ordered so cheapest rejections happen first (JA4H blacklist before auth, auth before trust scoring)
-- [ ] **GTWY-03**: GatewayMiddleware short-circuits on DENY at any stage (returns appropriate status code)
-- [ ] **GTWY-04**: GatewayMiddleware triggers MFA flow on CHALLENGE and promotes to ALLOW on valid MFA token
-- [ ] **GTWY-05**: GatewayMiddleware records trust context only after successful proxy on ALLOW
-- [ ] **GTWY-06**: BOPLA interceptor runs on response path after proxy, before returning to client
-- [ ] **GTWY-07**: Audit + metrics recording happens after proxy response
-- [ ] **GTWY-08**: Public routes (health, metrics) bypass the full pipeline
-- [ ] **GTWY-09**: Tarpit delay applied to blacklisted JA4H fingerprints (2-5s before 403)
+- [x] **GTWY-01**: GatewayMiddleware orchestrates the 10-step fail-fast pipeline: JA4H -> Blacklist check -> Rate limit -> Honeypot -> Auth -> Token revocation -> Trust score -> Hashcash PoW -> Policy -> Proxy
+- [x] **GTWY-02**: Pipeline ordered so cheapest rejections happen first (JA4H blacklist before auth, auth before trust scoring)
+- [x] **GTWY-03**: GatewayMiddleware short-circuits on DENY at any stage (returns appropriate status code)
+- [x] **GTWY-04**: GatewayMiddleware triggers MFA flow on CHALLENGE and promotes to ALLOW on valid MFA token
+- [x] **GTWY-05**: GatewayMiddleware records trust context only after successful proxy on ALLOW
+- [x] **GTWY-06**: BOPLA interceptor runs on response path after proxy, before returning to client
+- [x] **GTWY-07**: Audit + metrics recording happens after proxy response
+- [x] **GTWY-08**: Public routes (health, metrics) bypass the full pipeline
+- [x] **GTWY-09**: Tarpit delay applied to blacklisted JA4H fingerprints (2-5s before 403)
 
 ### Bootstrap
 
@@ -289,58 +289,58 @@ Deferred to future release. Tracked but not in current roadmap.
 | PLCY-09 | Phase 6 | Complete |
 | PLCY-10 | Phase 6 | Complete |
 | PLCY-11 | Phase 6 | Complete |
-| MFA-01 | Phase 7 | Pending |
-| MFA-02 | Phase 7 | Pending |
-| MFA-03 | Phase 7 | Pending |
-| MFA-04 | Phase 7 | Pending |
-| MFA-05 | Phase 7 | Pending |
-| MFA-06 | Phase 7 | Pending |
-| MFA-07 | Phase 7 | Pending |
-| MFA-08 | Phase 7 | Pending |
-| ENROLL-01 | Phase 11 | Pending |
-| ENROLL-02 | Phase 11 | Pending |
-| ENROLL-03 | Phase 11 | Pending |
-| ENROLL-04 | Phase 11 | Pending |
-| ENROLL-05 | Phase 11 | Pending |
-| ENROLL-06 | Phase 11 | Pending |
-| ENROLL-07 | Phase 11 | Pending |
-| ENROLL-08 | Phase 11 | Pending |
-| ENROLL-09 | Phase 11 | Pending |
-| ENROLL-10 | Phase 11 | Pending |
-| CONF-11   | Phase 11 | Pending |
-| PRXY-01 | Phase 8 | Pending |
-| PRXY-02 | Phase 8 | Pending |
-| PRXY-03 | Phase 8 | Pending |
-| PRXY-04 | Phase 8 | Pending |
-| PRXY-05 | Phase 8 | Pending |
-| PRXY-06 | Phase 8 | Pending |
-| PRXY-07 | Phase 8 | Pending |
-| PRXY-08 | Phase 8 | Pending |
-| PRXY-09 | Phase 8 | Pending |
-| BOPL-01 | Phase 8 | Pending |
-| BOPL-02 | Phase 8 | Pending |
-| BOPL-03 | Phase 8 | Pending |
-| BOPL-04 | Phase 8 | Pending |
-| AUDT-01 | Phase 9 | Pending |
-| AUDT-02 | Phase 9 | Pending |
-| AUDT-03 | Phase 9 | Pending |
-| AUDT-04 | Phase 9 | Pending |
-| AUDT-05 | Phase 9 | Pending |
-| AUDT-06 | Phase 9 | Pending |
-| MTRC-01 | Phase 9 | Pending |
-| MTRC-02 | Phase 9 | Pending |
-| MTRC-03 | Phase 9 | Pending |
-| MTRC-04 | Phase 9 | Pending |
-| MTRC-05 | Phase 9 | Pending |
-| GTWY-01 | Phase 10 | Pending |
-| GTWY-02 | Phase 10 | Pending |
-| GTWY-03 | Phase 10 | Pending |
-| GTWY-04 | Phase 10 | Pending |
-| GTWY-05 | Phase 10 | Pending |
-| GTWY-06 | Phase 10 | Pending |
-| GTWY-07 | Phase 10 | Pending |
-| GTWY-08 | Phase 10 | Pending |
-| GTWY-09 | Phase 10 | Pending |
+| MFA-01 | Phase 7 | Complete |
+| MFA-02 | Phase 7 | Complete |
+| MFA-03 | Phase 7 | Complete |
+| MFA-04 | Phase 7 | Complete |
+| MFA-05 | Phase 7 | Complete |
+| MFA-06 | Phase 7 | Complete |
+| MFA-07 | Phase 7 | Complete |
+| MFA-08 | Phase 7 | Complete |
+| ENROLL-01 | Phase 11 | Complete |
+| ENROLL-02 | Phase 11 | Complete |
+| ENROLL-03 | Phase 11 | Complete |
+| ENROLL-04 | Phase 11 | Complete |
+| ENROLL-05 | Phase 11 | Complete |
+| ENROLL-06 | Phase 11 | Complete |
+| ENROLL-07 | Phase 11 | Complete |
+| ENROLL-08 | Phase 11 | Complete |
+| ENROLL-09 | Phase 11 | Complete |
+| ENROLL-10 | Phase 11 | Complete |
+| CONF-11   | Phase 11 | Complete |
+| PRXY-01 | Phase 8 | Complete |
+| PRXY-02 | Phase 8 | Complete |
+| PRXY-03 | Phase 8 | Complete |
+| PRXY-04 | Phase 8 | Complete |
+| PRXY-05 | Phase 8 | Complete |
+| PRXY-06 | Phase 8 | Complete |
+| PRXY-07 | Phase 8 | Complete |
+| PRXY-08 | Phase 8 | Complete |
+| PRXY-09 | Phase 8 | Complete |
+| BOPL-01 | Phase 8 | Complete |
+| BOPL-02 | Phase 8 | Complete |
+| BOPL-03 | Phase 8 | Complete |
+| BOPL-04 | Phase 8 | Complete |
+| AUDT-01 | Phase 9 | Complete |
+| AUDT-02 | Phase 9 | Complete |
+| AUDT-03 | Phase 9 | Complete |
+| AUDT-04 | Phase 9 | Complete |
+| AUDT-05 | Phase 9 | Complete |
+| AUDT-06 | Phase 9 | Complete |
+| MTRC-01 | Phase 9 | Complete |
+| MTRC-02 | Phase 9 | Complete |
+| MTRC-03 | Phase 9 | Complete |
+| MTRC-04 | Phase 9 | Complete |
+| MTRC-05 | Phase 9 | Complete |
+| GTWY-01 | Phase 10 | Complete |
+| GTWY-02 | Phase 10 | Complete |
+| GTWY-03 | Phase 10 | Complete |
+| GTWY-04 | Phase 10 | Complete |
+| GTWY-05 | Phase 10 | Complete |
+| GTWY-06 | Phase 10 | Complete |
+| GTWY-07 | Phase 10 | Complete |
+| GTWY-08 | Phase 10 | Complete |
+| GTWY-09 | Phase 10 | Complete |
 
 **Coverage:**
 - v1 requirements: 120 total (3 CONF + 1 CONF11 + 7 SHRD + 6 JA4H + 7 HPOT + 8 AUTH + 4 TREV + 10 TRST + 7 HCSH + 11 PLCY + 8 MFA + 10 ENROLL + 9 PRXY + 4 BOPL + 6 AUDT + 5 MTRC + 9 GTWY + 5 BOOT)
@@ -349,4 +349,4 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-05-03 — Phase 11 (MFA Enrollment) ENROLL-01..ENROLL-10 + CONF-11 added*
+*Last updated: 2026-05-12 — Phase 15 (v1.0 Docs & Traceability Closure) reconciled 52 stale Pending → Complete entries (MFA-01..08, ENROLL-01..10, CONF-11, PRXY-01..09, BOPL-01..04, AUDT-01..06, MTRC-01..05, GTWY-01..09) against live VERIFICATION.md attestations in Phases 7/8/9/10/11*
