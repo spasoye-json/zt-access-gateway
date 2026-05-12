@@ -39,37 +39,6 @@ describeDb('MfaTokenRepository', () => {
     expect(r.rows[0]?.fingerprint_hash).toBe(TEST_FP);
   });
 
-  it('getMfaToken returns null for unknown jti', async () => {
-    expect(await repo.getMfaToken('unknown-jti')).toBeNull();
-  });
-
-  it('getMfaToken returns null for expired token (expires_at <= NOW())', async () => {
-    const jti = randomUUID();
-    const exp = new Date(Date.now() - 1000); // past
-    await pool.query(
-      `INSERT INTO mfa_tokens (jti, user_id, fingerprint_hash, expires_at) VALUES ($1, $2, $3, $4)`,
-      [jti, TEST_UID, TEST_FP, exp],
-    );
-    expect(await repo.getMfaToken(jti)).toBeNull();
-  });
-
-  it('getMfaToken returns null for revoked token (revoked_at IS NOT NULL)', async () => {
-    const jti = randomUUID();
-    const exp = new Date(Date.now() + 600_000);
-    await repo.insertMfaToken(jti, TEST_UID, TEST_FP, exp);
-    await repo.revokeMfaToken(jti);
-    expect(await repo.getMfaToken(jti)).toBeNull();
-  });
-
-  it('getMfaToken returns row for valid non-expired non-revoked jti', async () => {
-    const jti = randomUUID();
-    const exp = new Date(Date.now() + 600_000);
-    await repo.insertMfaToken(jti, TEST_UID, TEST_FP, exp);
-    const row = await repo.getMfaToken(jti);
-    expect(row?.jti).toBe(jti);
-    expect(row?.fingerprintHash).toBe(TEST_FP);
-  });
-
   it('revokeMfaToken sets revoked_at timestamp', async () => {
     const jti = randomUUID();
     await repo.insertMfaToken(jti, TEST_UID, TEST_FP, new Date(Date.now() + 600_000));

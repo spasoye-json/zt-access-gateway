@@ -141,14 +141,6 @@ describe('MfaService', () => {
 
     tokenRepo = {
       insertMfaToken: jest.fn().mockResolvedValue(undefined),
-      getMfaToken: jest.fn().mockResolvedValue({
-        jti: 'jti-test-1',
-        userId: TEST_USER,
-        fingerprintHash: expectedFingerprint(TEST_USER, TEST_DEVICE, TEST_IP),
-        issuedAt: new Date(),
-        expiresAt: FUTURE_DATE,
-      }),
-      getMfaTokenStatus: jest.fn().mockResolvedValue({ isRevoked: false, isExpired: false }),
       // WR-01 (phase 14): validateMfaToken now uses the atomic helper.
       getMfaTokenWithStatus: jest.fn().mockResolvedValue({
         jti: 'jti-test-1',
@@ -551,14 +543,13 @@ describe('MfaService', () => {
     });
 
     // WR-01 (phase 14): validateMfaToken must use a single atomic SELECT to
-    // close the revocation TOCTOU window. The legacy two-query pattern
-    // (getMfaTokenStatus + getMfaToken) is no longer the validation hot path.
-    it('WR-01: validateMfaToken uses atomic getMfaTokenWithStatus, not the legacy two-query path', async () => {
+    // close the revocation TOCTOU window. IN-03 (iter3): the legacy two-query
+    // helpers (getMfaToken / getMfaTokenStatus) were deleted; the assertion
+    // here is now only that the atomic helper is called with the jti.
+    it('WR-01: validateMfaToken uses atomic getMfaTokenWithStatus', async () => {
       const token = await mintMfaJwt({ jti: 'jti-atomic' });
       await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
       expect(tokenRepo.getMfaTokenWithStatus).toHaveBeenCalledWith('jti-atomic');
-      expect(tokenRepo.getMfaTokenStatus).not.toHaveBeenCalled();
-      expect(tokenRepo.getMfaToken).not.toHaveBeenCalled();
     });
 
     it('WR-01: revoked flag from atomic helper returns reason=revoked even if expires_at is in the future', async () => {
