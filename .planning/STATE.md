@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: Tech Debt Cleanup
 status: executing
 stopped_at: Phase 16 context gathered
-last_updated: "2026-05-12T19:21:35.149Z"
+last_updated: "2026-05-12T19:26:18.501Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 17
-  completed_plans: 12
-  percent: 71
+  completed_plans: 13
+  percent: 76
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-11)
 ## Current Position
 
 Phase: 16 (v1-0-legacy-harness-and-lint-repairs) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-05-12
 
-Progress: [███████░░░] 71%
+Progress: [████████░░] 76%
 
 ## Performance Metrics
 
@@ -92,6 +92,7 @@ Progress: [███████░░░] 71%
 | Phase 16 P01 | 4min | 2 tasks | 1 files |
 | Phase 16 P02 | 8min | 2 tasks tasks | 2 files files |
 | Phase 16 P03 | 2min | 1 tasks | 82 files |
+| Phase 16 P04 | 2min | 2 tasks | 1 files |
 
 ## Quick Tasks Completed
 
@@ -181,6 +182,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 16]: Plan 16-02: SECURITY_TOOL_APPROVED=true bypass required for npm install/test — work-project security wrapper leaks into PATH; no project-level config change
 - [Phase ?]: [Phase 16]: Plan 16-03: Used prettier --write (Approach B) instead of eslint --fix to keep the style(16) commit a pure single-rule-category atomic per D-12 — eslint --fix would have swept in unrelated autofixes (no-unnecessary-type-assertion etc.)
 - [Phase ?]: [Phase 16]: Plan 16-03: Pitfall 3 (line-ending flap) did NOT manifest — endOfLine: 'auto' already in .prettierrc; 394 → 0 prettier hits in 82 *.ts files across src/test/tests
+- [Phase ?]: [Phase 16]: Plan 16-04: D-04 escape valve applied as a flat-config last-element override block scoped to test globs; production scope confirmed untouched (90 unsafe-member-access hits preserved); ESLint 9 dropped --format unix so probe shifted to default formatter + grep -c (deviation Rule 3)
+- [Phase ?]: [Phase 16]: Plan 16-04: Backlog 999.x not auto-registered — per CONTEXT.md deferred precedent, /gsd-add-backlog is a user action documented in 16-04-SUMMARY
 
 ### Roadmap Evolution
 
@@ -198,7 +201,7 @@ _Resolved 2026-05-04: Phase 8 opossum/mTLS wiring — MtlsService.getHttpsAgent(
 
 ## Session Continuity
 
-Last session: 2026-05-12T19:21:22.625Z
+Last session: 2026-05-12T19:25:57.016Z
 Stopped at: Phase 16 context gathered
 
 **Planned Phase:** 05 (hashcash-pow) — 9 plans — 2026-04-26T08:20:40.720Z
