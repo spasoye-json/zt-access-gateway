@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Admin Route Allowlist Closure** - Close v1.0 milestone audit BLOCKERS: route /audit/logs and /policy/admin/* through gateway, whitelist OPTIONS preflight, live e2e (completed 2026-05-09)
 - [x] **Phase 13: v1.0 Tech Debt Cleanup** - Remove orphaned HashcashGuard, short-circuit double JwtAuthGuard validation on AUTH_ONLY routes, and fix audit-metrics.e2e content-type ordering assertion (completed 2026-05-11)
 - [x] **Phase 14: v1.0 Observability + Hygiene Closure** - Wire 3 orphan MetricsService seams, add MFA_RATE_LIMITED ThreatEscalation subscriber, add Hashcash 429 e2e, delete MfaGuard dead export (completed 2026-05-12)
-- [ ] **Phase 15: v1.0 Docs & Traceability Closure** - Backfill 03-VERIFICATION.md and reconcile REQUIREMENTS.md trace table + upper checklist drift (41 stale Pending entries)
+- [x] **Phase 15: v1.0 Docs & Traceability Closure** - Backfill 03-VERIFICATION.md and reconcile REQUIREMENTS.md trace table + upper checklist drift (52 stale Pending entries; ROADMAP previously said 41) (completed 2026-05-12)
 - [ ] **Phase 16: v1.0 Legacy Harness & Lint Repairs** - Restore `npm run lint` (typescript-eslint meta-package) and align legacy `test/jest-e2e.json` bootstrap.e2e-spec.ts unknown-route assertion with current 401 behaviour
 - [ ] **Phase 17: v1.0 Nyquist Sign-Off Sweep** - Promote 7 partial + 1 missing VALIDATION.md to nyquist_compliant=true via `/gsd-validate-phase` per phase (1, 7, 8, 10, 11, 12, 13) + promote phase 9 draft → finalized
 
@@ -311,11 +311,13 @@ Plans:
 **Gap Closure**: Closes v1.0 milestone audit (2026-05-12T17:46:53Z) tech-debt Items 1 and 8
 **Success Criteria** (what must be TRUE):
   1. `.planning/phases/03-auth-token-revocation/03-VERIFICATION.md` exists and reflects the live coverage in `tests/integration/auth-revocation.e2e-spec.ts` + GTWY-03 (status: passed)
-  2. The REQUIREMENTS.md upper checklist shows `[x]` for all 41 stale unchecked REQ-IDs (MFA-01..08, ENROLL-01..10, CONF-11, PRXY-01..09, BOPL-01..04, AUDT-01..06, MTRC-01..05, GTWY-01..09) — coverage count at top of file refreshed
-  3. The REQUIREMENTS.md traceability table shows `Complete` (not `Pending`) for all 41 stale entries with their actual completion phase
-  4. `grep -c "Pending" .planning/REQUIREMENTS.md` returns 0 (or only legitimate residual references, not trace-table state)
-  5. Changes are committed with a single doc(milestone): commit; no source code modified
-**Plans**: TBD (run `/gsd-plan-phase 15`)
+  2. The REQUIREMENTS.md upper checklist shows `[x]` for all 52 stale unchecked REQ-IDs (MFA-01..08, ENROLL-01..10, CONF-11, PRXY-01..09, BOPL-01..04, AUDT-01..06, MTRC-01..05, GTWY-01..09) — coverage count at top of file refreshed [corrected from 41 during execution — math: 8+10+1+9+4+6+5+9=52]
+  3. The REQUIREMENTS.md traceability table shows `Complete` (not `Pending`) for all 52 stale entries with their actual completion phase
+  4. `grep -c "| Pending |" .planning/REQUIREMENTS.md` returns 0 in trace table; 3 surviving `Pending` substrings are documented technical identifiers (ENROLL-06 `PendingEnrollmentStore`, CONF-11 `mfaEnrollPendingTtlMs`, footer prose)
+  5. Changes committed with a single doc(milestone): commit (REQUIREMENTS.md); 03-VERIFICATION.md authored on disk under gitignored `.planning/phases/` per project convention; no source code modified
+**Plans**:
+- [x] 15-01-PLAN.md — Backfill 03-VERIFICATION.md citing live e2e coverage + GTWY-03 (Item 1)
+- [x] 15-02-PLAN.md — Reconcile REQUIREMENTS.md: 52 [x] flips + 52 trace-row Pending→Complete (Item 8)
 
 ### Phase 16: v1.0 Legacy Harness & Lint Repairs
 **Goal**: Restore `npm run lint` and the legacy `test/jest-e2e.json` bootstrap suite so v1.0 ships with both quality gates green
