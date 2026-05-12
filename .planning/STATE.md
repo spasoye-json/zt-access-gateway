@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: Tech Debt Cleanup
 status: executing
 stopped_at: Phase 13 context gathered
-last_updated: "2026-05-12T09:36:06.533Z"
+last_updated: "2026-05-12T10:00:58.590Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 6
-  percent: 86
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-11)
 ## Current Position
 
 Phase: 14 (v1.0 Observability + Hygiene Closure) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-05-12
 
-Progress: [█████████░] 86%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -88,6 +88,7 @@ Progress: [█████████░] 86%
 | Phase 13 P02 | 10min | 3 tasks | 5 files |
 | Phase 14 P01 | 35min | 6 tasks | 9 files |
 | Phase 14 P03 | 10min | 3 tasks | 5 files |
+| Phase 14 P04 | 20min | - tasks | - files |
 
 ## Quick Tasks Completed
 
@@ -168,6 +169,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 14]: Plan 14-01: New src/metrics/metrics-events.ts mirrors policy-events.ts shape — per-direction event-name constants module avoids string-typo drift across emit/subscribe sites (D-03)
 - [Phase ?]: [Phase 14]: Plan 14-03: ThreatEscalationService 6th @OnEvent for MFA_RATE_LIMITED + threatElevatedMfaRateLimited/threatCriticalMfaRateLimited (defaults 5/15) — closes v1.0 audit Item 11 (credential-stuffing aggregator gap)
 - [Phase ?]: [Phase 14]: Plan 14-03: Joi cross-field validator extended (THREAT_ELEVATED_MFA_RATE_LIMITED < THREAT_CRITICAL_MFA_RATE_LIMITED) — fail-fast on threshold misorder, mirrors honeypot pair
+- [Phase ?]: 14-04: Delete-only path — MfaGuard had zero @UseGuards consumers; wiring at /mfa/* would have duplicated GatewayMiddleware step 9b (D-11)
+- [Phase ?]: 14-04: Permanent grep regression spec mirrors Phase 13 D-03 hashcash pattern; empty allowlist — MfaGuard never reached production (D-13)
+- [Phase ?]: 14-04: Module-comment phrasing avoids the literal token 'MfaGuard' (uses 'orphan guard export removed') so the regression spec's zero-hits invariant holds without losing the audit-trail breadcrumb
 
 ### Roadmap Evolution
 
@@ -185,7 +189,7 @@ _Resolved 2026-05-04: Phase 8 opossum/mTLS wiring — MtlsService.getHttpsAgent(
 
 ## Session Continuity
 
-Last session: 2026-05-12T09:35:35.932Z
+Last session: 2026-05-12T10:00:37.542Z
 Stopped at: Phase 13 context gathered
 
 **Planned Phase:** 05 (hashcash-pow) — 9 plans — 2026-04-26T08:20:40.720Z
