@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 13: v1.0 Tech Debt Cleanup** - Remove orphaned HashcashGuard, short-circuit double JwtAuthGuard validation on AUTH_ONLY routes, and fix audit-metrics.e2e content-type ordering assertion (completed 2026-05-11)
 - [x] **Phase 14: v1.0 Observability + Hygiene Closure** - Wire 3 orphan MetricsService seams, add MFA_RATE_LIMITED ThreatEscalation subscriber, add Hashcash 429 e2e, delete MfaGuard dead export (completed 2026-05-12)
 - [x] **Phase 15: v1.0 Docs & Traceability Closure** - Backfill 03-VERIFICATION.md and reconcile REQUIREMENTS.md trace table + upper checklist drift (52 stale Pending entries; ROADMAP previously said 41) (completed 2026-05-12)
-- [ ] **Phase 16: v1.0 Legacy Harness & Lint Repairs** - Restore `npm run lint` (typescript-eslint meta-package) and align legacy `test/jest-e2e.json` bootstrap.e2e-spec.ts unknown-route assertion with current 401 behaviour
+- [x] **Phase 16: v1.0 Legacy Harness & Lint Repairs** - Restore `npm run lint` (typescript-eslint meta-package) and align legacy `test/jest-e2e.json` bootstrap.e2e-spec.ts unknown-route assertion with current 401 behaviour (completed 2026-05-12)
 - [ ] **Phase 17: v1.0 Nyquist Sign-Off Sweep** - Promote 7 partial + 1 missing VALIDATION.md to nyquist_compliant=true via `/gsd-validate-phase` per phase (1, 7, 8, 10, 11, 12, 13) + promote phase 9 draft → finalized
 
 ## Phase Details
@@ -226,7 +226,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 13. v1.0 Tech Debt Cleanup | 3/3 | Complete    | 2026-05-11 |
 | 14. v1.0 Observability + Hygiene Closure | 4/4 | Complete   | 2026-05-12 |
 | 15. v1.0 Docs & Traceability Closure | 0/? | Pending | — |
-| 16. v1.0 Legacy Harness & Lint Repairs | 7/8 | In Progress|  |
+| 16. v1.0 Legacy Harness & Lint Repairs | 8/8 | Complete    | 2026-05-12 |
 | 17. v1.0 Nyquist Sign-Off Sweep | 0/? | Pending | — |
 
 ### Phase 11: MFA Enrollment
@@ -330,7 +330,7 @@ Plans:
   3. Full `npm test` and `npm run test:e2e` suites remain green
   4. No regression in any of the 14 prior phases' VERIFICATION.md status
   5. Changes are committed atomically (one commit per fix)
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans complete
 Plans:
 **Wave 1**
 - [x] 16-01-PLAN.md — Patch test/bootstrap.e2e-spec.ts unknown-route assertion 404→401 with actual response shape and Phase-10 inline comment (D-05/D-06/D-07/D-09)
@@ -343,7 +343,7 @@ Plans:
 - [x] 16-06-PLAN.md — D-16 correctness fixes: src/main.ts:64 bootstrap rejection handler + src/shared/mtls.service.ts:80 explicit null check, each as own atomic commit with SUMMARY callout
 - [x] 16-07-PLAN.md — Clear production-code no-floating-promises + no-unsafe-argument warning categories (D-13 in-phase warning cleanup)
 **Wave 4**
-- [ ] 16-08-PLAN.md — Promote no-floating-promises to error (D-14) and add --max-warnings 0 to lint script (D-15), each as own atomic chore commit; phase-completion SUMMARY
+- [x] 16-08-PLAN.md — Promote no-floating-promises to error (D-14) and add --max-warnings 0 to lint script (D-15), each as own atomic chore commit; phase-completion SUMMARY
 
 ### Phase 17: v1.0 Nyquist Sign-Off Sweep
 **Goal**: Promote every v1.0 phase to formal Nyquist sign-off so the milestone closes with `nyquist: overall: compliant`

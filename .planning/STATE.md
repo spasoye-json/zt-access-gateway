@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Tech Debt Cleanup
-status: executing
+status: ready_to_plan
 stopped_at: Completed Phase 16 Plan 07 — production-scope no-floating-promises + no-unsafe-argument warning classes cleared
-last_updated: "2026-05-12T19:54:05.609Z"
+last_updated: "2026-05-12T20:08:07.713Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 5
   total_plans: 17
-  completed_plans: 16
-  percent: 94
+  completed_plans: 17
+  percent: 100
 ---
 
 # Project State
@@ -25,18 +25,18 @@ See: .planning/PROJECT.md (updated 2026-04-11)
 
 ## Current Position
 
-Phase: 16 (v1-0-legacy-harness-and-lint-repairs) — EXECUTING
-Plan: 8 of 8
-Status: Ready to execute
+Phase: 17
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-05-12
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 38 (Phases 1–5)
+- Total plans completed: 46 (Phases 1–5)
 - Average duration: -
 - Total execution time: 0 hours
 
@@ -53,6 +53,7 @@ Progress: [█████████░] 94%
 | 09 | 4 | - | - |
 | 12 | 2 | - | - |
 | 13 | 3 | - | - |
+| 16 | 8 | - | - |
 
 **Recent Trend:**
 
@@ -96,6 +97,7 @@ Progress: [█████████░] 94%
 | Phase 16 P05 | 12min | 8 tasks | 23 files |
 | Phase 16 P06 | 2min | 3 tasks | 2 files |
 | Phase 16 P07 | 5min | 3 tasks | 2 files |
+| Phase 16 P08 | 45min | 9 tasks | 28 files |
 
 ## Quick Tasks Completed
 
@@ -193,6 +195,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 16]: Plan 16-05: ServiceRegistryService.onModuleInit returns explicit Promise<void> (not async) — satisfies require-await while preserving .rejects.toThrow() test contract
 - [Phase 16]: Plan 16-06: D-16 correctness fixes (no-floating-promises bootstrap + no-misused-promises mtls) shipped as 2 atomic fix(16) commits per CONTEXT.md D-16; no-console eslint-disable removed (rule not in active recommendedTypeChecked)
 - [Phase 16]: Plan 16-07: production-scope no-floating-promises + no-unsafe-argument cleared (D-13 contract honoured); Task 1 no-op after 16-06; Task 2 commit caa406f narrowed 2 sites via  cast on Map iterator +  guard before opossum isOurError
+- [Phase ?]: [Phase 16]: Plan 16-08: preflight surfaced 26 production-applicable lint errors not anticipated by plan; scope expanded per Rule 3 + D-16 to ship 7 atomic fix commits before D-14/D-15 promotions; phase closes with both quality gates green
+- [Phase ?]: [Phase 16]: Plan 16-08: test-scope eslint override extended with 5 additional rules (await-thenable, require-await, no-require-imports, no-base-to-string, restrict-template-expressions); production scope keeps all 5 at error severity
+- [Phase ?]: [Phase 16]: Plan 16-08: D-14 no-floating-promises promoted to error; D-15 --max-warnings 0 added to npm run lint script; ROADMAP Phase 16 SC#1 fully satisfied; phase ready for /gsd-verify-work
 
 ### Roadmap Evolution
 
@@ -210,7 +215,7 @@ _Resolved 2026-05-04: Phase 8 opossum/mTLS wiring — MtlsService.getHttpsAgent(
 
 ## Session Continuity
 
-Last session: 2026-05-12T19:54:05.600Z
+Last session: 2026-05-12T20:07:56.642Z
 Stopped at: Completed Phase 16 Plan 07 — production-scope no-floating-promises + no-unsafe-argument warning classes cleared
 
 **Planned Phase:** 05 (hashcash-pow) — 9 plans — 2026-04-26T08:20:40.720Z
