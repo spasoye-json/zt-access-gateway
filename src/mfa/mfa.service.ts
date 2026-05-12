@@ -111,7 +111,14 @@ export class MfaService {
    * mfa.infra_error spikes.
    */
   private recordInfraError(op: string, userId: string | undefined, err: unknown): void {
-    this.logger.error(`MfaService.${op} infra error`, err as Error);
+    // WR-NEW-01 (phase 14, iter2): NestJS Logger.error(message, stack?, context?)
+    // expects the 2nd arg to be a string stack trace. Passing the raw Error
+    // instance caused the framework to stringify it via String(err), collapsing
+    // the full frame list to "Error: <msg>" and erasing every stack frame from
+    // the structured log output. Normalise to (message, stack-string) so
+    // dashboards / log aggregators preserve the full trace.
+    const e = err instanceof Error ? err : new Error(String(err));
+    this.logger.error(`MfaService.${op} infra error: ${e.message}`, e.stack);
     this.events.emit('mfa.infra_error', {
       userId,
       op,
