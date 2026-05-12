@@ -25,20 +25,27 @@ export class ServiceRegistryService implements OnModuleInit {
     }
   }
 
-  async onModuleInit(): Promise<void> {
+  onModuleInit(): Promise<void> {
     // Re-validate with user-facing error messages (D-03 fail-fast on startup).
+    // Returns a Promise explicitly (instead of `async` with no await) to satisfy
+    // require-await; spec contract is unchanged — callers still `await onModuleInit()`.
     let parsed: Record<string, string>;
     try {
       parsed = JSON.parse(this.cfg.proxyServiceRegistry);
     } catch (err) {
-      throw new Error(`PROXY_SERVICE_REGISTRY is not valid JSON: ${(err as Error).message}`);
+      return Promise.reject(
+        new Error(`PROXY_SERVICE_REGISTRY is not valid JSON: ${(err as Error).message}`),
+      );
     }
     if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
-      throw new Error(
-        'PROXY_SERVICE_REGISTRY is empty — at least one service must be configured (D-03)',
+      return Promise.reject(
+        new Error(
+          'PROXY_SERVICE_REGISTRY is empty — at least one service must be configured (D-03)',
+        ),
       );
     }
     this.logger.log(`Service registry loaded: ${[...this.registry.keys()].join(', ')}`);
+    return Promise.resolve();
   }
 
   /**
