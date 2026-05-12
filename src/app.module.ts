@@ -28,8 +28,8 @@ import { GatewayMiddleware } from './gateway/gateway.middleware';
  *   5b. Hashcash PoW guard (Phase 5 — APP_GUARD in HashcashModule, runs after JwtAuthGuard)
  *   6. Policy + Threat Escalation guard (Phase 6 — invoked by Phase 10 GatewayMiddleware,
  *      NOT a global guard yet; PolicyEvaluatorService is exported for that consumer)
- *   7. MFA challenge endpoints (Phase 7 — MfaController + MfaService; MfaGuard exported
- *      but NOT APP_GUARD per D-20; Phase 10 registers it in the full pipeline)
+ *   7. MFA challenge endpoints (Phase 7 — MfaController + MfaService;
+ *      GatewayMiddleware step 9b calls MfaService.validateMfaToken inline)
  *   8. ProxyModule — mTLS forwarding + BOPLA stripping (D-01..D-12); ProxyService +
  *      BoPlaInterceptor exported for Phase 10 GatewayMiddleware injection
  *   9. MetricsModule + AuditModule — Phase 9 (D-01..D-10);

@@ -9,9 +9,9 @@ import * as path from 'path';
  * calls MfaService.validateMfaToken directly. This spec fails the build if
  * anyone re-introduces a reference to the deleted guard class.
  *
- * Implementation per CONTEXT D-13: shell out to grep (mirrors Phase 13 D-03
- * HashcashGuard regression spec). No allowlist — MfaGuard has no past-tense
- * breadcrumbs worth preserving.
+ * Implementation per CONTEXT D-13: shell out to grep (mirrors the Phase 13 D-03
+ * regression spec for the deleted hashcash guard). No allowlist — MfaGuard has
+ * no past-tense breadcrumbs worth preserving.
  */
 describe('MfaGuard regression guard (Phase 14 D-13)', () => {
   const repoRoot = path.resolve(__dirname, '../../..');

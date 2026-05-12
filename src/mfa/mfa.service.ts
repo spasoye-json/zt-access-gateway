@@ -208,7 +208,7 @@ export class MfaService {
    * Validates an MFA JWT from X-MFA-Token header.
    * Checks: signature → typ:'mfa' → jti in mfa_tokens (not expired/revoked) → fingerprint match.
    * Emits MFA_FAILED on any failure (D-12).
-   * Called by MfaGuard.canActivate() on every request carrying X-MFA-Token.
+   * Called by GatewayMiddleware (step 9b — MFA promotion) on every request carrying X-MFA-Token.
    */
   async validateMfaToken(
     token: string,

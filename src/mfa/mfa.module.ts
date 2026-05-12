@@ -14,7 +14,7 @@ import { PendingEnrollmentStore } from './enrollment.store';
  * Imports: ConfigAppModule (env), AuthModule (JwtAuthGuard + UserClaims contract).
  * EventEmitterModule is global (AppModule root, Phase 6 D-13) — no re-import needed.
  *
- * Phase 14 (Item 12): MfaGuard removed — it had no live consumer.
+ * Phase 14 (Item 12): orphan guard export removed — it had no live consumer.
  * GatewayMiddleware step 9b calls MfaService.validateMfaToken inline.
  */
 @Module({
