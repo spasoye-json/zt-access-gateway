@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { totp as authenticator } from '../../shared/totp.util';
 import { Test } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import {
@@ -922,6 +923,64 @@ describe('MfaService', () => {
       expect(result.ok).toBe(false);
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
       expect(eventNames).toContain('mfa.infra_error');
+    });
+  });
+
+  // WR-NEW-01 (phase 14, iter2): recordInfraError must pass the Error's
+  // stack-frame list (string) to Logger.error as the 2nd argument so the
+  // NestJS Logger preserves the full stack trace in structured output.
+  // The previous implementation passed the Error instance directly, which
+  // NestJS stringifies via String(err) — collapsing to "Error: <msg>" and
+  // dropping every stack frame. This regression undermines the WR-03 goal
+  // of improving incident-triage observability for swallowed infra errors.
+  describe('recordInfraError() Logger.error signature (WR-NEW-01)', () => {
+    it('passes the Error stack string (not the Error instance) to Logger.error', async () => {
+      const errSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      try {
+        const boom = new Error('db down');
+        // Ensure a deterministic stack frame for the assertion.
+        boom.stack = 'Error: db down\n    at frame-1\n    at frame-2';
+        challengeRepo.insertChallengeIfUnderLimit.mockRejectedValueOnce(boom);
+
+        await service.createChallenge(TEST_USER, TEST_IP);
+
+        expect(errSpy).toHaveBeenCalled();
+        const [message, stack] = errSpy.mock.calls[errSpy.mock.calls.length - 1] as [
+          unknown,
+          unknown,
+        ];
+        // Message string includes op + the Error message.
+        expect(typeof message).toBe('string');
+        expect(message).toEqual(expect.stringContaining('createChallenge'));
+        expect(message).toEqual(expect.stringContaining('db down'));
+        // Stack must be a string (not an Error instance) containing frames.
+        expect(typeof stack).toBe('string');
+        expect(stack).toEqual(expect.stringContaining('frame-1'));
+        expect(stack).not.toBeInstanceOf(Error);
+      } finally {
+        errSpy.mockRestore();
+      }
+    });
+
+    it('wraps non-Error throwables and still passes a string stack', async () => {
+      const errSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      try {
+        // Reject with a non-Error value to exercise the wrap branch.
+        challengeRepo.insertChallengeIfUnderLimit.mockRejectedValueOnce('plain-string-error');
+
+        await service.createChallenge(TEST_USER, TEST_IP);
+
+        expect(errSpy).toHaveBeenCalled();
+        const [message, stack] = errSpy.mock.calls[errSpy.mock.calls.length - 1] as [
+          unknown,
+          unknown,
+        ];
+        expect(typeof message).toBe('string');
+        expect(message).toEqual(expect.stringContaining('plain-string-error'));
+        expect(typeof stack).toBe('string');
+      } finally {
+        errSpy.mockRestore();
+      }
     });
   });
 });
