@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { FINGERPRINT_BLACKLIST_SIZE_CHANGED } from '../metrics/metrics-events';
 
 interface BlacklistEntry {
   expiresAt: number;
@@ -9,10 +11,17 @@ interface BlacklistEntry {
  * In-memory blacklist for JA4H fingerprints.
  * Uses lazy eviction: expired entries are removed on the next read, not on a timer.
  * This avoids background timer overhead and keeps the store simple.
+ *
+ * Phase 14 Plan 01 (D-01): emits FINGERPRINT_BLACKLIST_SIZE_CHANGED after every
+ * mutation so MetricsService.setJa4hBlacklistSize can update the gauge without
+ * MetricsModule needing to import FingerprintModule (circular — MetricsModule
+ * transitively imports FingerprintModule via HoneypotModule).
  */
 @Injectable()
 export class FingerprintStore {
   private readonly blacklist = new Map<string, BlacklistEntry>();
+
+  constructor(private readonly events: EventEmitter2) {}
 
   /**
    * Add a fingerprint to the blacklist.
@@ -25,6 +34,7 @@ export class FingerprintStore {
       expiresAt: Date.now() + opts.ttlMs,
       isTerminal: opts.isTerminal,
     });
+    this.emitSize();
   }
 
   /**
@@ -37,6 +47,7 @@ export class FingerprintStore {
     if (Date.now() >= entry.expiresAt) {
       // Lazy eviction per D-02 — removes entry so size() reflects reality over time
       this.blacklist.delete(fingerprint);
+      this.emitSize();
       return false;
     }
     return true;
@@ -51,6 +62,7 @@ export class FingerprintStore {
     if (!entry) return false;
     if (Date.now() >= entry.expiresAt) {
       this.blacklist.delete(fingerprint);
+      this.emitSize();
       return false;
     }
     return entry.isTerminal;
@@ -64,5 +76,12 @@ export class FingerprintStore {
   /** Clears all entries from the blacklist. */
   clear(): void {
     this.blacklist.clear();
+    this.emitSize();
+  }
+
+  private emitSize(): void {
+    this.events.emit(FINGERPRINT_BLACKLIST_SIZE_CHANGED, {
+      size: this.blacklist.size,
+    });
   }
 }

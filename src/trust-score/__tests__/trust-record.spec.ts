@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FingerprintStore } from '../../fingerprint/fingerprint.store';
 import { AppConfigService } from '../../config/config.service';
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
@@ -41,7 +42,7 @@ describeDb('TRST-09 trust persistence boundary', () => {
   beforeAll(() => {
     const url = ztTestUrlFromEnv();
     const config = mockConfig(url);
-    fingerprintStore = new FingerprintStore();
+    fingerprintStore = new FingerprintStore(new EventEmitter2());
     repository = new TrustTelemetryRepository(config);
     service = new TrustScoreService(
       fingerprintStore,

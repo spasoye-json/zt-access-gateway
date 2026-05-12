@@ -1,11 +1,13 @@
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FingerprintStore } from '../fingerprint.store';
+import { FINGERPRINT_BLACKLIST_SIZE_CHANGED } from '../../metrics/metrics-events';
 
 describe('FingerprintStore', () => {
   let store: FingerprintStore;
   let dateSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    store = new FingerprintStore();
+    store = new FingerprintStore(new EventEmitter2());
     dateSpy = jest.spyOn(Date, 'now');
   });
 
@@ -106,6 +108,31 @@ describe('FingerprintStore', () => {
       expect(store.size()).toBe(0);
       expect(store.isBlacklisted('fp-1')).toBe(false);
       expect(store.isBlacklisted('fp-2')).toBe(false);
+    });
+  });
+
+  describe('Phase 14 Plan 01 — emits FINGERPRINT_BLACKLIST_SIZE_CHANGED (D-01)', () => {
+    it('add emits size change with new size', () => {
+      const events = new EventEmitter2();
+      const listener = jest.fn();
+      events.on(FINGERPRINT_BLACKLIST_SIZE_CHANGED, listener);
+      const localStore = new FingerprintStore(events);
+
+      localStore.add('fp-1', { ttlMs: 60_000, isTerminal: false });
+      localStore.add('fp-2', { ttlMs: 60_000, isTerminal: false });
+
+      expect(listener).toHaveBeenCalledTimes(2);
+      expect(listener).toHaveBeenLastCalledWith({ size: 2 });
+    });
+
+    it('clear emits size change with 0', () => {
+      const events = new EventEmitter2();
+      const listener = jest.fn();
+      const localStore = new FingerprintStore(events);
+      localStore.add('fp-1', { ttlMs: 60_000, isTerminal: false });
+      events.on(FINGERPRINT_BLACKLIST_SIZE_CHANGED, listener);
+      localStore.clear();
+      expect(listener).toHaveBeenCalledWith({ size: 0 });
     });
   });
 });
