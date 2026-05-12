@@ -1,0 +1,16 @@
+# Phase 17 v1.0 Nyquist Sign-Off Sweep — Pre-flight Snapshot
+# Captured: 2026-05-12 (prior to any frontmatter mutation)
+# Source: regenerated in Wave 2 worktree from prior-wave verified values (17-01-SUMMARY.md)
+# Rationale: 17-01 deliberately left this uncommitted; Wave 2 commits it alongside the milestone re-run.
+
+unit_suite: 653 passed, 653 total (Test Suites: 56 passed, 56 total)
+e2e_suite: 5 passed, 5 total (Test Suites: 5 passed, 5 total) — DB-gated suites auto-skipped per standard pattern
+lint_exit: 0 (npm run lint clean post-Phase-16 fix landing)
+
+# Notes:
+# - Pre-flight ran on a clean tree at Phase 17 wave start (post Phase 16 lint/test repairs).
+# - Lint exit 0 reflects Phase 16 closing the prior typescript-eslint meta-package gap and
+#   promoting no-floating-promises to error + --max-warnings 0 in npm run lint (Plan 16-08 D-14/D-15).
+# - The number set above is transcribed verbatim from .planning/phases/17-v1-0-nyquist-signoff-sweep/17-01-SUMMARY.md
+#   "Performance" section, which captured live counts on the executor's clean tree at 2026-05-12T20:38:00Z.
+# - This file is the audit anchor cited by .planning/v1.0-MILESTONE-AUDIT.md prior_audit_resolution.delta_since_prior.
