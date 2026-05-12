@@ -78,15 +78,20 @@ describe('Bootstrap middleware stack (e2e)', () => {
     expect(response.headers['access-control-allow-origin']).toBeDefined();
   });
 
-  it('Unknown route returns structured JSON error without stack trace', async () => {
+  it('Unknown unauth route returns structured 401 JSON without stack trace', async () => {
+    // Post-Phase-10: GatewayMiddleware enforces auth before route resolution;
+    // 404 would leak route existence to unauth callers. See 10-05-SUMMARY.md.
     const response = await request(app.getHttpServer())
       .get('/nonexistent-route-that-does-not-exist')
-      .expect(404);
+      .expect(401);
 
-    expect(response.body).toHaveProperty('statusCode', 404);
-    expect(response.body).toHaveProperty('message');
-    expect(response.body).toHaveProperty('timestamp');
-    // Stack trace must never appear in HTTP responses (T-01-13)
+    // Positive structural confirmation — actual middleware response shape
+    // is `{ error: 'auth_required', requestId }` (gateway.middleware.ts:140,147).
+    // Per CONTEXT.md D-06 + RESEARCH.md Q1: assertion adapts to observed shape.
+    expect(response.body).toHaveProperty('error', 'auth_required');
+    expect(response.body).toHaveProperty('requestId');
+    // Stack trace must never appear in HTTP responses (T-01-13).
+    // This is the test's load-bearing security invariant — preserved verbatim.
     expect(response.body).not.toHaveProperty('stack');
   });
 
