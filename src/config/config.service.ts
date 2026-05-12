@@ -59,7 +59,7 @@ export class AppConfigService {
     const raw = this.config.get<string>('HONEYPOT_ROUTES');
     if (!raw) return [];
     try {
-      return JSON.parse(raw);
+      return JSON.parse(raw) as string[];
     } catch {
       return [];
     }
