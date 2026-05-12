@@ -49,7 +49,7 @@ describeDb('TRST-09 trust persistence boundary', () => {
       repository,
       new DeviceReputationProvider(repository, config),
       new IpReputationProvider(repository, config),
-      new Ja4hDriftProvider(repository),
+      new Ja4hDriftProvider(repository, new EventEmitter2()),
       new RequestFrequencyProvider(repository, config),
       new TrustDecayProvider(repository, config),
       new BehaviorAnomalyProvider(repository, config),
