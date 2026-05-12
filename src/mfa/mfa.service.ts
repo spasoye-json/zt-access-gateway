@@ -426,6 +426,8 @@ export class MfaService {
     enrollmentId: string,
     totpCode: string,
     userId: string,
+    ip?: string,
+    ja4h?: string,
   ): Promise<MfaConfirmResult> {
     try {
       const pending = this.pendingStore.get(enrollmentId);
@@ -443,24 +445,33 @@ export class MfaService {
         // failure, and bound retries per pending-id. Previously a stolen /
         // guessed enrollmentId allowed unlimited 6-digit TOTP guesses for the
         // 10-minute pending TTL with zero signal — a silent brute-force window.
-        this.events.emit(MFA_FAILED, {
+        // IN-04 (phase 14, iter3): propagate ip + ja4h so the threat ladder
+        // can correlate enrollment brute-force to a network identity (parity
+        // with verifyTotp / createChallenge).
+        const failPayload: Record<string, unknown> = {
           type: MFA_FAILED,
           userId,
           reason: 'invalid_totp_enrollment',
           ts: Date.now(),
-        });
+        };
+        if (ip !== undefined) failPayload.ip = ip;
+        if (ja4h !== undefined) failPayload.ja4h = ja4h;
+        this.events.emit(MFA_FAILED, failPayload);
         const attempts = this.pendingStore.incrementAttempts(enrollmentId);
         if (attempts >= MfaService.ENROLL_MAX_ATTEMPTS) {
           // Drop the pending entry on exhaustion and emit MFA_RATE_LIMITED so
           // ThreatEscalationService.onMfaRateLimited (phase 14 plan 03) counts
           // the brute-force attempt against the threat ladder.
           this.pendingStore.delete(enrollmentId);
-          this.events.emit(MFA_RATE_LIMITED, {
+          const rlPayload: Record<string, unknown> = {
             type: MFA_RATE_LIMITED,
             userId,
             reason: 'enrollment_attempts_exhausted',
             ts: Date.now(),
-          });
+          };
+          if (ip !== undefined) rlPayload.ip = ip;
+          if (ja4h !== undefined) rlPayload.ja4h = ja4h;
+          this.events.emit(MFA_RATE_LIMITED, rlPayload);
         }
         // D-04: keep pending entry available for retry within TTL while under cap.
         return { ok: false, reason: 'invalid_totp' };

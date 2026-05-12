@@ -151,10 +151,17 @@ export class MfaController {
     @Res() res: Response,
   ): Promise<void> {
     const user = (req as Request & { user: UserClaims }).user;
+    // IN-04 (phase 14, iter3): plumb ip + ja4h into confirmEnrollment so the
+    // MFA_FAILED / MFA_RATE_LIMITED emissions carry network identity (parity
+    // with /mfa/verify).
+    const ip = extractIp(req);
+    const ja4h = extractJa4h(req as never);
     const result = await this.mfaService.confirmEnrollment(
       dto.enrollmentId,
       dto.totpCode,
       user.userId,
+      ip,
+      ja4h,
     );
 
     if (!result.ok) {
