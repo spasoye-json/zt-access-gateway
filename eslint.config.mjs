@@ -58,6 +58,22 @@ export default tseslint.config(
       // `unbound-method` flips frequently on `jest.toHaveBeenCalledWith(svc.method)`
       // mocking pattern. Same backlog 999.x parking applies.
       '@typescript-eslint/unbound-method': 'off',
+      // Phase 16 plan 16-08 extension: additional test-scope-idiomatic rules.
+      // - `await-thenable`: `await mockedService.onModuleInit()` against jest-mocked
+      //   instances flips when TS sees the mock typing, not the real Promise return.
+      // - `require-await`: `async () => { synchronous; }` is idiomatic for
+      //   `mockImplementation(async () => ...)` shape matching.
+      // - `no-require-imports`: dynamic `require()` is used in tests for reading
+      //   source files (parity-test introspection) and for jest.mock setup.
+      // - `no-base-to-string` + `restrict-template-expressions`: tests format
+      //   error-message strings with `${err instanceof Error ? err.message : String(err)}`
+      //   which is the same idiom we use in production but eslint-flags `String(unknown)`.
+      //   In test scope the value is always already-typed by the assertion under test.
+      '@typescript-eslint/await-thenable': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-base-to-string': 'off',
+      '@typescript-eslint/restrict-template-expressions': 'off',
     },
   },
 );
