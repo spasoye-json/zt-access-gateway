@@ -137,11 +137,7 @@ export class MfaService {
    * Creates an MFA challenge for userId. Rate-limited per D-17.
    * Returns { ok: true, challengeId, expiresAt } or { ok: false, reason }.
    */
-  async createChallenge(
-    userId: string,
-    ip: string,
-    ja4h?: string,
-  ): Promise<MfaCreateResult> {
+  async createChallenge(userId: string, ip: string, ja4h?: string): Promise<MfaCreateResult> {
     try {
       // WR-05 (phase 14): atomic conditional insert closes the count + insert
       // TOCTOU window. The previous two-query pattern allowed N concurrent

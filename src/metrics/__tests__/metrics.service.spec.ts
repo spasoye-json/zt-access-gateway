@@ -25,8 +25,15 @@ describe('MetricsService', () => {
 
     it('zt_gateway_stage_duration_seconds histogram has 9 stage labels (MTRC-02 + Phase 10 D-08)', () => {
       expect(STAGE_LABELS).toEqual([
-        'ja4h', 'blacklist', 'auth', 'revocation',
-        'trust_score', 'hashcash', 'policy', 'mfa', 'proxy',
+        'ja4h',
+        'blacklist',
+        'auth',
+        'revocation',
+        'trust_score',
+        'hashcash',
+        'policy',
+        'mfa',
+        'proxy',
       ]);
     });
 
@@ -159,19 +166,26 @@ describe('MetricsService', () => {
 
     it('Test B: STAGE_LABELS deep-equals canonical 9-stage list with mfa between policy and proxy', () => {
       expect(STAGE_LABELS).toEqual([
-        'ja4h', 'blacklist', 'auth', 'revocation',
-        'trust_score', 'hashcash', 'policy', 'mfa', 'proxy',
+        'ja4h',
+        'blacklist',
+        'auth',
+        'revocation',
+        'trust_score',
+        'hashcash',
+        'policy',
+        'mfa',
+        'proxy',
       ]);
     });
 
-    it('Test C: observeStageDuration(\'mfa\', 0.005) does not throw and records the bucket', async () => {
+    it("Test C: observeStageDuration('mfa', 0.005) does not throw and records the bucket", async () => {
       const m = makeService();
       expect(() => m.observeStageDuration('mfa', 0.005)).not.toThrow();
       const text = await m.getAggregatedMetrics();
       expect(text).toMatch(/zt_gateway_stage_duration_seconds_count\{stage="mfa"\} 1/);
     });
 
-    it('Test D: incrementMfaPromotion(\'allow\') and (\'reject\') exposes correct labelled counters', async () => {
+    it("Test D: incrementMfaPromotion('allow') and ('reject') exposes correct labelled counters", async () => {
       const m = makeService();
       m.incrementMfaPromotion('allow');
       m.incrementMfaPromotion('reject');
@@ -197,11 +211,14 @@ describe('MetricsService', () => {
         m.observeStageDuration(stage, 0.001);
       }
       const text = await m.getAggregatedMetrics();
-      const countLines = text.match(/zt_gateway_stage_duration_seconds_count\{stage="[^"]+"\} \d+/g) ?? [];
+      const countLines =
+        text.match(/zt_gateway_stage_duration_seconds_count\{stage="[^"]+"\} \d+/g) ?? [];
       expect(countLines.length).toBe(9);
       // Each canonical label must produce its own _count line.
       for (const stage of STAGE_LABELS) {
-        expect(text).toMatch(new RegExp(`zt_gateway_stage_duration_seconds_count\\{stage="${stage}"\\} 1`));
+        expect(text).toMatch(
+          new RegExp(`zt_gateway_stage_duration_seconds_count\\{stage="${stage}"\\} 1`),
+        );
       }
     });
   });

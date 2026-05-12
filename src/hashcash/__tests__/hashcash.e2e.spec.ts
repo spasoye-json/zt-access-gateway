@@ -15,23 +15,16 @@
 
 // Set env BEFORE importing AppModule — ConfigModule validates at decoration time.
 process.env.NODE_ENV = 'test';
-process.env.HASHCASH_HMAC_SECRET =
-  process.env.HASHCASH_HMAC_SECRET ?? 'a'.repeat(64);
+process.env.HASHCASH_HMAC_SECRET = process.env.HASHCASH_HMAC_SECRET ?? 'a'.repeat(64);
 process.env.HASHCASH_DIFFICULTY_MIN = '4';
 process.env.HASHCASH_DIFFICULTY_MAX = '4'; // collapsed range — issue + verify both yield 4
-process.env.HASHCASH_TRIGGER_THRESHOLD =
-  process.env.HASHCASH_TRIGGER_THRESHOLD ?? '0.7';
-process.env.JWT_SECRET =
-  process.env.JWT_SECRET ?? 'test-secret-that-is-at-least-32-chars-long!';
+process.env.HASHCASH_TRIGGER_THRESHOLD = process.env.HASHCASH_TRIGGER_THRESHOLD ?? '0.7';
+process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-secret-that-is-at-least-32-chars-long!';
 if (!process.env.MTLS_CA_CERT_PATH) process.env.MTLS_CA_CERT_PATH = '/dev/null';
-if (!process.env.MTLS_CLIENT_CERT_PATH)
-  process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
-if (!process.env.MTLS_CLIENT_KEY_PATH)
-  process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
-if (!process.env.MTLS_ALLOWED_SUBJECTS)
-  process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
-if (!process.env.DATABASE_URL)
-  process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
+if (!process.env.MTLS_CLIENT_CERT_PATH) process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
+if (!process.env.MTLS_CLIENT_KEY_PATH) process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
+if (!process.env.MTLS_ALLOWED_SUBJECTS) process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
+if (!process.env.DATABASE_URL) process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
 // Phase 7 MFA vars — required by config validation after MfaModule added to AppModule
 if (!process.env.MFA_JWT_SECRET)
   process.env.MFA_JWT_SECRET = 'mfa-test-secret-that-is-at-least-32-chars!!';
@@ -42,11 +35,7 @@ if (!process.env.PROXY_SERVICE_REGISTRY)
   process.env.PROXY_SERVICE_REGISTRY = JSON.stringify({ dummy: 'https://dummy.test:8443' });
 
 import { Test } from '@nestjs/testing';
-import {
-  Controller,
-  Get,
-  INestApplication,
-} from '@nestjs/common';
+import { Controller, Get, INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../../app.module';
 import { TrustScoreService } from '../../trust-score/trust-score.service';
@@ -97,10 +86,7 @@ describe.skip('Hashcash e2e (superseded by plan 10-06 GatewayMiddleware e2e)', (
     await app.init();
 
     // Mint a real HS256 JWT — same shape AuthService extracts (sub/jti/deviceId required).
-    token = await createHs256Token(
-      { sub: 'user-1', roles: ['user'] },
-      { jti: 'jti-e2e-1' },
-    );
+    token = await createHs256Token({ sub: 'user-1', roles: ['user'] }, { jti: 'jti-e2e-1' });
   });
 
   afterAll(async () => {

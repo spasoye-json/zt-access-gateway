@@ -61,12 +61,7 @@ describe('computeJa4h', () => {
   });
 
   it('handles missing Content-Type header (uses empty string)', () => {
-    const req = mockReq(
-      ['Accept', 'text/html'],
-      { accept: 'text/html' },
-      'GET',
-      '1.1',
-    );
+    const req = mockReq(['Accept', 'text/html'], { accept: 'text/html' }, 'GET', '1.1');
     const expected = makeHash('GET|1.1|Accept|text/html|');
     expect(computeJa4h(req)).toBe(expected);
   });

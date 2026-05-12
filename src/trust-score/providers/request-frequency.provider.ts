@@ -15,9 +15,7 @@ export class RequestFrequencyProvider implements TrustSignalProvider {
 
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
     const now = ctx.requestTimestamp ?? new Date();
-    const since = new Date(
-      now.getTime() - this.config.trustFrequencyWindowMs,
-    );
+    const since = new Date(now.getTime() - this.config.trustFrequencyWindowMs);
     const c = await this.repo.countActivitySince(ctx.userId, since);
     if (c > this.config.trustFrequencyNormalMax) {
       return { delta: 0.2, reason: 'frequency_burst' };

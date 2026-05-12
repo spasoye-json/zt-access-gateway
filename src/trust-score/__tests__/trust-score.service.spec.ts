@@ -4,11 +4,7 @@ import type { TrustTelemetryRepository } from '../trust-telemetry.repository';
 import type { TrustSignalProvider } from '../trust-signal-provider.interface';
 import type { TrustContext } from '../trust-context';
 
-function stubProvider(
-  name: string,
-  delta: number,
-  reason: string,
-): TrustSignalProvider {
+function stubProvider(name: string, delta: number, reason: string): TrustSignalProvider {
   return {
     name,
     compute: jest.fn().mockResolvedValue({ delta, reason }),

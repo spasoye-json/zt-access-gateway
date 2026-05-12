@@ -181,10 +181,7 @@ export class ThreatEscalationService {
     this.events.push({ ts: now, type });
     // Hard cap (D-18): prevent unbounded growth
     if (this.events.length > this.cfg.threatWindowMaxEvents) {
-      this.events.splice(
-        0,
-        this.events.length - this.cfg.threatWindowMaxEvents,
-      );
+      this.events.splice(0, this.events.length - this.cfg.threatWindowMaxEvents);
     }
     this.evict(now);
     this.lastSignalAt = now;
@@ -211,18 +208,14 @@ export class ThreatEscalationService {
     const candidates: ThreatLevel[] = ['Normal'];
 
     // D-19: per-type counts; level = max across types
-    if ((c[POLICY_DENY] ?? 0) >= this.cfg.threatElevatedDenies)
-      candidates.push('Elevated');
+    if ((c[POLICY_DENY] ?? 0) >= this.cfg.threatElevatedDenies) candidates.push('Elevated');
     if ((c[AUTH_INVALID_TOKEN] ?? 0) >= this.cfg.threatElevatedInvalidTokens)
       candidates.push('Elevated');
-    if ((c[HONEYPOT_TRIGGER] ?? 0) >= this.cfg.threatElevatedHoneypot)
-      candidates.push('Elevated');
-    if ((c[POLICY_DENY] ?? 0) >= this.cfg.threatCriticalDenies)
-      candidates.push('Critical');
+    if ((c[HONEYPOT_TRIGGER] ?? 0) >= this.cfg.threatElevatedHoneypot) candidates.push('Elevated');
+    if ((c[POLICY_DENY] ?? 0) >= this.cfg.threatCriticalDenies) candidates.push('Critical');
     if ((c[AUTH_INVALID_TOKEN] ?? 0) >= this.cfg.threatCriticalInvalidTokens)
       candidates.push('Critical');
-    if ((c[HONEYPOT_TRIGGER] ?? 0) >= this.cfg.threatCriticalHoneypot)
-      candidates.push('Critical');
+    if ((c[HONEYPOT_TRIGGER] ?? 0) >= this.cfg.threatCriticalHoneypot) candidates.push('Critical');
     if ((c[MFA_RATE_LIMITED] ?? 0) >= this.cfg.threatElevatedMfaRateLimited)
       candidates.push('Elevated');
     if ((c[MFA_RATE_LIMITED] ?? 0) >= this.cfg.threatCriticalMfaRateLimited)
@@ -250,9 +243,7 @@ export class ThreatEscalationService {
     if (idle < this.cfg.threatCooldownMs) return;
 
     // Step down one level per elapsed cooldown window since last transition.
-    const stepsElapsed = Math.floor(
-      (now - this.lastTransitionAt) / this.cfg.threatCooldownMs,
-    );
+    const stepsElapsed = Math.floor((now - this.lastTransitionAt) / this.cfg.threatCooldownMs);
     if (stepsElapsed <= 0) return;
 
     // WR-07 (phase 14): emit each intermediate step through transitionTo so
@@ -290,8 +281,6 @@ export class ThreatEscalationService {
       from: from.toLowerCase(),
       to: next.toLowerCase(),
     });
-    this.metrics.setThreatLevel(
-      next.toLowerCase() as 'normal' | 'elevated' | 'critical',
-    );
+    this.metrics.setThreatLevel(next.toLowerCase() as 'normal' | 'elevated' | 'critical');
   }
 }

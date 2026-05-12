@@ -46,9 +46,7 @@ describe('Bootstrap middleware stack (e2e)', () => {
   });
 
   it('GET /health returns 200 with status ok', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/health')
-      .expect(200);
+    const response = await request(app.getHttpServer()).get('/health').expect(200);
 
     expect(response.body).toMatchObject({
       status: 'ok',
@@ -57,9 +55,7 @@ describe('Bootstrap middleware stack (e2e)', () => {
   });
 
   it('Helmet security headers are present on every response', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/health')
-      .expect(200);
+    const response = await request(app.getHttpServer()).get('/health').expect(200);
 
     // Helmet sets x-content-type-options to prevent MIME sniffing (T-01-10)
     expect(response.headers['x-content-type-options']).toBe('nosniff');

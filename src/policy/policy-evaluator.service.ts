@@ -8,11 +8,7 @@ import { TrustScoreService } from '../trust-score/trust-score.service';
 import type { TrustContext } from '../trust-score/trust-context';
 import { extractIp, extractJa4h } from '../shared/request-context.util';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
-import {
-  buildSubjects,
-  normalizeAction,
-  normalizeResource,
-} from './policy-subject.util';
+import { buildSubjects, normalizeAction, normalizeResource } from './policy-subject.util';
 import type { PolicyDecision } from './policy-decision';
 import { POLICY_DENY, type ThreatSignalPayload } from './policy-events';
 import { PolicyMetrics } from './policy-metrics';
@@ -151,10 +147,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
 
     // 6) Side effects: metrics + event emit on DENY (D-14).
     this.metrics.decisions.inc({
-      decision: decision.decision.toLowerCase() as
-        | 'allow'
-        | 'challenge'
-        | 'deny',
+      decision: decision.decision.toLowerCase() as 'allow' | 'challenge' | 'deny',
     });
     if (decision.decision === 'DENY') {
       this.emitDeny(req, user, score, obj, act);

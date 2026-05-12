@@ -10,12 +10,7 @@ import { Test } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import {
-  MfaService,
-  MfaCreateResult,
-  MfaVerifyResult,
-  MfaValidateResult,
-} from '../mfa.service';
+import { MfaService, MfaCreateResult, MfaVerifyResult, MfaValidateResult } from '../mfa.service';
 import type { MfaEnrollResult, MfaConfirmResult, MfaDeleteEnrollmentResult } from '../mfa.service';
 import { MfaChallengeRepository } from '../repositories/mfa-challenge.repository';
 import { MfaTokenRepository } from '../repositories/mfa-token.repository';
@@ -249,9 +244,7 @@ describe('MfaService', () => {
     // reason: 'internal' } with no log, no event, no audit. Threat escalation
     // could not fire. Every catch site must log error + emit mfa.infra_error.
     it('WR-03: createChallenge infra error logs + emits mfa.infra_error', async () => {
-      challengeRepo.insertChallengeIfUnderLimit.mockRejectedValueOnce(
-        new Error('db down'),
-      );
+      challengeRepo.insertChallengeIfUnderLimit.mockRejectedValueOnce(new Error('db down'));
       const result = await service.createChallenge(TEST_USER, TEST_IP);
       assertOkFalse<Extract<MfaCreateResult, { ok: false }>>(result);
       expect(result.reason).toBe('internal');
@@ -563,12 +556,7 @@ describe('MfaService', () => {
         isExpired: false,
       });
       const token = await mintMfaJwt({ jti: 'jti-race' });
-      const result = await service.validateMfaToken(
-        token,
-        TEST_USER,
-        TEST_DEVICE,
-        TEST_IP,
-      );
+      const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
       assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
       expect(result.reason).toBe('revoked');
     });
@@ -584,12 +572,7 @@ describe('MfaService', () => {
         isExpired: true,
       });
       const token = await mintMfaJwt({ jti: 'jti-exp' });
-      const result = await service.validateMfaToken(
-        token,
-        TEST_USER,
-        TEST_DEVICE,
-        TEST_IP,
-      );
+      const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
       assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
       expect(result.reason).toBe('expired');
     });
@@ -618,13 +601,7 @@ describe('MfaService', () => {
         new Error('postgres: connection refused'),
       );
       const token = await mintMfaJwt({ jti: 'jti-db-down' });
-      await service.validateMfaToken(
-        token,
-        TEST_USER,
-        TEST_DEVICE,
-        TEST_IP,
-        'ja4h-x',
-      );
+      await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP, 'ja4h-x');
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
       expect(eventNames).not.toContain(MFA_FAILED);
     });
@@ -634,13 +611,7 @@ describe('MfaService', () => {
         new Error('postgres: connection refused'),
       );
       const token = await mintMfaJwt({ jti: 'jti-db-down' });
-      await service.validateMfaToken(
-        token,
-        TEST_USER,
-        TEST_DEVICE,
-        TEST_IP,
-        'ja4h-x',
-      );
+      await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP, 'ja4h-x');
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
       expect(eventNames).toContain(MFA_INFRA_ERROR);
     });
@@ -663,12 +634,7 @@ describe('MfaService', () => {
         .setExpirationTime('10m')
         .sign(wrongSecret);
 
-      const result = await service.validateMfaToken(
-        badToken,
-        TEST_USER,
-        TEST_DEVICE,
-        TEST_IP,
-      );
+      const result = await service.validateMfaToken(badToken, TEST_USER, TEST_DEVICE, TEST_IP);
       assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
       expect(result.reason).toBe('signature');
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
@@ -682,7 +648,10 @@ describe('MfaService', () => {
   describe('createEnrollment()', () => {
     it('ENROLL-01: returns { enrollmentId, otpauthUri } for unenrolled user', async () => {
       secretsRepo.getEncryptedSecret = jest.fn().mockResolvedValue(null);
-      const result: MfaEnrollResult = await service.createEnrollment(TEST_USER, 'alice@example.com');
+      const result: MfaEnrollResult = await service.createEnrollment(
+        TEST_USER,
+        'alice@example.com',
+      );
       assertOkTrue<Extract<MfaEnrollResult, { ok: true }>>(result);
       expect(result.enrollmentId).toMatch(/^[0-9a-f-]{36}$/);
       expect(result.otpauthUri).toMatch(/^otpauth:\/\/totp\//);
@@ -763,7 +732,11 @@ describe('MfaService', () => {
     });
 
     it('ENROLL-04: writes encrypted secret and deletes pending entry on valid TOTP', async () => {
-      const result: MfaConfirmResult = await service.confirmEnrollment(ENROLL_ID, validCode(), TEST_USER);
+      const result: MfaConfirmResult = await service.confirmEnrollment(
+        ENROLL_ID,
+        validCode(),
+        TEST_USER,
+      );
       assertOkTrue<Extract<MfaConfirmResult, { ok: true }>>(result);
       expect(secretsRepo.save).toHaveBeenCalledTimes(1);
       const [savedUser, savedEnc] = (secretsRepo.save as jest.Mock).mock.calls[0];
@@ -789,9 +762,7 @@ describe('MfaService', () => {
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const failed = calls.find((c) => c.name === MFA_FAILED);
       expect(failed).toBeDefined();
-      expect((failed!.p as { reason: string }).reason).toBe(
-        'invalid_totp_enrollment',
-      );
+      expect((failed!.p as { reason: string }).reason).toBe('invalid_totp_enrollment');
       expect((failed!.p as { userId: string }).userId).toBe(TEST_USER);
     });
 
@@ -802,9 +773,7 @@ describe('MfaService', () => {
     });
 
     it('BL-02: on attempts >= ENROLL_MAX_ATTEMPTS deletes pending and emits MFA_RATE_LIMITED', async () => {
-      pendingStore.incrementAttempts.mockReturnValue(
-        MfaService.ENROLL_MAX_ATTEMPTS,
-      );
+      pendingStore.incrementAttempts.mockReturnValue(MfaService.ENROLL_MAX_ATTEMPTS);
       const result = await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER);
       assertOkFalse<Extract<MfaConfirmResult, { ok: false }>>(result);
       expect(result.reason).toBe('invalid_totp');
@@ -814,9 +783,7 @@ describe('MfaService', () => {
     });
 
     it('BL-02: under the attempt cap does NOT emit MFA_RATE_LIMITED', async () => {
-      pendingStore.incrementAttempts.mockReturnValue(
-        MfaService.ENROLL_MAX_ATTEMPTS - 1,
-      );
+      pendingStore.incrementAttempts.mockReturnValue(MfaService.ENROLL_MAX_ATTEMPTS - 1);
       await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER);
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
       expect(eventNames).not.toContain(MFA_RATE_LIMITED);
@@ -831,13 +798,7 @@ describe('MfaService', () => {
     // verifyTotp / createChallenge).
     it('IN-04: MFA_FAILED on invalid enrollment TOTP carries ip + ja4h', async () => {
       pendingStore.incrementAttempts.mockReturnValue(1);
-      await service.confirmEnrollment(
-        ENROLL_ID,
-        '000000',
-        TEST_USER,
-        TEST_IP,
-        'ja4h-enroll-1',
-      );
+      await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER, TEST_IP, 'ja4h-enroll-1');
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const failed = calls.find((c) => c.name === MFA_FAILED);
       expect(failed).toBeDefined();
@@ -846,16 +807,8 @@ describe('MfaService', () => {
     });
 
     it('IN-04: MFA_RATE_LIMITED on attempts exhausted carries ip + ja4h', async () => {
-      pendingStore.incrementAttempts.mockReturnValue(
-        MfaService.ENROLL_MAX_ATTEMPTS,
-      );
-      await service.confirmEnrollment(
-        ENROLL_ID,
-        '000000',
-        TEST_USER,
-        TEST_IP,
-        'ja4h-enroll-2',
-      );
+      pendingStore.incrementAttempts.mockReturnValue(MfaService.ENROLL_MAX_ATTEMPTS);
+      await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER, TEST_IP, 'ja4h-enroll-2');
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const rateLimited = calls.find((c) => c.name === MFA_RATE_LIMITED);
       expect(rateLimited).toBeDefined();

@@ -33,11 +33,7 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
     await this.pool.end();
   }
 
-  async getSignalRow(
-    userId: string,
-    deviceId: string,
-    ip: string,
-  ): Promise<TrustSignalRow | null> {
+  async getSignalRow(userId: string, deviceId: string, ip: string): Promise<TrustSignalRow | null> {
     const r = await this.pool.query<TrustSignalRow>(
       `SELECT user_id, device_id, ip, ja4h, first_seen_at, last_seen_at,
               allow_count, hour_histogram, rate_ema, rate_ema_var, anomaly_observations
@@ -76,20 +72,14 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
 
   /** Total rows in trust_activity (test / diagnostics). */
   async countAllTrustActivity(): Promise<number> {
-    const r = await this.pool.query<{ c: number }>(
-      `SELECT COUNT(*)::int AS c FROM trust_activity`,
-    );
+    const r = await this.pool.query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM trust_activity`);
     return r.rows[0]?.c ?? 0;
   }
 
   /**
    * ALLOW count for the (user, device, ip) tuple;0 when no row exists.
    */
-  async countAllowsForUserDeviceIp(
-    userId: string,
-    deviceId: string,
-    ip: string,
-  ): Promise<number> {
+  async countAllowsForUserDeviceIp(userId: string, deviceId: string, ip: string): Promise<number> {
     const row = await this.getSignalRow(userId, deviceId, ip);
     return row?.allow_count ?? 0;
   }
@@ -98,10 +88,7 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
    * Persist post-proxy ALLOW outcome: activity row + signals UPSERT (D-20).
    * Runs in a single transaction.
    */
-  async recordAllowOutcome(
-    ctx: TrustContext,
-    finalScore: number,
-  ): Promise<void> {
+  async recordAllowOutcome(ctx: TrustContext, finalScore: number): Promise<void> {
     const client = await this.pool.connect();
     const ts = ctx.requestTimestamp ?? new Date();
     try {
@@ -129,11 +116,7 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
     );
   }
 
-  private async upsertSignalRow(
-    client: PoolClient,
-    ctx: TrustContext,
-    ts: Date,
-  ): Promise<void> {
+  private async upsertSignalRow(client: PoolClient, ctx: TrustContext, ts: Date): Promise<void> {
     const existing = await client.query<TrustSignalRow>(
       `SELECT user_id, device_id, ip, ja4h, first_seen_at, last_seen_at,
               allow_count, hour_histogram, rate_ema, rate_ema_var, anomaly_observations
@@ -167,10 +150,7 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
       while (hist.length < 24) hist.push(0);
       hist[hr] = (hist[hr] ?? 0) + 1;
 
-      const interMs = Math.max(
-        1,
-        ts.getTime() - new Date(row.last_seen_at).getTime(),
-      );
+      const interMs = Math.max(1, ts.getTime() - new Date(row.last_seen_at).getTime());
       const instRate = 60000 / interMs;
       nObs = row.anomaly_observations + 1;
       const prevMean = row.rate_ema;
@@ -178,8 +158,7 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
       newVar =
         nObs === 1
           ? 0
-          : ((nObs - 2) * row.rate_ema_var +
-              (instRate - prevMean) * (instRate - newMean)) /
+          : ((nObs - 2) * row.rate_ema_var + (instRate - prevMean) * (instRate - newMean)) /
             (nObs - 1);
     }
 

@@ -1,9 +1,5 @@
 import { createHash } from 'node:crypto';
-import {
-  difficultyForScore,
-  countLeadingZeroBits,
-  hashSolution,
-} from '../hashcash.util';
+import { difficultyForScore, countLeadingZeroBits, hashSolution } from '../hashcash.util';
 
 describe('hashcash.util', () => {
   describe('difficultyForScore', () => {

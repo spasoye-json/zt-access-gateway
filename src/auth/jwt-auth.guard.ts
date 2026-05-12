@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IS_PUBLIC_KEY } from '../shared/public.decorator';
@@ -11,10 +6,7 @@ import { GATEWAY_VALIDATED } from '../gateway/gateway-validated.symbol';
 import { AuthService } from './auth.service';
 import { TokenRevocationService } from './token-revocation.service';
 import { extractIp, extractJa4h } from '../shared/request-context.util';
-import {
-  AUTH_INVALID_TOKEN,
-  type ThreatSignalPayload,
-} from '../policy/policy-events';
+import { AUTH_INVALID_TOKEN, type ThreatSignalPayload } from '../policy/policy-events';
 
 /**
  * Global JWT authentication guard (APP_GUARD).
@@ -38,10 +30,10 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // AUTH-07: @Public() bypass
-    const isPublic = this.reflector.getAllAndOverride<boolean>(
-      IS_PUBLIC_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest();

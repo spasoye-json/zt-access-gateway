@@ -31,10 +31,9 @@ describeDb('MfaTokenRepository', () => {
     const jti = randomUUID();
     const exp = new Date(Date.now() + 600_000);
     await repo.insertMfaToken(jti, TEST_UID, TEST_FP, exp);
-    const r = await pool.query(
-      `SELECT user_id, fingerprint_hash FROM mfa_tokens WHERE jti = $1`,
-      [jti],
-    );
+    const r = await pool.query(`SELECT user_id, fingerprint_hash FROM mfa_tokens WHERE jti = $1`, [
+      jti,
+    ]);
     expect(r.rows[0]?.user_id).toBe(TEST_UID);
     expect(r.rows[0]?.fingerprint_hash).toBe(TEST_FP);
   });

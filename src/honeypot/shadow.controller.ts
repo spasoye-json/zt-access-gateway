@@ -10,10 +10,7 @@ import { HONEYPOT_PATHS } from './honeypot.constants';
 import { sleep, randomDelay } from '../shared/sleep.util';
 import { extractJa4h } from '../shared/request-context.util';
 import { Public } from '../shared/public.decorator';
-import {
-  HONEYPOT_TRIGGER,
-  type ThreatSignalPayload,
-} from '../policy/policy-events';
+import { HONEYPOT_TRIGGER, type ThreatSignalPayload } from '../policy/policy-events';
 
 /**
  * ShadowController — deception layer of the zero-trust pipeline.
@@ -70,11 +67,7 @@ export class ShadowController implements OnModuleInit {
    * Core trap sequence — shared by all 7 handlers.
    * Extracted to avoid 7x duplication of the same tarpit+blacklist+audit logic.
    */
-  private async trapAndRespond(
-    req: Request,
-    res: Response,
-    path: string,
-  ): Promise<void> {
+  private async trapAndRespond(req: Request, res: Response, path: string): Promise<void> {
     const ja4h: string = (req as any)['x-ja4h'] ?? 'unknown';
 
     // Blacklist the fingerprint immediately — isTerminal ensures Phase 4 trust score = 1.0
@@ -145,10 +138,7 @@ export class ShadowController implements OnModuleInit {
 
   @Get('/graphql/introspection')
   @Honeypot()
-  async graphqlIntrospection(
-    @Req() req: Request,
-    @Res() res: Response,
-  ): Promise<void> {
+  async graphqlIntrospection(@Req() req: Request, @Res() res: Response): Promise<void> {
     await this.trapAndRespond(req, res, '/graphql/introspection');
   }
 

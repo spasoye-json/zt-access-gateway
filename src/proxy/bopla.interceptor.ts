@@ -96,9 +96,7 @@ export class BoPlaInterceptor implements OnModuleInit {
         const value = (data as Record<string, unknown>)[field];
         // Apply same allowed list recursively to nested objects/arrays (BOPL-03)
         out[field] =
-          value !== null && typeof value === 'object'
-            ? this.applyAllowList(value, allowed)
-            : value;
+          value !== null && typeof value === 'object' ? this.applyAllowList(value, allowed) : value;
       }
     }
     return out;

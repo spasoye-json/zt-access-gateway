@@ -3,11 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { AppConfigService } from '../config/config.service';
 import { UsedNonceStore } from './used-nonce-store';
 import { HashcashMetrics } from './hashcash-metrics';
-import {
-  difficultyForScore,
-  countLeadingZeroBits,
-  hashSolution,
-} from './hashcash.util';
+import { difficultyForScore, countLeadingZeroBits, hashSolution } from './hashcash.util';
 
 interface NoncePayload {
   v: 1;

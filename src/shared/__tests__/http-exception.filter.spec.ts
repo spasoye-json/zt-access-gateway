@@ -38,9 +38,7 @@ describe('HttpExceptionFilter', () => {
     const host = makeHost(statusMock, jsonMock);
     filter.catch(new NotFoundException('not found'), host);
     expect(statusMock).toHaveBeenCalledWith(404);
-    expect(jsonMock).toHaveBeenCalledWith(
-      expect.objectContaining({ statusCode: 404 }),
-    );
+    expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
   });
 
   it("returns 500 with 'Internal server error' for unknown Error", () => {

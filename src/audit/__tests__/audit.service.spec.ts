@@ -18,7 +18,10 @@ function makeRepo(): jest.Mocked<AuditRepository> {
 }
 
 function makeConfig(maxRetries = 3, baseDelay = 50): AppConfigService {
-  return { auditWalMaxRetries: maxRetries, auditWalBaseDelayMs: baseDelay } as unknown as AppConfigService;
+  return {
+    auditWalMaxRetries: maxRetries,
+    auditWalBaseDelayMs: baseDelay,
+  } as unknown as AppConfigService;
 }
 
 function makeEmitter(): EventEmitter2 {
@@ -85,7 +88,9 @@ describe('AuditService', () => {
       repo.insert.mockRejectedValue(new Error('db down'));
       const svc = new AuditService(makeConfig(5, 50), repo, makeEmitter());
 
-      await expect(svc.writeBlocking({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' })).rejects.toBeInstanceOf(AuditExhaustedException);
+      await expect(
+        svc.writeBlocking({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' }),
+      ).rejects.toBeInstanceOf(AuditExhaustedException);
       expect(repo.insert).toHaveBeenCalledTimes(5);
     });
 

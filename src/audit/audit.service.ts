@@ -42,9 +42,7 @@ export class AuditService {
         }
       }
     }
-    throw new AuditExhaustedException(
-      `Audit WAL exhausted after ${maxRetries} retries`,
-    );
+    throw new AuditExhaustedException(`Audit WAL exhausted after ${maxRetries} retries`);
   }
 
   /** AUDT-01, AUDT-06 — best-effort record (never throws). */

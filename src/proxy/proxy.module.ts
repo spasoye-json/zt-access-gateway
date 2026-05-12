@@ -20,12 +20,7 @@ import { ServiceRegistryService } from './service-registry.service';
  */
 @Module({
   imports: [ConfigAppModule, SharedModule], // SharedModule provides MtlsService
-  providers: [
-    ProxyService,
-    ServiceRegistryService,
-    DnsRebindingGuard,
-    BoPlaInterceptor,
-  ],
+  providers: [ProxyService, ServiceRegistryService, DnsRebindingGuard, BoPlaInterceptor],
   exports: [ProxyService, BoPlaInterceptor],
 })
 export class ProxyModule {}

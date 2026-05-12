@@ -24,7 +24,13 @@ import { MetricsController } from './metrics.controller';
  * but BEFORE the final HoneypotModule reorder — Plan 09-03 wires the final order.
  */
 @Module({
-  imports: [ConfigAppModule, HoneypotModule, HashcashModule, PolicyModule, EventEmitterModule.forRoot()],
+  imports: [
+    ConfigAppModule,
+    HoneypotModule,
+    HashcashModule,
+    PolicyModule,
+    EventEmitterModule.forRoot(),
+  ],
   controllers: [MetricsController],
   providers: [MetricsService],
   exports: [MetricsService],

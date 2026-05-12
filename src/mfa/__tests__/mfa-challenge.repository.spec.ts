@@ -29,10 +29,9 @@ describeDb('MfaChallengeRepository', () => {
     const id = 'test-chal-1';
     const exp = new Date(Date.now() + 300_000);
     await repo.insertChallenge(id, TEST_UID, exp);
-    const row = await pool.query(
-      `SELECT user_id FROM mfa_challenges WHERE challenge_id = $1`,
-      [id],
-    );
+    const row = await pool.query(`SELECT user_id FROM mfa_challenges WHERE challenge_id = $1`, [
+      id,
+    ]);
     expect(row.rows[0]?.user_id).toBe(TEST_UID);
   });
 
@@ -59,10 +58,9 @@ describeDb('MfaChallengeRepository', () => {
       3,
     );
     expect(ok).toBe(true);
-    const r = await pool.query(
-      `SELECT user_id FROM mfa_challenges WHERE challenge_id = $1`,
-      ['test-wr05-1'],
-    );
+    const r = await pool.query(`SELECT user_id FROM mfa_challenges WHERE challenge_id = $1`, [
+      'test-wr05-1',
+    ]);
     expect(r.rows[0]?.user_id).toBe(TEST_UID);
   });
 
@@ -78,10 +76,9 @@ describeDb('MfaChallengeRepository', () => {
       2,
     );
     expect(ok).toBe(false);
-    const r = await pool.query(
-      `SELECT challenge_id FROM mfa_challenges WHERE challenge_id = $1`,
-      ['test-wr05-2c'],
-    );
+    const r = await pool.query(`SELECT challenge_id FROM mfa_challenges WHERE challenge_id = $1`, [
+      'test-wr05-2c',
+    ]);
     expect(r.rows.length).toBe(0);
   });
 

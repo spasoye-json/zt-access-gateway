@@ -30,8 +30,7 @@ function fakeConfig(
   overrides: Partial<{ csvPath: string; modelPath: string }> = {},
 ): AppConfigService {
   return {
-    policyModelPath:
-      overrides.modelPath ?? path.join(process.cwd(), 'policy/model.conf'),
+    policyModelPath: overrides.modelPath ?? path.join(process.cwd(), 'policy/model.conf'),
     policyCsvPath: overrides.csvPath ?? tmpCsvCopy(),
   } as unknown as AppConfigService;
 }
@@ -87,22 +86,14 @@ describe('PolicyEvaluatorService', () => {
     } as unknown as jest.Mocked<TrustScoreService>;
     events = new EventEmitter2();
     emitSpy = jest.spyOn(events, 'emit');
-    svc = new PolicyEvaluatorService(
-      fakeConfig(),
-      fakeThreat(),
-      trust,
-      metrics,
-      events,
-    );
+    svc = new PolicyEvaluatorService(fakeConfig(), fakeThreat(), trust, metrics, events);
     await svc.onModuleInit();
   });
 
   // ── PLCY-01: enforcer constructs from real model + CSV ─────────────────
   it('PLCY-01 onModuleInit loads real Casbin enforcer', async () => {
     const rules = await svc.getRules();
-    expect(rules).toEqual(
-      expect.arrayContaining([['role:user', '/users', 'GET']]),
-    );
+    expect(rules).toEqual(expect.arrayContaining([['role:user', '/users', 'GET']]));
   });
 
   it('PLCY-01 fails closed at startup with bogus model path', async () => {
@@ -167,24 +158,16 @@ describe('PolicyEvaluatorService', () => {
 
   // ── D-03 fail-closed runtime ──────────────────────────────────────────
   it('D-03 fail-closed runtime: enforce() throws → DENY policy_error + metrics.errors++ + emits policy.deny', async () => {
-    const errCounter = metrics.registry.getSingleMetric(
-      'zt_gateway_policy_errors_total',
-    );
+    const errCounter = metrics.registry.getSingleMetric('zt_gateway_policy_errors_total');
     const before = await errCounter!.get();
-    const beforeVal =
-      (before as { values: { value: number }[] }).values[0]?.value ?? 0;
+    const beforeVal = (before as { values: { value: number }[] }).values[0]?.value ?? 0;
 
     jest
-      .spyOn(
-        (svc as unknown as { enforcer: { enforce: jest.Mock } }).enforcer,
-        'enforce',
-      )
+      .spyOn((svc as unknown as { enforcer: { enforce: jest.Mock } }).enforcer, 'enforce')
       .mockRejectedValueOnce(new Error('boom'));
 
     const r = await svc.evaluate(fakeReq({ trustScore: 0.1 }));
-    expect(r).toEqual(
-      expect.objectContaining({ decision: 'DENY', reason: 'policy_error' }),
-    );
+    expect(r).toEqual(expect.objectContaining({ decision: 'DENY', reason: 'policy_error' }));
 
     const after = await errCounter!.get();
     const afterVal = (after as { values: { value: number }[] }).values[0].value;
@@ -237,16 +220,13 @@ describe('PolicyEvaluatorService', () => {
   // ── D-22 mutex: 5 concurrent addRule calls do not interleave ──────────
   it('D-22 mutex: concurrent addRule calls do not interleave', async () => {
     const order: string[] = [];
-    const enforcer = (svc as unknown as { enforcer: import('casbin').Enforcer })
-      .enforcer;
-    jest
-      .spyOn(enforcer, 'addPolicy')
-      .mockImplementation(async (...args: string[]) => {
-        order.push(`start:${args[0]}`);
-        await new Promise((res) => setImmediate(res));
-        order.push(`end:${args[0]}`);
-        return true;
-      });
+    const enforcer = (svc as unknown as { enforcer: import('casbin').Enforcer }).enforcer;
+    jest.spyOn(enforcer, 'addPolicy').mockImplementation(async (...args: string[]) => {
+      order.push(`start:${args[0]}`);
+      await new Promise((res) => setImmediate(res));
+      order.push(`end:${args[0]}`);
+      return true;
+    });
     jest.spyOn(enforcer, 'savePolicy').mockResolvedValue(true);
 
     await Promise.all([
@@ -266,8 +246,7 @@ describe('PolicyEvaluatorService', () => {
 
   // ── Pitfall 1: savePolicy() returning false → throw ───────────────────
   it('Pitfall 1: addRule throws when savePolicy() returns false', async () => {
-    const enforcer = (svc as unknown as { enforcer: import('casbin').Enforcer })
-      .enforcer;
+    const enforcer = (svc as unknown as { enforcer: import('casbin').Enforcer }).enforcer;
     jest.spyOn(enforcer, 'savePolicy').mockResolvedValueOnce(false);
     await expect(svc.addRule('role:x', '/x', 'GET')).rejects.toThrow(
       /savePolicy returned false.*\[role_definition\]/,
@@ -275,8 +254,7 @@ describe('PolicyEvaluatorService', () => {
   });
 
   it('Pitfall 1: removeRule throws when savePolicy() returns false', async () => {
-    const enforcer = (svc as unknown as { enforcer: import('casbin').Enforcer })
-      .enforcer;
+    const enforcer = (svc as unknown as { enforcer: import('casbin').Enforcer }).enforcer;
     // First add a rule so removePolicy returns true and we hit the savePolicy
     // branch.
     jest.spyOn(enforcer, 'savePolicy').mockResolvedValueOnce(true);
@@ -290,8 +268,6 @@ describe('PolicyEvaluatorService', () => {
   // ── Defensive: missing user (JwtAuthGuard precondition) ───────────────
   it('returns DENY no_user when req.user is undefined', async () => {
     const r = await svc.evaluate(fakeReq({ user: undefined }));
-    expect(r).toEqual(
-      expect.objectContaining({ decision: 'DENY', reason: 'no_user' }),
-    );
+    expect(r).toEqual(expect.objectContaining({ decision: 'DENY', reason: 'no_user' }));
   });
 });

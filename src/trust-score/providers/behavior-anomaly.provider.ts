@@ -17,11 +17,7 @@ export class BehaviorAnomalyProvider implements TrustSignalProvider {
   ) {}
 
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
-    const row = await this.repo.getSignalRow(
-      ctx.userId,
-      ctx.deviceId,
-      ctx.ip,
-    );
+    const row = await this.repo.getSignalRow(ctx.userId, ctx.deviceId, ctx.ip);
     if (!row || row.allow_count < this.config.trustAnomalyWarmupN) {
       return { delta: 0, reason: 'anomaly_warmup' };
     }
@@ -31,20 +27,14 @@ export class BehaviorAnomalyProvider implements TrustSignalProvider {
     const now = ctx.requestTimestamp ?? new Date();
     const h = now.getUTCHours();
 
-    const meanH =
-      hist.reduce((a, b) => a + b, 0) / Math.max(1, hist.length);
-    const varH =
-      hist.reduce((s, v) => s + (v - meanH) ** 2, 0) / Math.max(1, hist.length);
+    const meanH = hist.reduce((a, b) => a + b, 0) / Math.max(1, hist.length);
+    const varH = hist.reduce((s, v) => s + (v - meanH) ** 2, 0) / Math.max(1, hist.length);
     const stdH = Math.sqrt(varH + 1e-9);
     const zHour = stdH > 1e-6 ? Math.abs((hist[h] - meanH) / stdH) : 0;
 
-    const interMs = Math.max(
-      1,
-      now.getTime() - new Date(row.last_seen_at).getTime(),
-    );
+    const interMs = Math.max(1, now.getTime() - new Date(row.last_seen_at).getTime());
     const instRate = 60000 / interMs;
-    const zRate =
-      Math.abs(instRate - row.rate_ema) / Math.sqrt(row.rate_ema_var + 1e-9);
+    const zRate = Math.abs(instRate - row.rate_ema) / Math.sqrt(row.rate_ema_var + 1e-9);
 
     const raw = zHour + zRate;
     const delta = Math.min(0.4, Math.max(0, raw));

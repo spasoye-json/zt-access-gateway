@@ -52,10 +52,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('revoke')
   @HttpCode(HttpStatus.OK)
-  revoke(
-    @Body() dto: RevokeTokenDto,
-    @Req() req: Request,
-  ): { message: string } {
+  revoke(@Body() dto: RevokeTokenDto, @Req() req: Request): { message: string } {
     // WR-06 (phase 14): req.user is typed via src/shared/express.d.ts. Keep a
     // defensive check so this endpoint fails closed if JwtAuthGuard is ever
     // misconfigured (e.g., AUTH_ONLY pipeline skipped) instead of crashing on

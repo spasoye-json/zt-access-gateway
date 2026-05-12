@@ -100,9 +100,7 @@ describe('AuthController', () => {
       const req = buildRequest({ userId: 'attacker', roles: ['user'] });
 
       // Non-admin trying to revoke someone else's token should be forbidden
-      expect(() => controller.revoke(dto, req)).toThrow(
-        ForbiddenException,
-      );
+      expect(() => controller.revoke(dto, req)).toThrow(ForbiddenException);
     });
 
     it('returns { message: "Token revoked" } on success', () => {

@@ -64,10 +64,9 @@ export class MfaTokenRepository implements OnModuleDestroy {
    *
    * Returns null when no row exists for this jti.
    */
-  async getMfaTokenWithStatus(jti: string): Promise<
-    | (MfaTokenRow & { isRevoked: boolean; isExpired: boolean })
-    | null
-  > {
+  async getMfaTokenWithStatus(
+    jti: string,
+  ): Promise<(MfaTokenRow & { isRevoked: boolean; isExpired: boolean }) | null> {
     const r = await this.pool.query<{
       jti: string;
       user_id: string;

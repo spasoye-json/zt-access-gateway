@@ -16,9 +16,7 @@ function makeService(registryJson: string): ServiceRegistryService {
 describe('ServiceRegistryService', () => {
   describe('onModuleInit (PRXY-03)', () => {
     it('parses PROXY_SERVICE_REGISTRY JSON into Map<serviceName, baseUrl>', async () => {
-      const svc = makeService(
-        JSON.stringify({ users: 'https://users.internal:8443' }),
-      );
+      const svc = makeService(JSON.stringify({ users: 'https://users.internal:8443' }));
       await svc.onModuleInit();
       expect(svc.resolve('users')).toBe('https://users.internal:8443');
     });
@@ -38,9 +36,7 @@ describe('ServiceRegistryService', () => {
     let svc: ServiceRegistryService;
 
     beforeEach(async () => {
-      svc = makeService(
-        JSON.stringify({ users: 'https://users.internal:8443' }),
-      );
+      svc = makeService(JSON.stringify({ users: 'https://users.internal:8443' }));
       await svc.onModuleInit();
     });
 
@@ -62,9 +58,7 @@ describe('ServiceRegistryService', () => {
     let svc: ServiceRegistryService;
 
     beforeEach(async () => {
-      svc = makeService(
-        JSON.stringify({ users: 'https://users.internal:8443' }),
-      );
+      svc = makeService(JSON.stringify({ users: 'https://users.internal:8443' }));
       await svc.onModuleInit();
     });
 

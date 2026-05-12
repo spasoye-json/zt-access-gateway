@@ -22,28 +22,21 @@
 
 // Env vars set BEFORE any NestJS module import — ConfigModule validates at decoration time.
 process.env.NODE_ENV = 'test';
-process.env.HASHCASH_HMAC_SECRET =
-  process.env.HASHCASH_HMAC_SECRET ?? 'a'.repeat(64);
+process.env.HASHCASH_HMAC_SECRET = process.env.HASHCASH_HMAC_SECRET ?? 'a'.repeat(64);
 process.env.HASHCASH_DIFFICULTY_MIN = '4';
 process.env.HASHCASH_DIFFICULTY_MAX = '4';
 process.env.HASHCASH_TRIGGER_THRESHOLD = '0.7';
-process.env.JWT_SECRET =
-  process.env.JWT_SECRET ?? 'test-secret-that-is-at-least-32-chars-long!';
+process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-secret-that-is-at-least-32-chars-long!';
 if (!process.env.MTLS_CA_CERT_PATH) process.env.MTLS_CA_CERT_PATH = '/dev/null';
-if (!process.env.MTLS_CLIENT_CERT_PATH)
-  process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
-if (!process.env.MTLS_CLIENT_KEY_PATH)
-  process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
-if (!process.env.MTLS_ALLOWED_SUBJECTS)
-  process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
+if (!process.env.MTLS_CLIENT_CERT_PATH) process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
+if (!process.env.MTLS_CLIENT_KEY_PATH) process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
+if (!process.env.MTLS_ALLOWED_SUBJECTS) process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
 if (!process.env.DATABASE_URL)
   process.env.DATABASE_URL = 'postgresql://fake:fake@localhost:5432/fake-test-db';
 if (!process.env.MFA_JWT_SECRET)
   process.env.MFA_JWT_SECRET = 'mfa-test-secret-that-is-at-least-32-chars!!';
 if (!process.env.MFA_TOTP_ENCRYPTION_KEY)
-  process.env.MFA_TOTP_ENCRYPTION_KEY = Buffer.from('a'.repeat(32)).toString(
-    'base64',
-  );
+  process.env.MFA_TOTP_ENCRYPTION_KEY = Buffer.from('a'.repeat(32)).toString('base64');
 if (!process.env.PROXY_SERVICE_REGISTRY)
   process.env.PROXY_SERVICE_REGISTRY = JSON.stringify({
     users: 'https://users.test:8443',
@@ -59,10 +52,7 @@ import { TrustScoreService } from '../../src/trust-score/trust-score.service';
 import { PolicyEvaluatorService } from '../../src/policy/policy-evaluator.service';
 import { FingerprintStore } from '../../src/fingerprint/fingerprint.store';
 import { createHs256Token } from '../../src/auth/__tests__/test-keys';
-import {
-  hashSolution,
-  countLeadingZeroBits,
-} from '../../src/hashcash/hashcash.util';
+import { hashSolution, countLeadingZeroBits } from '../../src/hashcash/hashcash.util';
 
 function solvePoW(nonce: string, difficulty: number): string {
   for (let i = 0; ; i++) {
@@ -101,9 +91,7 @@ describe('Phase 14 Plan 02 — Hashcash 429 round-trip e2e (SC-2)', () => {
   let token: string;
   let jtiCounter = 0;
   const uniqueJti = (label: string): string =>
-    `hcsh-${label}-${Date.now()}-${++jtiCounter}-${Math.random()
-      .toString(36)
-      .slice(2, 8)}`;
+    `hcsh-${label}-${Date.now()}-${++jtiCounter}-${Math.random().toString(36).slice(2, 8)}`;
 
   // Unique per-test userId+deviceId so HashcashService.issueChallenge produces
   // a distinct nonce each test (nonce is derived from (sub, dev, score, iat-sec)

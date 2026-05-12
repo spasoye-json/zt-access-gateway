@@ -132,9 +132,7 @@ describe('ShadowController', () => {
       method: 'actuatorHealth',
       path: '/actuator/health',
       assertion: (res) => {
-        expect(res.json).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'UP' }),
-        );
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'UP' }));
       },
     },
     {
@@ -169,9 +167,7 @@ describe('ShadowController', () => {
         const req = makeMockReq(path);
         const res = makeMockRes();
         await (controller as any)[method](req, res);
-        expect(warnSpy).toHaveBeenCalledWith(
-          expect.stringContaining('HONEYPOT_TRIGGERED'),
-        );
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('HONEYPOT_TRIGGERED'));
       });
 
       it('calls sleep() for tarpit delay', async () => {
@@ -247,51 +243,35 @@ describe('ShadowController', () => {
 
   describe('@Honeypot() decorator metadata', () => {
     it('wpLogin has HONEYPOT_KEY metadata set to true', () => {
-      expect(
-        Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.wpLogin),
-      ).toBe(true);
+      expect(Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.wpLogin)).toBe(true);
     });
 
     it('adminConfig has HONEYPOT_KEY metadata set to true', () => {
-      expect(
-        Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.adminConfig),
-      ).toBe(true);
+      expect(Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.adminConfig)).toBe(true);
     });
 
     it('dotEnv has HONEYPOT_KEY metadata set to true', () => {
-      expect(
-        Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.dotEnv),
-      ).toBe(true);
+      expect(Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.dotEnv)).toBe(true);
     });
 
     it('apiDebug has HONEYPOT_KEY metadata set to true', () => {
-      expect(
-        Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.apiDebug),
-      ).toBe(true);
+      expect(Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.apiDebug)).toBe(true);
     });
 
     it('graphqlIntrospection has HONEYPOT_KEY metadata set to true', () => {
       expect(
-        Reflect.getMetadata(
-          HONEYPOT_KEY,
-          ShadowController.prototype.graphqlIntrospection,
-        ),
+        Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.graphqlIntrospection),
       ).toBe(true);
     });
 
     it('actuatorHealth has HONEYPOT_KEY metadata set to true', () => {
-      expect(
-        Reflect.getMetadata(
-          HONEYPOT_KEY,
-          ShadowController.prototype.actuatorHealth,
-        ),
-      ).toBe(true);
+      expect(Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.actuatorHealth)).toBe(
+        true,
+      );
     });
 
     it('internalKeys has HONEYPOT_KEY metadata set to true', () => {
-      expect(
-        Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.internalKeys),
-      ).toBe(true);
+      expect(Reflect.getMetadata(HONEYPOT_KEY, ShadowController.prototype.internalKeys)).toBe(true);
     });
   });
 });

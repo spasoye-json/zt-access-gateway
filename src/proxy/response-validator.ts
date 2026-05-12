@@ -13,16 +13,12 @@ import type { AxiosResponse } from 'axios';
  */
 export function assertValidProxyResponse(response: AxiosResponse): void {
   if (response.status >= 500) {
-    throw new ServiceUnavailableException(
-      `Upstream returned ${response.status}`,
-    );
+    throw new ServiceUnavailableException(`Upstream returned ${response.status}`);
   }
 
   const ct = response.headers?.['content-type'];
   const ctStr = Array.isArray(ct) ? ct[0] : ct;
   if (!ctStr || !String(ctStr).toLowerCase().includes('application/json')) {
-    throw new BadGatewayException(
-      `Unexpected Content-Type from upstream: ${ctStr ?? 'missing'}`,
-    );
+    throw new BadGatewayException(`Unexpected Content-Type from upstream: ${ctStr ?? 'missing'}`);
   }
 }

@@ -188,9 +188,7 @@ export class MfaController {
   @Delete('admin/enrollment/:userId')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  async adminDeleteEnrollment(
-    @Param('userId') userId: string,
-  ): Promise<{ deleted: boolean }> {
+  async adminDeleteEnrollment(@Param('userId') userId: string): Promise<{ deleted: boolean }> {
     const result = await this.mfaService.deleteEnrollment(userId);
     if (!result.ok) {
       throw new InternalServerErrorException();

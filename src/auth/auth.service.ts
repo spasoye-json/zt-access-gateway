@@ -1,11 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import {
-  jwtVerify,
-  decodeProtectedHeader,
-  importSPKI,
-  createRemoteJWKSet,
-  errors,
-} from 'jose';
+import { jwtVerify, decodeProtectedHeader, importSPKI, createRemoteJWKSet, errors } from 'jose';
 import type { JWTVerifyResult, KeyLike, JWTPayload } from 'jose';
 import { AppConfigService } from '../config/config.service';
 import { UserClaims } from './interfaces/user-claims.interface';
@@ -93,9 +87,7 @@ export class AuthService {
       return jwtVerify(token, this.jwksFunction, options);
     }
 
-    throw new UnauthorizedException(
-      'No key material for asymmetric algorithm',
-    );
+    throw new UnauthorizedException('No key material for asymmetric algorithm');
   }
 
   /** Extract UserClaims from validated JWT payload (D-10, JA4H-04, D-11). */
@@ -139,9 +131,7 @@ export class AuthService {
       throw new UnauthorizedException('Algorithm not allowed');
     }
     if (error instanceof errors.JWTClaimValidationFailed) {
-      throw new UnauthorizedException(
-        `Invalid claim: ${error.claim}`,
-      );
+      throw new UnauthorizedException(`Invalid claim: ${error.claim}`);
     }
     if (error instanceof errors.JWKSNoMatchingKey) {
       throw new UnauthorizedException('No matching key found in JWKS');

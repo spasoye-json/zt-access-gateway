@@ -13,8 +13,7 @@
  */
 
 // Set env vars BEFORE any module imports — ConfigModule validates at decoration time.
-if (!process.env.HASHCASH_HMAC_SECRET)
-  process.env.HASHCASH_HMAC_SECRET = 'a'.repeat(64);
+if (!process.env.HASHCASH_HMAC_SECRET) process.env.HASHCASH_HMAC_SECRET = 'a'.repeat(64);
 if (!process.env.MFA_JWT_SECRET)
   process.env.MFA_JWT_SECRET = 'mfa-e2e-secret-that-is-at-least-32-chars!!';
 if (!process.env.MFA_TOTP_ENCRYPTION_KEY)

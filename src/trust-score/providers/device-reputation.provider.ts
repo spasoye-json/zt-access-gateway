@@ -14,11 +14,7 @@ export class DeviceReputationProvider implements TrustSignalProvider {
   ) {}
 
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
-    const n = await this.repo.countAllowsForUserDeviceIp(
-      ctx.userId,
-      ctx.deviceId,
-      ctx.ip,
-    );
+    const n = await this.repo.countAllowsForUserDeviceIp(ctx.userId, ctx.deviceId, ctx.ip);
     const thr = this.config.trustKnownThreshold;
     if (n >= thr) {
       return { delta: -0.15, reason: 'device_known' };

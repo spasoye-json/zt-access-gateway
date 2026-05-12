@@ -17,9 +17,7 @@ export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get('logs')
-  async getLogs(
-    @Query() query: AuditLogsQueryDto,
-  ): Promise<{ items: AuditLog[]; total: number }> {
+  async getLogs(@Query() query: AuditLogsQueryDto): Promise<{ items: AuditLog[]; total: number }> {
     return this.auditService.queryLogs(query);
   }
 }

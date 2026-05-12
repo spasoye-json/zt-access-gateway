@@ -6,9 +6,7 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 const BLOCKED_EXACT = new Set<string>(['::1', '169.254.169.254']);
 
 function ipv4ToUint32(ip: string): number {
-  return ip
-    .split('.')
-    .reduce((acc, oct) => ((acc << 8) | parseInt(oct, 10)) >>> 0, 0);
+  return ip.split('.').reduce((acc, oct) => ((acc << 8) | parseInt(oct, 10)) >>> 0, 0);
 }
 
 function inCidr(ip: string, base: number, bits: number): boolean {
@@ -32,9 +30,7 @@ export class DnsRebindingGuard {
     const { address } = await dns.promises.lookup(hostname, { all: false });
 
     if (BLOCKED_EXACT.has(address)) {
-      this.logger.warn(
-        `DNS rebinding blocked: ${hostname} → ${address} (exact-block list)`,
-      );
+      this.logger.warn(`DNS rebinding blocked: ${hostname} → ${address} (exact-block list)`);
       throw new ForbiddenException(
         `DNS rebinding guard: ${hostname} resolves to blocked address ${address}`,
       );

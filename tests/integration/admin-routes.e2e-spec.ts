@@ -74,16 +74,21 @@ describe('Phase 12 — Admin route allowlist closure (live e2e)', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(AuditRepository).useValue(fakeAudit)
-      .overrideProvider(TrustScoreService).useValue(fakeTrust)
-      .overrideProvider(PolicyEvaluatorService).useValue(fakePolicy)
-      .overrideProvider(ThreatEscalationService).useValue(fakeThreat)
-      .overrideProvider(ProxyService).useValue(fakeProxy)
+      .overrideProvider(AuditRepository)
+      .useValue(fakeAudit)
+      .overrideProvider(TrustScoreService)
+      .useValue(fakeTrust)
+      .overrideProvider(PolicyEvaluatorService)
+      .useValue(fakePolicy)
+      .overrideProvider(ThreatEscalationService)
+      .useValue(fakeThreat)
+      .overrideProvider(ProxyService)
+      .useValue(fakeProxy)
       .compile();
 
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
-    app.enableCors({ origin: '*' });    // mirror src/main.ts:36 so OPTIONS preflight returns CORS headers
+    app.enableCors({ origin: '*' }); // mirror src/main.ts:36 so OPTIONS preflight returns CORS headers
     await app.init();
 
     const realAuth = moduleRef.get(AuthService);
@@ -220,10 +225,7 @@ describe('Phase 12 — Admin route allowlist closure (live e2e)', () => {
     });
 
     it('POST /policy/admin/rules with non-admin JWT returns 403', async () => {
-      const token = await createHs256Token(
-        { sub: 'u1', roles: ['user'] },
-        { jti: 'p12-pol-403' },
-      );
+      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'p12-pol-403' });
       const res = await request(app.getHttpServer())
         .post('/policy/admin/rules')
         .set('Authorization', `Bearer ${token}`)
@@ -234,10 +236,7 @@ describe('Phase 12 — Admin route allowlist closure (live e2e)', () => {
     });
 
     it('POST /policy/admin/escalation with non-admin JWT returns 403', async () => {
-      const token = await createHs256Token(
-        { sub: 'u1', roles: ['user'] },
-        { jti: 'p12-esc-403' },
-      );
+      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'p12-esc-403' });
       const res = await request(app.getHttpServer())
         .post('/policy/admin/escalation')
         .set('Authorization', `Bearer ${token}`)

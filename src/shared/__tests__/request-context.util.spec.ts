@@ -1,10 +1,12 @@
 import { extractIp, extractUserAgent, extractDeviceId, extractJa4h } from '../request-context.util';
 import { Request } from 'express';
 
-function makeReq(overrides: Partial<{
-  headers: Record<string, string | string[]>;
-  socket: { remoteAddress?: string };
-}>): Request {
+function makeReq(
+  overrides: Partial<{
+    headers: Record<string, string | string[]>;
+    socket: { remoteAddress?: string };
+  }>,
+): Request {
   return {
     headers: {},
     socket: {},
@@ -39,7 +41,10 @@ describe('extractIp', () => {
   });
 
   it("returns 'unknown' when x-forwarded-for contains an invalid/injected value (WR-02)", () => {
-    const req = makeReq({ headers: { 'x-forwarded-for': "'; DROP TABLE trust_signals;--" }, socket: {} });
+    const req = makeReq({
+      headers: { 'x-forwarded-for': "'; DROP TABLE trust_signals;--" },
+      socket: {},
+    });
     expect(extractIp(req)).toBe('unknown');
   });
 

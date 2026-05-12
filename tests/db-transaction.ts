@@ -17,10 +17,7 @@ export async function savepoint(client: PoolClient, name: string): Promise<void>
 /**
  * Undo work since the named SAVEPOINT. Call in afterEach.
  */
-export async function rollbackToSavepoint(
-  client: PoolClient,
-  name: string,
-): Promise<void> {
+export async function rollbackToSavepoint(client: PoolClient, name: string): Promise<void> {
   await client.query(`ROLLBACK TO SAVEPOINT ${validateSavepointName(name)}`);
 }
 

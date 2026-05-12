@@ -50,10 +50,7 @@ export class UserSecretsRepository implements OnModuleDestroy {
    * Parameterized SQL (T-11-05) — no injection surface on the userId param.
    */
   async deleteByUserId(userId: string): Promise<boolean> {
-    const r = await this.pool.query(
-      `DELETE FROM user_secrets WHERE user_id = $1`,
-      [userId],
-    );
+    const r = await this.pool.query(`DELETE FROM user_secrets WHERE user_id = $1`, [userId]);
     return (r.rowCount ?? 0) > 0;
   }
 }

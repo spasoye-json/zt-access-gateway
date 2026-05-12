@@ -86,10 +86,9 @@ describeDb('AuditRepository (DB)', () => {
       decision: 'deny',
       eventType: 'HONEYPOT_TRIGGERED',
     });
-    const r = await pool.query(
-      `SELECT event_type FROM audit_logs WHERE user_id = $1`,
-      ['audit-spec-honey'],
-    );
+    const r = await pool.query(`SELECT event_type FROM audit_logs WHERE user_id = $1`, [
+      'audit-spec-honey',
+    ]);
     expect(r.rowCount).toBe(1);
     expect(r.rows[0].event_type).toBe('HONEYPOT_TRIGGERED');
   });
@@ -106,20 +105,47 @@ describeDb('AuditRepository (DB)', () => {
   });
 
   it('findLogs() returns items ORDER BY created_at DESC + total count (AUDT-05)', async () => {
-    await repo.insert({ userId: 'audit-spec-list-a', resource: '/a', action: 'GET', decision: 'allow' });
-    await repo.insert({ userId: 'audit-spec-list-a', resource: '/b', action: 'GET', decision: 'allow' });
-    await repo.insert({ userId: 'audit-spec-list-b', resource: '/c', action: 'POST', decision: 'deny' });
+    await repo.insert({
+      userId: 'audit-spec-list-a',
+      resource: '/a',
+      action: 'GET',
+      decision: 'allow',
+    });
+    await repo.insert({
+      userId: 'audit-spec-list-a',
+      resource: '/b',
+      action: 'GET',
+      decision: 'allow',
+    });
+    await repo.insert({
+      userId: 'audit-spec-list-b',
+      resource: '/c',
+      action: 'POST',
+      decision: 'deny',
+    });
 
     const all = await repo.findLogs({ limit: 50, offset: 0 });
-    const names = all.items.filter((i) => i.userId.startsWith('audit-spec-list-')).map((i) => i.resource);
+    const names = all.items
+      .filter((i) => i.userId.startsWith('audit-spec-list-'))
+      .map((i) => i.resource);
     // /b inserted after /a, /c after /b → DESC: /c, /b, /a
     expect(names).toEqual(['/c', '/b', '/a']);
     expect(all.total).toBeGreaterThanOrEqual(3);
   });
 
   it('findLogs() filters by userId (AUDT-05)', async () => {
-    await repo.insert({ userId: 'audit-spec-filter-1', resource: '/a', action: 'GET', decision: 'allow' });
-    await repo.insert({ userId: 'audit-spec-filter-2', resource: '/b', action: 'GET', decision: 'allow' });
+    await repo.insert({
+      userId: 'audit-spec-filter-1',
+      resource: '/a',
+      action: 'GET',
+      decision: 'allow',
+    });
+    await repo.insert({
+      userId: 'audit-spec-filter-2',
+      resource: '/b',
+      action: 'GET',
+      decision: 'allow',
+    });
 
     const r = await repo.findLogs({ userId: 'audit-spec-filter-1', limit: 50, offset: 0 });
     expect(r.items.every((i) => i.userId === 'audit-spec-filter-1')).toBe(true);
@@ -127,17 +153,37 @@ describeDb('AuditRepository (DB)', () => {
   });
 
   it('findLogs() filters by decision (AUDT-05)', async () => {
-    await repo.insert({ userId: 'audit-spec-dec-1', resource: '/a', action: 'GET', decision: 'allow' });
-    await repo.insert({ userId: 'audit-spec-dec-1', resource: '/b', action: 'GET', decision: 'deny' });
+    await repo.insert({
+      userId: 'audit-spec-dec-1',
+      resource: '/a',
+      action: 'GET',
+      decision: 'allow',
+    });
+    await repo.insert({
+      userId: 'audit-spec-dec-1',
+      resource: '/b',
+      action: 'GET',
+      decision: 'deny',
+    });
 
-    const r = await repo.findLogs({ userId: 'audit-spec-dec-1', decision: 'deny', limit: 50, offset: 0 });
+    const r = await repo.findLogs({
+      userId: 'audit-spec-dec-1',
+      decision: 'deny',
+      limit: 50,
+      offset: 0,
+    });
     expect(r.items.length).toBe(1);
     expect(r.items[0].decision).toBe('deny');
   });
 
   it('findLogs() honors limit + offset (AUDT-05)', async () => {
     for (let i = 0; i < 5; i++) {
-      await repo.insert({ userId: 'audit-spec-page', resource: `/r${i}`, action: 'GET', decision: 'allow' });
+      await repo.insert({
+        userId: 'audit-spec-page',
+        resource: `/r${i}`,
+        action: 'GET',
+        decision: 'allow',
+      });
     }
     const page1 = await repo.findLogs({ userId: 'audit-spec-page', limit: 2, offset: 0 });
     const page2 = await repo.findLogs({ userId: 'audit-spec-page', limit: 2, offset: 2 });

@@ -14,9 +14,7 @@ describe('RolesGuard', () => {
   let guard: RolesGuard;
   let reflector: Reflector;
 
-  function createMockContext(user?: {
-    roles: string[];
-  }): ExecutionContext {
+  function createMockContext(user?: { roles: string[] }): ExecutionContext {
     const request = { user };
     const handler = {} as () => void;
     const classRef = {} as () => void;
@@ -32,8 +30,8 @@ describe('RolesGuard', () => {
       getType: () => 'http',
       getArgs: () => [],
       getArgByIndex: () => undefined,
-      switchToRpc: () => ({} as ReturnType<ExecutionContext['switchToRpc']>),
-      switchToWs: () => ({} as ReturnType<ExecutionContext['switchToWs']>),
+      switchToRpc: () => ({}) as ReturnType<ExecutionContext['switchToRpc']>,
+      switchToWs: () => ({}) as ReturnType<ExecutionContext['switchToWs']>,
     } as unknown as ExecutionContext;
   }
 
@@ -44,36 +42,28 @@ describe('RolesGuard', () => {
 
   describe('role enforcement (AUTH-08)', () => {
     it('allows request when user has required role', () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(['admin']);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin']);
 
       const ctx = createMockContext({ roles: ['admin', 'user'] });
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
     it('rejects request (returns false) when user lacks required role', () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(['admin']);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin']);
 
       const ctx = createMockContext({ roles: ['user'] });
       expect(guard.canActivate(ctx)).toBe(false);
     });
 
     it('allows request when no @Roles() decorator is present (no restriction)', () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(undefined);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
 
       const ctx = createMockContext({ roles: ['user'] });
       expect(guard.canActivate(ctx)).toBe(true);
     });
 
     it('rejects request when user object is missing (guard returns false)', () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(['admin']);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin']);
 
       const ctx = createMockContext(undefined);
       expect(guard.canActivate(ctx)).toBe(false);

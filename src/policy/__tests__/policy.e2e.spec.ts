@@ -22,23 +22,16 @@ import * as path from 'node:path';
 
 // Set env BEFORE importing AppModule — ConfigModule validates at decoration time.
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET =
-  process.env.JWT_SECRET ?? 'test-secret-that-is-at-least-32-chars-long!';
-process.env.HASHCASH_HMAC_SECRET =
-  process.env.HASHCASH_HMAC_SECRET ?? 'a'.repeat(64);
+process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-secret-that-is-at-least-32-chars-long!';
+process.env.HASHCASH_HMAC_SECRET = process.env.HASHCASH_HMAC_SECRET ?? 'a'.repeat(64);
 process.env.HASHCASH_DIFFICULTY_MIN = '4';
 process.env.HASHCASH_DIFFICULTY_MAX = '4';
-process.env.HASHCASH_TRIGGER_THRESHOLD =
-  process.env.HASHCASH_TRIGGER_THRESHOLD ?? '0.7';
+process.env.HASHCASH_TRIGGER_THRESHOLD = process.env.HASHCASH_TRIGGER_THRESHOLD ?? '0.7';
 if (!process.env.MTLS_CA_CERT_PATH) process.env.MTLS_CA_CERT_PATH = '/dev/null';
-if (!process.env.MTLS_CLIENT_CERT_PATH)
-  process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
-if (!process.env.MTLS_CLIENT_KEY_PATH)
-  process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
-if (!process.env.MTLS_ALLOWED_SUBJECTS)
-  process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
-if (!process.env.DATABASE_URL)
-  process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
+if (!process.env.MTLS_CLIENT_CERT_PATH) process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
+if (!process.env.MTLS_CLIENT_KEY_PATH) process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
+if (!process.env.MTLS_ALLOWED_SUBJECTS) process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
+if (!process.env.DATABASE_URL) process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
 // Phase 7 MFA vars — required by config validation after MfaModule added to AppModule
 if (!process.env.MFA_JWT_SECRET)
   process.env.MFA_JWT_SECRET = 'mfa-test-secret-that-is-at-least-32-chars!!';
@@ -63,11 +56,7 @@ import { AppModule } from '../../app.module';
 import { TrustScoreService } from '../../trust-score/trust-score.service';
 import { ThreatEscalationService } from '../threat-escalation.service';
 import { PolicyEvaluatorService } from '../policy-evaluator.service';
-import {
-  AUTH_INVALID_TOKEN,
-  POLICY_DENY,
-  type ThreatSignalPayload,
-} from '../policy-events';
+import { AUTH_INVALID_TOKEN, POLICY_DENY, type ThreatSignalPayload } from '../policy-events';
 import { createHs256Token } from '../../auth/__tests__/test-keys';
 
 // Phase 10 D-01/D-02: GatewayMiddleware now runs as global middleware in
@@ -109,10 +98,7 @@ describe.skip('Policy + Threat Escalation — E2E (superseded by plan 10-06 Gate
       { sub: 'admin-1', roles: ['admin'] },
       { jti: 'jti-admin-e2e' },
     );
-    userToken = await createHs256Token(
-      { sub: 'user-1', roles: ['user'] },
-      { jti: 'jti-user-e2e' },
-    );
+    userToken = await createHs256Token({ sub: 'user-1', roles: ['user'] }, { jti: 'jti-user-e2e' });
   });
 
   afterAll(async () => {
@@ -136,9 +122,7 @@ describe.skip('Policy + Threat Escalation — E2E (superseded by plan 10-06 Gate
       .set('Authorization', `Bearer ${adminToken}`)
       .set('x-ja4h', 'fp-admin')
       .expect(200);
-    expect(res.body.rules).toEqual(
-      expect.arrayContaining([['role:user', '/users', 'GET']]),
-    );
+    expect(res.body.rules).toEqual(expect.arrayContaining([['role:user', '/users', 'GET']]));
     expect(res.body.rules.length).toBeGreaterThanOrEqual(5);
   });
 
@@ -306,21 +290,14 @@ describe.skip('Policy + Threat Escalation — E2E (superseded by plan 10-06 Gate
       .set('x-ja4h', 'fp-anon')
       .expect(401);
     const threat = app.get(ThreatEscalationService);
-    expect(
-      threat.snapshot().signalCounts['auth.invalid_token'],
-    ).toBeGreaterThanOrEqual(1);
+    expect(threat.snapshot().signalCounts['auth.invalid_token']).toBeGreaterThanOrEqual(1);
   });
 
   // ── PLCY-08 honeypot.trigger wired end-to-end ─────────────────────────────
   it('PLCY-08: GET /wp-login.php increments signalCounts.honeypot.trigger', async () => {
-    await request(app.getHttpServer())
-      .get('/wp-login.php')
-      .set('x-ja4h', 'fp-scan')
-      .expect(200);
+    await request(app.getHttpServer()).get('/wp-login.php').set('x-ja4h', 'fp-scan').expect(200);
     const threat = app.get(ThreatEscalationService);
-    expect(
-      threat.snapshot().signalCounts['honeypot.trigger'],
-    ).toBeGreaterThanOrEqual(1);
+    expect(threat.snapshot().signalCounts['honeypot.trigger']).toBeGreaterThanOrEqual(1);
   }, 10000);
 
   // ── D-03 fail-closed runtime ──────────────────────────────────────────────
@@ -328,9 +305,7 @@ describe.skip('Policy + Threat Escalation — E2E (superseded by plan 10-06 Gate
     const evaluator = app.get(PolicyEvaluatorService);
     const emitter = app.get(EventEmitter2);
     const spy = jest.spyOn(emitter, 'emit');
-    const enforcer = (
-      evaluator as unknown as { enforcer: { enforce: jest.Mock } }
-    ).enforcer;
+    const enforcer = (evaluator as unknown as { enforcer: { enforce: jest.Mock } }).enforcer;
     jest.spyOn(enforcer, 'enforce').mockRejectedValueOnce(new Error('boom'));
 
     const fakeReq = {

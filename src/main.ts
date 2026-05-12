@@ -14,7 +14,10 @@ async function runMigrations(databaseUrl: string): Promise<void> {
   await client.connect();
   try {
     const dir = path.join(__dirname, '..', 'sql', 'migrations');
-    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.sql'))
+      .sort();
     for (const file of files) {
       await client.query(fs.readFileSync(path.join(dir, file), 'utf8'));
     }

@@ -23,9 +23,7 @@ export default async function globalSetup(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     // eslint-disable-next-line no-console
-    console.warn(
-      '[jest globalSetup] DATABASE_URL not set — skipping zt_test + migrations',
-    );
+    console.warn('[jest globalSetup] DATABASE_URL not set — skipping zt_test + migrations');
     return;
   }
 
@@ -35,10 +33,9 @@ export default async function globalSetup(): Promise<void> {
     });
     await admin.connect();
     try {
-      const { rowCount } = await admin.query(
-        'SELECT 1 FROM pg_database WHERE datname = $1',
-        [TEST_DB],
-      );
+      const { rowCount } = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [
+        TEST_DB,
+      ]);
       if (!rowCount) {
         await admin.query(`CREATE DATABASE ${TEST_DB}`);
       }

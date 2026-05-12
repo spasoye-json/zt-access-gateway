@@ -85,9 +85,7 @@ describe('Phase 9 — Audit + Metrics e2e', () => {
       // Honeypot registry (Phase 2 — SecurityMetricsService)
       expect(res.text).toContain('zt_gateway_honeypot_triggers_total');
       // Gateway cross-cutting registry (MetricsService own registry — MTRC-01, MTRC-02)
-      expect(res.text).toMatch(
-        /zt_gateway_requests_total|# HELP zt_gateway_requests_total/,
-      );
+      expect(res.text).toMatch(/zt_gateway_requests_total|# HELP zt_gateway_requests_total/);
       expect(res.text).toMatch(
         /zt_gateway_stage_duration_seconds|# HELP zt_gateway_stage_duration_seconds/,
       );

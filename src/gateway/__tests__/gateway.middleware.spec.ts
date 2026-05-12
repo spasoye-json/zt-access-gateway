@@ -289,7 +289,11 @@ describe('GatewayMiddleware', () => {
     it('on /auth/revoke calls audit.record with decision:"allow" then next() — skips trust/hashcash/policy/proxy', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
-      const req = mockReq({ path: '/auth/revoke', method: 'POST', headers: { authorization: BEARER } });
+      const req = mockReq({
+        path: '/auth/revoke',
+        method: 'POST',
+        headers: { authorization: BEARER },
+      });
       const res = mockRes();
       await build(m).use(req, res, next);
       expect(m.audit.record).toHaveBeenCalledWith(
@@ -304,7 +308,10 @@ describe('GatewayMiddleware', () => {
     it('on /mfa/admin/enrollment/user-99 (prefix-match) calls next() after auth+revocation', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
-      const req = mockReq({ path: '/mfa/admin/enrollment/user-99', headers: { authorization: BEARER } });
+      const req = mockReq({
+        path: '/mfa/admin/enrollment/user-99',
+        headers: { authorization: BEARER },
+      });
       const res = mockRes();
       await build(m).use(req, res, next);
       expect(m.audit.record).toHaveBeenCalled();
@@ -315,7 +322,11 @@ describe('GatewayMiddleware', () => {
     it('AUTH_ONLY audit entry has trustScore undefined (Pitfall 2)', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
-      const req = mockReq({ path: '/auth/revoke', method: 'POST', headers: { authorization: BEARER } });
+      const req = mockReq({
+        path: '/auth/revoke',
+        method: 'POST',
+        headers: { authorization: BEARER },
+      });
       const res = mockRes();
       await build(m).use(req, res, next);
       const entry = m.audit.record.mock.calls[0][0];
@@ -451,9 +462,7 @@ describe('GatewayMiddleware', () => {
       const req = mockReq({ headers: { authorization: BEARER } });
       const res = mockRes();
       await build(m).use(req, res, next);
-      expect(m.audit.record).toHaveBeenCalledWith(
-        expect.objectContaining({ decision: 'deny' }),
-      );
+      expect(m.audit.record).toHaveBeenCalledWith(expect.objectContaining({ decision: 'deny' }));
       expect(m.metrics.incrementAuditFailure).not.toHaveBeenCalled();
     });
 
@@ -753,7 +762,9 @@ describe('GatewayMiddleware', () => {
         const req = mockReq({ headers: { authorization: BEARER } });
         const res = mockRes();
         await build(m).use(req, res, next);
-        const authCall = m.metrics.observeStageDuration.mock.calls.find((c: any[]) => c[0] === 'auth');
+        const authCall = m.metrics.observeStageDuration.mock.calls.find(
+          (c: any[]) => c[0] === 'auth',
+        );
         expect(authCall).toBeDefined();
         // first stage took 5000ms => 5 seconds
         expect(authCall[1]).toBe(5);

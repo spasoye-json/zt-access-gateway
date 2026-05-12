@@ -155,10 +155,9 @@ describeE2e('MFA Enrollment HTTP e2e', () => {
 
       expect(confirmRes.status).toBe(200);
 
-      const row = await pool.query(
-        `SELECT user_id FROM user_secrets WHERE user_id = $1`,
-        [TEST_USER],
-      );
+      const row = await pool.query(`SELECT user_id FROM user_secrets WHERE user_id = $1`, [
+        TEST_USER,
+      ]);
       expect(row.rowCount).toBe(1);
     });
 
@@ -211,10 +210,7 @@ describeE2e('MFA Enrollment HTTP e2e', () => {
         .set('x-device-id', 'admin-device');
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({ deleted: true });
-      const row = await pool.query(
-        `SELECT 1 FROM user_secrets WHERE user_id = $1`,
-        [TEST_USER],
-      );
+      const row = await pool.query(`SELECT 1 FROM user_secrets WHERE user_id = $1`, [TEST_USER]);
       expect(row.rowCount).toBe(0);
     });
   });

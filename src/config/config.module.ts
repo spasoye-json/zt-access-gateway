@@ -11,9 +11,7 @@ import { AppConfigService } from './config.service';
  * Phase 6 spec block in __tests__/config.service.spec.ts).
  */
 export const validationSchema = Joi.object({
-  NODE_ENV: Joi.string()
-    .valid('development', 'production', 'test')
-    .default('development'),
+  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().default(3000),
   CORS_ORIGIN: Joi.string().default('*'),
   RATE_LIMIT_WINDOW_MS: Joi.number().default(60000),
@@ -37,8 +35,7 @@ export const validationSchema = Joi.object({
     .pattern(/^postgres(ql)?:\/\//i)
     .required()
     .messages({
-      'string.pattern.base':
-        'DATABASE_URL must start with postgres:// or postgresql://',
+      'string.pattern.base': 'DATABASE_URL must start with postgres:// or postgresql://',
     }),
   TRUST_KNOWN_THRESHOLD: Joi.number().default(3),
   TRUST_DECAY_HALFLIFE_MS: Joi.number().default(604800000),
@@ -95,60 +92,39 @@ export const validationSchema = Joi.object({
 }).custom((cfg, helpers) => {
   // D-23 cross-field validator: Elevated/Critical MUST be strictly tighter than Normal.
   // Tighter at higher level (challenge threshold)
-  if (
-    !(cfg.POLICY_ELEVATED_CHALLENGE_THRESHOLD < cfg.POLICY_CHALLENGE_THRESHOLD)
-  )
+  if (!(cfg.POLICY_ELEVATED_CHALLENGE_THRESHOLD < cfg.POLICY_CHALLENGE_THRESHOLD))
     return helpers.message({
-      custom:
-        'POLICY_ELEVATED_CHALLENGE_THRESHOLD must be < POLICY_CHALLENGE_THRESHOLD',
+      custom: 'POLICY_ELEVATED_CHALLENGE_THRESHOLD must be < POLICY_CHALLENGE_THRESHOLD',
     });
-  if (
-    !(
-      cfg.POLICY_CRITICAL_CHALLENGE_THRESHOLD <
-      cfg.POLICY_ELEVATED_CHALLENGE_THRESHOLD
-    )
-  )
+  if (!(cfg.POLICY_CRITICAL_CHALLENGE_THRESHOLD < cfg.POLICY_ELEVATED_CHALLENGE_THRESHOLD))
     return helpers.message({
-      custom:
-        'POLICY_CRITICAL_CHALLENGE_THRESHOLD must be < POLICY_ELEVATED_CHALLENGE_THRESHOLD',
+      custom: 'POLICY_CRITICAL_CHALLENGE_THRESHOLD must be < POLICY_ELEVATED_CHALLENGE_THRESHOLD',
     });
   // Tighter at higher level (deny threshold)
   if (!(cfg.POLICY_ELEVATED_DENY_THRESHOLD < cfg.POLICY_DENY_THRESHOLD))
     return helpers.message({
       custom: 'POLICY_ELEVATED_DENY_THRESHOLD must be < POLICY_DENY_THRESHOLD',
     });
-  if (
-    !(cfg.POLICY_CRITICAL_DENY_THRESHOLD < cfg.POLICY_ELEVATED_DENY_THRESHOLD)
-  )
+  if (!(cfg.POLICY_CRITICAL_DENY_THRESHOLD < cfg.POLICY_ELEVATED_DENY_THRESHOLD))
     return helpers.message({
-      custom:
-        'POLICY_CRITICAL_DENY_THRESHOLD must be < POLICY_ELEVATED_DENY_THRESHOLD',
+      custom: 'POLICY_CRITICAL_DENY_THRESHOLD must be < POLICY_ELEVATED_DENY_THRESHOLD',
     });
   // Counts: Elevated < Critical per signal type
   if (!(cfg.THREAT_ELEVATED_DENIES < cfg.THREAT_CRITICAL_DENIES))
     return helpers.message({
       custom: 'THREAT_ELEVATED_DENIES must be < THREAT_CRITICAL_DENIES',
     });
-  if (
-    !(cfg.THREAT_ELEVATED_INVALID_TOKENS < cfg.THREAT_CRITICAL_INVALID_TOKENS)
-  )
+  if (!(cfg.THREAT_ELEVATED_INVALID_TOKENS < cfg.THREAT_CRITICAL_INVALID_TOKENS))
     return helpers.message({
-      custom:
-        'THREAT_ELEVATED_INVALID_TOKENS must be < THREAT_CRITICAL_INVALID_TOKENS',
+      custom: 'THREAT_ELEVATED_INVALID_TOKENS must be < THREAT_CRITICAL_INVALID_TOKENS',
     });
   if (!(cfg.THREAT_ELEVATED_HONEYPOT < cfg.THREAT_CRITICAL_HONEYPOT))
     return helpers.message({
       custom: 'THREAT_ELEVATED_HONEYPOT must be < THREAT_CRITICAL_HONEYPOT',
     });
-  if (
-    !(
-      cfg.THREAT_ELEVATED_MFA_RATE_LIMITED <
-      cfg.THREAT_CRITICAL_MFA_RATE_LIMITED
-    )
-  )
+  if (!(cfg.THREAT_ELEVATED_MFA_RATE_LIMITED < cfg.THREAT_CRITICAL_MFA_RATE_LIMITED))
     return helpers.message({
-      custom:
-        'THREAT_ELEVATED_MFA_RATE_LIMITED must be < THREAT_CRITICAL_MFA_RATE_LIMITED',
+      custom: 'THREAT_ELEVATED_MFA_RATE_LIMITED must be < THREAT_CRITICAL_MFA_RATE_LIMITED',
     });
   // D-03 cross-field: challenge TTL must be shorter than token TTL
   if (!(cfg.MFA_CHALLENGE_TTL_MS < cfg.MFA_TOKEN_TTL_MS))

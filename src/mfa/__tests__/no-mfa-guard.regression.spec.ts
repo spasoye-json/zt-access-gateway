@@ -18,10 +18,10 @@ describe('MfaGuard regression guard (Phase 14 D-13)', () => {
   const selfRelative = path.relative(repoRoot, __filename);
 
   function grepMfaGuard(dir: string): string {
-    const out = execSync(
-      `grep -rE '\\bMfaGuard\\b' ${dir} --include='*.ts' || true`,
-      { cwd: repoRoot, encoding: 'utf8' },
-    );
+    const out = execSync(`grep -rE '\\bMfaGuard\\b' ${dir} --include='*.ts' || true`, {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
     return out
       .split('\n')
       .filter((line) => line && !line.startsWith(selfRelative + ':'))

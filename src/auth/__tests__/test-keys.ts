@@ -3,17 +3,11 @@
  * Uses real jose APIs (D-01: no mocks of jose itself).
  * Generates actual RS256/ES256 key pairs for signature testing.
  */
-import {
-  SignJWT,
-  UnsecuredJWT,
-  generateKeyPair,
-  exportSPKI,
-} from 'jose';
+import { SignJWT, UnsecuredJWT, generateKeyPair, exportSPKI } from 'jose';
 import type { KeyLike } from 'jose';
 
 /** HS256 test secret -- at least 32 chars for HMAC-SHA256 */
-export const TEST_HS256_SECRET =
-  'test-secret-that-is-at-least-32-chars-long!';
+export const TEST_HS256_SECRET = 'test-secret-that-is-at-least-32-chars-long!';
 
 /**
  * Create an HS256-signed JWT with the given payload.
@@ -29,9 +23,7 @@ export async function createHs256Token(
     omitDeviceId?: boolean;
   },
 ): Promise<string> {
-  const key = new TextEncoder().encode(
-    opts?.secret ?? TEST_HS256_SECRET,
-  );
+  const key = new TextEncoder().encode(opts?.secret ?? TEST_HS256_SECRET);
   const body: Record<string, unknown> = opts?.omitDeviceId
     ? { ...payload }
     : { deviceId: 'test-device-1', ...payload };
@@ -113,18 +105,14 @@ export async function createAsymmetricToken(
 /**
  * Create an unsecured JWT with "none" algorithm -- for attack testing (AUTH-03).
  */
-export function createNoneAlgToken(
-  payload: Record<string, unknown>,
-): string {
+export function createNoneAlgToken(payload: Record<string, unknown>): string {
   return new UnsecuredJWT(payload).setExpirationTime('1h').encode();
 }
 
 /**
  * Create an already-expired HS256 token -- for expiry rejection testing (AUTH-02).
  */
-export async function createExpiredHs256Token(
-  secret?: string,
-): Promise<string> {
+export async function createExpiredHs256Token(secret?: string): Promise<string> {
   const key = new TextEncoder().encode(secret ?? TEST_HS256_SECRET);
   return new SignJWT({
     sub: 'expired-user',

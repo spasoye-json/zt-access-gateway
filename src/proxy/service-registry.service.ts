@@ -31,18 +31,14 @@ export class ServiceRegistryService implements OnModuleInit {
     try {
       parsed = JSON.parse(this.cfg.proxyServiceRegistry);
     } catch (err) {
-      throw new Error(
-        `PROXY_SERVICE_REGISTRY is not valid JSON: ${(err as Error).message}`,
-      );
+      throw new Error(`PROXY_SERVICE_REGISTRY is not valid JSON: ${(err as Error).message}`);
     }
     if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
       throw new Error(
         'PROXY_SERVICE_REGISTRY is empty — at least one service must be configured (D-03)',
       );
     }
-    this.logger.log(
-      `Service registry loaded: ${[...this.registry.keys()].join(', ')}`,
-    );
+    this.logger.log(`Service registry loaded: ${[...this.registry.keys()].join(', ')}`);
   }
 
   /**

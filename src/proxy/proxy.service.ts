@@ -36,7 +36,10 @@ const STRIP_HEADERS = new Set([
 @Injectable()
 export class ProxyService implements OnModuleInit {
   private readonly logger = new Logger(ProxyService.name);
-  private readonly breakers = new Map<string, CircuitBreaker<[AxiosRequestConfig], AxiosResponse>>();
+  private readonly breakers = new Map<
+    string,
+    CircuitBreaker<[AxiosRequestConfig], AxiosResponse>
+  >();
 
   constructor(
     private readonly cfg: AppConfigService,
@@ -57,20 +60,14 @@ export class ProxyService implements OnModuleInit {
           name: serviceName,
         },
       );
-      breaker.on('open', () =>
-        this.logger.warn(`Circuit OPEN for service: ${serviceName}`),
-      );
+      breaker.on('open', () => this.logger.warn(`Circuit OPEN for service: ${serviceName}`));
       breaker.on('halfOpen', () =>
         this.logger.log(`Circuit HALF-OPEN for service: ${serviceName}`),
       );
-      breaker.on('close', () =>
-        this.logger.log(`Circuit CLOSED for service: ${serviceName}`),
-      );
+      breaker.on('close', () => this.logger.log(`Circuit CLOSED for service: ${serviceName}`));
       this.breakers.set(serviceName, breaker);
     }
-    this.logger.log(
-      `ProxyService ready — ${this.breakers.size} circuit breaker(s) initialized`,
-    );
+    this.logger.log(`ProxyService ready — ${this.breakers.size} circuit breaker(s) initialized`);
   }
 
   /**
@@ -78,11 +75,7 @@ export class ProxyService implements OnModuleInit {
    * Pipeline: registry resolve → DNS guard → opossum.fire → ResponseValidator → return AxiosResponse.
    * Caller (GatewayMiddleware) is responsible for BOPLA stripping and writing trust signals.
    */
-  async forward(
-    req: Request,
-    claims: UserClaims,
-    trustScore: number,
-  ): Promise<AxiosResponse> {
+  async forward(req: Request, claims: UserClaims, trustScore: number): Promise<AxiosResponse> {
     const serviceName = this.registry.extractServiceName(req.path);
     if (!serviceName) {
       throw new NotFoundException('Cannot extract service name from path');
@@ -99,9 +92,7 @@ export class ProxyService implements OnModuleInit {
     const breaker = this.breakers.get(serviceName);
     if (!breaker) {
       // Defensive — onModuleInit guarantees one breaker per registered service
-      throw new ServiceUnavailableException(
-        `No circuit breaker for service: ${serviceName}`,
-      );
+      throw new ServiceUnavailableException(`No circuit breaker for service: ${serviceName}`);
     }
 
     const httpsAgent = await this.mtls.getHttpsAgent();
@@ -123,9 +114,7 @@ export class ProxyService implements OnModuleInit {
       return response as AxiosResponse;
     } catch (err) {
       if (CircuitBreaker.isOurError(err)) {
-        throw new ServiceUnavailableException(
-          `Circuit open for service: ${serviceName}`,
-        );
+        throw new ServiceUnavailableException(`Circuit open for service: ${serviceName}`);
       }
       throw err;
     }
@@ -137,9 +126,7 @@ export class ProxyService implements OnModuleInit {
    * not one failure per attempt. Otherwise transient errors that resolve on
    * retry would prematurely trip the breaker.
    */
-  private async executeWithRetry(
-    config: AxiosRequestConfig,
-  ): Promise<AxiosResponse> {
+  private async executeWithRetry(config: AxiosRequestConfig): Promise<AxiosResponse> {
     const maxRetries = this.cfg.proxyMaxRetries; // default 3
     let lastErr: unknown;
 

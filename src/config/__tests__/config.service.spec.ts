@@ -6,18 +6,12 @@ if (!process.env.PROXY_SERVICE_REGISTRY)
     dummy: 'https://dummy.test:8443',
   });
 if (!process.env.MTLS_CA_CERT_PATH) process.env.MTLS_CA_CERT_PATH = '/dev/null';
-if (!process.env.MTLS_CLIENT_CERT_PATH)
-  process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
-if (!process.env.MTLS_CLIENT_KEY_PATH)
-  process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
-if (!process.env.MTLS_ALLOWED_SUBJECTS)
-  process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
-if (!process.env.JWT_SECRET)
-  process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long!';
-if (!process.env.DATABASE_URL)
-  process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
-if (!process.env.HASHCASH_HMAC_SECRET)
-  process.env.HASHCASH_HMAC_SECRET = 'a'.repeat(64);
+if (!process.env.MTLS_CLIENT_CERT_PATH) process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
+if (!process.env.MTLS_CLIENT_KEY_PATH) process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
+if (!process.env.MTLS_ALLOWED_SUBJECTS) process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
+if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long!';
+if (!process.env.DATABASE_URL) process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
+if (!process.env.HASHCASH_HMAC_SECRET) process.env.HASHCASH_HMAC_SECRET = 'a'.repeat(64);
 if (!process.env.MFA_JWT_SECRET)
   process.env.MFA_JWT_SECRET = 'mfa-test-secret-that-is-at-least-32-chars!!';
 if (!process.env.MFA_TOTP_ENCRYPTION_KEY)
@@ -36,14 +30,11 @@ function setRequiredEnv() {
   process.env.MTLS_CLIENT_KEY_PATH = '/tmp/client-key.pem';
   process.env.MTLS_ALLOWED_SUBJECTS = 'test-cn';
   process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long!';
-  process.env.DATABASE_URL =
-    'postgresql://ztgateway:ztgateway@localhost:5432/ztgateway';
-  process.env.HASHCASH_HMAC_SECRET =
-    'hashcash-secret-that-is-at-least-32-chars-long!';
+  process.env.DATABASE_URL = 'postgresql://ztgateway:ztgateway@localhost:5432/ztgateway';
+  process.env.HASHCASH_HMAC_SECRET = 'hashcash-secret-that-is-at-least-32-chars-long!';
   // Phase 7 MFA required vars (D-09, D-15)
   process.env.MFA_JWT_SECRET = 'mfa-secret-that-is-at-least-32-chars-long!!';
-  process.env.MFA_TOTP_ENCRYPTION_KEY =
-    'base64-encoded-32-byte-key-here-44-chars-xxx=';
+  process.env.MFA_TOTP_ENCRYPTION_KEY = 'base64-encoded-32-byte-key-here-44-chars-xxx=';
   // Phase 8 Proxy required vars (D-03)
   if (!process.env.PROXY_SERVICE_REGISTRY)
     process.env.PROXY_SERVICE_REGISTRY = JSON.stringify({
@@ -228,9 +219,7 @@ describe('AppConfigService', () => {
     it('databaseUrl returns DATABASE_URL', async () => {
       setRequiredEnv();
       const service = await createModuleWithEnv();
-      expect(service.databaseUrl).toBe(
-        'postgresql://ztgateway:ztgateway@localhost:5432/ztgateway',
-      );
+      expect(service.databaseUrl).toBe('postgresql://ztgateway:ztgateway@localhost:5432/ztgateway');
     });
 
     it('trust getters return defaults when unset', async () => {
@@ -288,7 +277,9 @@ describe('AppConfigService', () => {
       setRequiredEnv();
       process.env.JWT_PUBLIC_KEY = '-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----';
       const service = await createModuleWithEnv();
-      expect(service.jwtPublicKey).toBe('-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----');
+      expect(service.jwtPublicKey).toBe(
+        '-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----',
+      );
     });
 
     it('jwksUri returns undefined when JWKS_URI not set', async () => {
@@ -335,9 +326,7 @@ describe('AppConfigService', () => {
     it('hashcashHmacSecret getter returns HASHCASH_HMAC_SECRET value', async () => {
       setRequiredEnv();
       const service = await createModuleWithEnv();
-      expect(service.hashcashHmacSecret).toBe(
-        'hashcash-secret-that-is-at-least-32-chars-long!',
-      );
+      expect(service.hashcashHmacSecret).toBe('hashcash-secret-that-is-at-least-32-chars-long!');
     });
 
     it('hashcashChallengeTtlMs defaults to 120000 when env unset', async () => {
@@ -387,8 +376,7 @@ describe('AppConfigService', () => {
     it('hashcashHmacSecret is distinct from jwtSecret (D-05 separation)', async () => {
       setRequiredEnv();
       process.env.JWT_SECRET = 'jwt-secret-that-is-at-least-32-chars-long-AAAA';
-      process.env.HASHCASH_HMAC_SECRET =
-        'hashcash-secret-that-is-at-least-32-chars-long-BBBB';
+      process.env.HASHCASH_HMAC_SECRET = 'hashcash-secret-that-is-at-least-32-chars-long-BBBB';
       const service = await createModuleWithEnv();
       expect(service.hashcashHmacSecret).not.toBe(service.jwtSecret);
     });
@@ -462,9 +450,7 @@ describe('AppConfigService', () => {
       } catch (err) {
         errMsg = err instanceof Error ? err.message : String(err);
       }
-      expect(errMsg).toContain(
-        'THREAT_ELEVATED_DENIES must be < THREAT_CRITICAL_DENIES',
-      );
+      expect(errMsg).toContain('THREAT_ELEVATED_DENIES must be < THREAT_CRITICAL_DENIES');
     });
 
     it('Test 5 — rejects POLICY_CHALLENGE_THRESHOLD outside [0,1]', async () => {
@@ -491,9 +477,7 @@ describe('AppConfigService', () => {
       } catch (err) {
         errMsg = err instanceof Error ? err.message : String(err);
       }
-      expect(errMsg).toContain(
-        'POLICY_ELEVATED_DENY_THRESHOLD must be < POLICY_DENY_THRESHOLD',
-      );
+      expect(errMsg).toContain('POLICY_ELEVATED_DENY_THRESHOLD must be < POLICY_DENY_THRESHOLD');
     });
 
     it('rejects when Critical deny threshold not < Elevated deny threshold', async () => {
@@ -539,9 +523,7 @@ describe('AppConfigService', () => {
       } catch (err) {
         errMsg = err instanceof Error ? err.message : String(err);
       }
-      expect(errMsg).toContain(
-        'THREAT_ELEVATED_HONEYPOT must be < THREAT_CRITICAL_HONEYPOT',
-      );
+      expect(errMsg).toContain('THREAT_ELEVATED_HONEYPOT must be < THREAT_CRITICAL_HONEYPOT');
     });
 
     it('rejects when Elevated mfa_rate_limited >= Critical mfa_rate_limited (14-03)', async () => {
@@ -658,8 +640,7 @@ describe('AppConfigService', () => {
     function setMfaEnv() {
       setRequiredEnv();
       process.env.MFA_JWT_SECRET = 'mfa-secret-that-is-at-least-32-chars-long!!';
-      process.env.MFA_TOTP_ENCRYPTION_KEY =
-        'base64-encoded-32-byte-key-here-44-chars-xxx=';
+      process.env.MFA_TOTP_ENCRYPTION_KEY = 'base64-encoded-32-byte-key-here-44-chars-xxx=';
     }
 
     // ignoreEnvFile: true so per-test env manipulation isn't overridden by .env file
@@ -722,9 +703,7 @@ describe('AppConfigService', () => {
 
       const cfg = await createRealMfaModule();
       expect(cfg.mfaJwtSecret).toBe('mfa-secret-that-is-at-least-32-chars-long!!');
-      expect(cfg.mfaTotpEncryptionKey).toBe(
-        'base64-encoded-32-byte-key-here-44-chars-xxx=',
-      );
+      expect(cfg.mfaTotpEncryptionKey).toBe('base64-encoded-32-byte-key-here-44-chars-xxx=');
       expect(cfg.mfaChallengeTtlMs).toBe(300000);
       expect(cfg.mfaTokenTtlMs).toBe(600000);
       expect(cfg.mfaRateLimitMax).toBe(5);

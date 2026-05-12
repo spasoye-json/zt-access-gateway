@@ -14,9 +14,7 @@ function ztTestUrlFromEnv(): string {
   return u.href;
 }
 
-const describeDb = process.env.DATABASE_URL
-  ? describe
-  : describe.skip;
+const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 
 describeDb('TrustTelemetryRepository', () => {
   const uidPrefix = 'tt-spec-';
@@ -26,9 +24,7 @@ describeDb('TrustTelemetryRepository', () => {
   beforeAll(() => {
     const databaseUrl = ztTestUrlFromEnv();
     pool = new Pool({ connectionString: databaseUrl, max: 5 });
-    repository = new TrustTelemetryRepository(
-      { databaseUrl } as unknown as AppConfigService,
-    );
+    repository = new TrustTelemetryRepository({ databaseUrl } as unknown as AppConfigService);
   });
 
   afterAll(async () => {
@@ -37,17 +33,11 @@ describeDb('TrustTelemetryRepository', () => {
   });
 
   afterEach(async () => {
-    await pool.query(`DELETE FROM trust_signals WHERE user_id LIKE $1`, [
-      `${uidPrefix}%`,
-    ]);
+    await pool.query(`DELETE FROM trust_signals WHERE user_id LIKE $1`, [`${uidPrefix}%`]);
   });
 
   it('getSignalRow returns null when no row exists', async () => {
-    const row = await repository.getSignalRow(
-      `${uidPrefix}missing`,
-      'dev',
-      '127.0.0.1',
-    );
+    const row = await repository.getSignalRow(`${uidPrefix}missing`, 'dev', '127.0.0.1');
     expect(row).toBeNull();
   });
 

@@ -32,10 +32,7 @@ describe('AuthService', () => {
     } as Partial<AppConfigService>;
 
     const module = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        { provide: AppConfigService, useValue: mockConfig },
-      ],
+      providers: [AuthService, { provide: AppConfigService, useValue: mockConfig }],
     }).compile();
 
     authService = module.get(AuthService);
@@ -62,9 +59,7 @@ describe('AuthService', () => {
         { jti: 'jti-wrong-secret', secret: 'completely-different-secret-32chars!!' },
       );
 
-      await expect(authService.validateToken(token)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.validateToken(token)).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -99,9 +94,7 @@ describe('AuthService', () => {
         { jti: 'jti-rs-wrong' },
       );
 
-      await expect(authService.validateToken(token)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.validateToken(token)).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -131,17 +124,13 @@ describe('AuthService', () => {
         jti: 'jti-none',
       });
 
-      await expect(authService.validateToken(token)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.validateToken(token)).rejects.toThrow(UnauthorizedException);
     });
 
     it('rejects expired tokens with UnauthorizedException', async () => {
       const token = await createExpiredHs256Token();
 
-      await expect(authService.validateToken(token)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.validateToken(token)).rejects.toThrow(UnauthorizedException);
     });
 
     it('rejects tokens with tampered signature', async () => {
@@ -154,9 +143,7 @@ describe('AuthService', () => {
       parts[2] = parts[2].replace(/.$/, parts[2].endsWith('A') ? 'B' : 'A');
       const tampered = parts.join('.');
 
-      await expect(authService.validateToken(tampered)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.validateToken(tampered)).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -168,7 +155,8 @@ describe('AuthService', () => {
       // and cache the result as a singleton.
       (mockConfig as Record<string, unknown>).jwtSecret = undefined;
       (mockConfig as Record<string, unknown>).jwtPublicKey = undefined;
-      (mockConfig as Record<string, unknown>).jwksUri = 'https://idp.example.com/.well-known/jwks.json';
+      (mockConfig as Record<string, unknown>).jwksUri =
+        'https://idp.example.com/.well-known/jwks.json';
 
       const { privateKey } = await createRs256Fixtures();
       const token = await createAsymmetricToken(
@@ -195,9 +183,7 @@ describe('AuthService', () => {
         { jti: 'jti-iss' },
       );
 
-      await expect(authService.validateToken(token)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.validateToken(token)).rejects.toThrow(UnauthorizedException);
     });
 
     it('rejects token when audience does not match JWT_AUDIENCE', async () => {
@@ -208,9 +194,7 @@ describe('AuthService', () => {
         { jti: 'jti-aud' },
       );
 
-      await expect(authService.validateToken(token)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.validateToken(token)).rejects.toThrow(UnauthorizedException);
     });
 
     it('accepts token when JWT_ISSUER/JWT_AUDIENCE not configured (skip validation)', async () => {
@@ -227,10 +211,7 @@ describe('AuthService', () => {
 
   describe('UserClaims extraction (AUTH-06, D-10, JA4H-04)', () => {
     it('extracts userId from sub claim', async () => {
-      const token = await createHs256Token(
-        { sub: 'uid-42', roles: ['user'] },
-        { jti: 'jti-sub' },
-      );
+      const token = await createHs256Token({ sub: 'uid-42', roles: ['user'] }, { jti: 'jti-sub' });
       const claims = await authService.validateToken(token);
       expect(claims.userId).toBe('uid-42');
     });
@@ -276,10 +257,7 @@ describe('AuthService', () => {
     });
 
     it('WR-04: returns empty roles when claim is absent', async () => {
-      const token = await createHs256Token(
-        { sub: 'u1' },
-        { jti: 'jti-roles-missing' },
-      );
+      const token = await createHs256Token({ sub: 'u1' }, { jti: 'jti-roles-missing' });
       const claims = await authService.validateToken(token);
       expect(claims.roles).toEqual([]);
     });
@@ -328,9 +306,7 @@ describe('AuthService', () => {
         // No jti option
       );
 
-      await expect(authService.validateToken(token)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.validateToken(token)).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -349,17 +325,12 @@ describe('AuthService', () => {
         .setExpirationTime('1h')
         .sign(key);
 
-      await expect(authService.validateToken(mfaToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.validateToken(mfaToken)).rejects.toThrow(UnauthorizedException);
     });
 
     it('Test 17: accepts normal JWT without typ claim (unaffected by MFA guard)', async () => {
       // Normal access token — no typ claim
-      const token = await createHs256Token(
-        { sub: 'u1', roles: ['user'] },
-        { jti: 'jti-normal' },
-      );
+      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'jti-normal' });
 
       const claims = await authService.validateToken(token);
       expect(claims.userId).toBe('u1');

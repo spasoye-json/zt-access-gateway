@@ -20,9 +20,6 @@ export class MetricsController {
   @Get()
   async getMetrics(@Res() res: Response): Promise<void> {
     const body = await this.metricsService.getAggregatedMetrics();
-    res
-      .set('Content-Type', Registry.PROMETHEUS_CONTENT_TYPE)
-      .status(200)
-      .send(body);
+    res.set('Content-Type', Registry.PROMETHEUS_CONTENT_TYPE).status(200).send(body);
   }
 }

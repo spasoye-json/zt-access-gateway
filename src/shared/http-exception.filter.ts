@@ -1,10 +1,4 @@
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 
 /**
@@ -26,9 +20,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (response.headersSent) return;
 
     const isHttp = exception instanceof HttpException;
-    const statusCode = isHttp
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+    const statusCode = isHttp ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     if (!isHttp) {
       // Log full error server-side only — never in the response body.

@@ -1,9 +1,4 @@
-import {
-  PUBLIC_PATHS,
-  AUTH_ONLY_EXACT,
-  AUTH_ONLY_PREFIXES,
-  isAuthOnlyPath,
-} from '../public-paths';
+import { PUBLIC_PATHS, AUTH_ONLY_EXACT, AUTH_ONLY_PREFIXES, isAuthOnlyPath } from '../public-paths';
 
 describe('public-paths', () => {
   it('PUBLIC_PATHS contains exactly /health and /metrics', () => {
@@ -24,7 +19,9 @@ describe('public-paths', () => {
   });
 
   it('AUTH_ONLY_PREFIXES contains /mfa/admin/enrollment and /policy/admin', () => {
-    expect([...AUTH_ONLY_PREFIXES].sort()).toEqual(['/mfa/admin/enrollment', '/policy/admin'].sort());
+    expect([...AUTH_ONLY_PREFIXES].sort()).toEqual(
+      ['/mfa/admin/enrollment', '/policy/admin'].sort(),
+    );
   });
 
   it('isAuthOnlyPath returns true for /auth/revoke (exact)', () => {

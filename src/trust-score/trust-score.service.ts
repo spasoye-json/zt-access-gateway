@@ -47,9 +47,7 @@ export class TrustScoreService {
       this.providers.map((p) =>
         p.compute(ctx).catch((err: unknown) => {
           this.logger.warn(
-            `Trust provider fault ${p.name}: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
+            `Trust provider fault ${p.name}: ${err instanceof Error ? err.message : String(err)}`,
           );
           return { delta: 0.1, reason: `${p.name}_fault` };
         }),
@@ -64,10 +62,7 @@ export class TrustScoreService {
    * Persist trust telemetry after a successful downstream proxy on ALLOW only.
    * Phase 10 GatewayMiddleware must **not** call this on CHALLENGE or DENY (TRST-09, D-19).
    */
-  async recordTrustContextAfterAllow(
-    ctx: TrustContext,
-    finalScore: number,
-  ): Promise<void> {
+  async recordTrustContextAfterAllow(ctx: TrustContext, finalScore: number): Promise<void> {
     if (Number.isNaN(finalScore)) {
       throw new Error('finalScore must be a finite number');
     }

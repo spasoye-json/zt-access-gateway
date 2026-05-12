@@ -62,11 +62,8 @@ export class GatewayMiddleware implements NestMiddleware {
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const requestId =
-      (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
-    const ja4h = (req as unknown as Record<string, unknown>)['x-ja4h'] as
-      | string
-      | undefined;
+    const requestId = (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
+    const ja4h = (req as unknown as Record<string, unknown>)['x-ja4h'] as string | undefined;
 
     // NestJS `consumer.apply(...).forRoutes('*')` mounts this middleware as a
     // sub-app per matched route, which causes `req.path` to be '/' and the
@@ -210,14 +207,10 @@ export class GatewayMiddleware implements NestMiddleware {
       t0 = Date.now();
       const hcThreshold = this.cfg.hashcashTriggerThreshold ?? 0.5;
       if (trustScoreValue > hcThreshold) {
-        const nonceHeader =
-          (req.headers['x-hashcash-nonce'] as string | undefined) || '';
-        const solutionHeader =
-          (req.headers['x-hashcash-solution'] as string | undefined) || '';
+        const nonceHeader = (req.headers['x-hashcash-nonce'] as string | undefined) || '';
+        const solutionHeader = (req.headers['x-hashcash-solution'] as string | undefined) || '';
 
-        const issue = (
-          errCode: 'proof_of_work_required' | 'proof_of_work_invalid',
-        ): void => {
+        const issue = (errCode: 'proof_of_work_required' | 'proof_of_work_invalid'): void => {
           const { nonce, difficulty, expiresAt } = this.hashcash.issueChallenge(
             claims!.userId,
             claims!.deviceId || '',
@@ -297,11 +290,7 @@ export class GatewayMiddleware implements NestMiddleware {
             requestId,
           });
           this.metrics.incrementRequest('challenge');
-          const ch = await this.mfa.createChallenge(
-            claims.userId,
-            extractIp(req),
-            ja4h,
-          );
+          const ch = await this.mfa.createChallenge(claims.userId, extractIp(req), ja4h);
           this.buildMfaChallengeResponse(res, ch, requestId);
           return;
         }
@@ -345,11 +334,7 @@ export class GatewayMiddleware implements NestMiddleware {
       observe('proxy', (Date.now() - t0) / 1000);
 
       // GTWY-06 BOPLA stripping
-      const stripped = this.boPla.strip(
-        upstreamRes.data,
-        reqPath,
-        claims.roles ?? [],
-      );
+      const stripped = this.boPla.strip(upstreamRes.data, reqPath, claims.roles ?? []);
 
       // D-12 / GTWY-05 — trust context only on upstream 2xx
       if (upstreamRes.status < 400) {
@@ -373,10 +358,7 @@ export class GatewayMiddleware implements NestMiddleware {
           action: req.method,
           requestId,
         });
-        res
-          .status(503)
-          .set('Retry-After', '5')
-          .json({ error: 'audit_unavailable', requestId });
+        res.status(503).set('Retry-After', '5').json({ error: 'audit_unavailable', requestId });
         return;
       }
       if (e instanceof ServiceUnavailableException) {
@@ -384,20 +366,14 @@ export class GatewayMiddleware implements NestMiddleware {
         return;
       }
       if (e instanceof UnauthorizedException) {
-        res
-          .status(401)
-          .json({ error: 'auth_invalid', message: (e as Error).message, requestId });
+        res.status(401).json({ error: 'auth_invalid', message: (e as Error).message, requestId });
         return;
       }
       throw e;
     }
   }
 
-  private buildMfaChallengeResponse(
-    res: Response,
-    ch: MfaCreateResult,
-    requestId: string,
-  ): void {
+  private buildMfaChallengeResponse(res: Response, ch: MfaCreateResult, requestId: string): void {
     if (ch.ok === false) {
       const reason = ch.reason;
       const status = reason === 'rate_limited' ? 429 : 503;

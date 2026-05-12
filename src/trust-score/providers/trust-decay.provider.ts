@@ -20,20 +20,13 @@ export class TrustDecayProvider implements TrustSignalProvider {
   ) {}
 
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
-    const row = await this.repo.getSignalRow(
-      ctx.userId,
-      ctx.deviceId,
-      ctx.ip,
-    );
+    const row = await this.repo.getSignalRow(ctx.userId, ctx.deviceId, ctx.ip);
     if (!row) {
       return { delta: 0, reason: 'trust_decay_none' };
     }
 
     const now = ctx.requestTimestamp ?? new Date();
-    const idleMs = Math.max(
-      0,
-      now.getTime() - new Date(row.last_seen_at).getTime(),
-    );
+    const idleMs = Math.max(0, now.getTime() - new Date(row.last_seen_at).getTime());
     const k = Math.exp(-idleMs / this.config.trustDecayHalfLifeMs);
 
     const deviceAllows = await this.repo.countAllowsForUserDeviceIp(

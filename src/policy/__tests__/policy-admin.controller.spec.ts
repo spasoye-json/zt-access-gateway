@@ -78,13 +78,11 @@ describe('PolicyAdminController', () => {
 
   it('POST rules surfaces evaluator errors (Pitfall 1 propagation)', async () => {
     evaluator.addRule.mockRejectedValueOnce(
-      new Error(
-        'savePolicy returned false — check policy/model.conf has [role_definition]',
-      ),
+      new Error('savePolicy returned false — check policy/model.conf has [role_definition]'),
     );
-    await expect(
-      ctrl.addRule({ sub: 'r', obj: '/x', act: 'GET' } as never),
-    ).rejects.toThrow(/savePolicy returned false/);
+    await expect(ctrl.addRule({ sub: 'r', obj: '/x', act: 'GET' } as never)).rejects.toThrow(
+      /savePolicy returned false/,
+    );
   });
 
   it('DELETE rules delegates to evaluator.removeRule and returns { removed: true }', async () => {
@@ -123,15 +121,9 @@ describe('PolicyAdminController', () => {
   });
 
   it('POST escalation accepts each ThreatLevel literal', () => {
-    expect(ctrl.setEscalation({ level: 'Normal' } as never).level).toBe(
-      'Normal',
-    );
-    expect(ctrl.setEscalation({ level: 'Elevated' } as never).level).toBe(
-      'Elevated',
-    );
-    expect(ctrl.setEscalation({ level: 'Critical' } as never).level).toBe(
-      'Critical',
-    );
+    expect(ctrl.setEscalation({ level: 'Normal' } as never).level).toBe('Normal');
+    expect(ctrl.setEscalation({ level: 'Elevated' } as never).level).toBe('Elevated');
+    expect(ctrl.setEscalation({ level: 'Critical' } as never).level).toBe('Critical');
     expect(threat.setManualLevel).toHaveBeenCalledTimes(3);
   });
 

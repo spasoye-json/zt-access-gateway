@@ -9,10 +9,7 @@ describe('policy/model.conf — Pitfall 1 canary', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'policy-test-'));
     const tmpCsv = path.join(tmp, 'policy.csv');
     fs.copyFileSync(path.join(process.cwd(), 'policy/policy.csv'), tmpCsv);
-    const e = await newEnforcer(
-      path.join(process.cwd(), 'policy/model.conf'),
-      tmpCsv,
-    );
+    const e = await newEnforcer(path.join(process.cwd(), 'policy/model.conf'), tmpCsv);
 
     const added = await e.addPolicy('role:canary', '/canary', 'GET');
     expect(added).toBe(true);

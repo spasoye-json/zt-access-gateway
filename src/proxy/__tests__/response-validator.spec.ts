@@ -6,10 +6,7 @@ import { BadGatewayException, ServiceUnavailableException } from '@nestjs/common
 import type { AxiosResponse } from 'axios';
 import { assertValidProxyResponse } from '../response-validator';
 
-function makeResponse(
-  status: number,
-  contentType?: string,
-): AxiosResponse {
+function makeResponse(status: number, contentType?: string): AxiosResponse {
   return {
     status,
     headers: contentType ? { 'content-type': contentType } : {},

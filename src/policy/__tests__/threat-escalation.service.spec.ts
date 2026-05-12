@@ -1,7 +1,4 @@
-import {
-  ThreatEscalationService,
-  type ClockFn,
-} from '../threat-escalation.service';
+import { ThreatEscalationService, type ClockFn } from '../threat-escalation.service';
 import { PolicyMetrics } from '../policy-metrics';
 import type { AppConfigService } from '../../config/config.service';
 import {
@@ -67,9 +64,7 @@ function fakeConfig(
   } as unknown as AppConfigService;
 }
 
-const payload = (
-  over: Partial<ThreatSignalPayload> = {},
-): ThreatSignalPayload => ({
+const payload = (over: Partial<ThreatSignalPayload> = {}): ThreatSignalPayload => ({
   type: over.type ?? POLICY_DENY,
   ip: over.ip ?? '1.2.3.4',
   ts: over.ts ?? 0,
@@ -119,15 +114,13 @@ describe('ThreatEscalationService', () => {
   });
 
   it('D-19 single-type Critical: threatCriticalHoneypot honeypot events alone push to Critical', () => {
-    for (let i = 0; i < 15; i++)
-      svc.onHoneypotTrigger(payload({ type: HONEYPOT_TRIGGER }));
+    for (let i = 0; i < 15; i++) svc.onHoneypotTrigger(payload({ type: HONEYPOT_TRIGGER }));
     expect(svc.snapshot().level).toBe('Critical');
   });
 
   it('D-19 max-across-types: deny=Elevated + invalid=Critical → Critical', () => {
     for (let i = 0; i < 25; i++) svc.onPolicyDeny(payload());
-    for (let i = 0; i < 80; i++)
-      svc.onAuthInvalidToken(payload({ type: AUTH_INVALID_TOKEN }));
+    for (let i = 0; i < 80; i++) svc.onAuthInvalidToken(payload({ type: AUTH_INVALID_TOKEN }));
     expect(svc.snapshot().level).toBe('Critical');
   });
 
@@ -194,21 +187,15 @@ describe('ThreatEscalationService', () => {
     const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
     const info = jest.spyOn(logger, 'log').mockImplementation(() => {});
     for (let i = 0; i < 25; i++) svc.onPolicyDeny(payload()); // Normal→Elevated
-    expect(info).toHaveBeenCalledWith(
-      expect.stringMatching(/Normal → Elevated/),
-    );
+    expect(info).toHaveBeenCalledWith(expect.stringMatching(/Normal → Elevated/));
     for (let i = 0; i < 30; i++) svc.onPolicyDeny(payload()); // Elevated→Critical
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringMatching(/Elevated → Critical/),
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/Elevated → Critical/));
   });
 
   it('metrics wired: transitions counter + setThreatLevel gauge on each level change', async () => {
     for (let i = 0; i < 25; i++) svc.onPolicyDeny(payload());
     const text = await metrics.registry.metrics();
-    expect(text).toMatch(
-      /zt_gateway_threat_transitions_total\{from="normal",to="elevated"\} 1/,
-    );
+    expect(text).toMatch(/zt_gateway_threat_transitions_total\{from="normal",to="elevated"\} 1/);
     expect(text).toContain('zt_gateway_threat_level{level="elevated"} 1');
     expect(text).toContain('zt_gateway_threat_level{level="normal"} 0');
   });
@@ -246,16 +233,10 @@ describe('ThreatEscalationService', () => {
 
     const text = await localMetrics.registry.metrics();
     // Per-step counters must each show 1 increment
-    expect(text).toMatch(
-      /zt_gateway_threat_transitions_total\{from="critical",to="elevated"\} 1/,
-    );
-    expect(text).toMatch(
-      /zt_gateway_threat_transitions_total\{from="elevated",to="normal"\} 1/,
-    );
+    expect(text).toMatch(/zt_gateway_threat_transitions_total\{from="critical",to="elevated"\} 1/);
+    expect(text).toMatch(/zt_gateway_threat_transitions_total\{from="elevated",to="normal"\} 1/);
     // The collapsed (incorrect) transition must NOT have fired
-    expect(text).not.toMatch(
-      /zt_gateway_threat_transitions_total\{from="critical",to="normal"\}/,
-    );
+    expect(text).not.toMatch(/zt_gateway_threat_transitions_total\{from="critical",to="normal"\}/);
   });
 
   it('WR-07: long idle logs each intermediate transition, not a collapsed one', () => {
@@ -333,8 +314,7 @@ describe('ThreatEscalationService', () => {
   });
 
   it('AUTH_INVALID_TOKEN handler counts toward effective level (Critical at 80 invalid tokens)', () => {
-    for (let i = 0; i < 80; i++)
-      svc.onAuthInvalidToken(payload({ type: AUTH_INVALID_TOKEN }));
+    for (let i = 0; i < 80; i++) svc.onAuthInvalidToken(payload({ type: AUTH_INVALID_TOKEN }));
     expect(svc.snapshot().level).toBe('Critical');
     expect(svc.snapshot().signalCounts[AUTH_INVALID_TOKEN]).toBe(80);
   });
@@ -360,24 +340,21 @@ describe('ThreatEscalationService', () => {
     it('threatElevatedMfaRateLimited count drives Elevated', () => {
       cfg = fakeConfig({ elMfaRl: 3, crMfaRl: 99 });
       svc = new ThreatEscalationService(cfg, new PolicyMetrics(), clock);
-      for (let i = 0; i < 3; i++)
-        svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
+      for (let i = 0; i < 3; i++) svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
       expect(svc.snapshot().level).toBe('Elevated');
     });
 
     it('threatCriticalMfaRateLimited count drives Critical (single-type)', () => {
       cfg = fakeConfig({ elMfaRl: 3, crMfaRl: 6 });
       svc = new ThreatEscalationService(cfg, new PolicyMetrics(), clock);
-      for (let i = 0; i < 6; i++)
-        svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
+      for (let i = 0; i < 6; i++) svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
       expect(svc.snapshot().level).toBe('Critical');
     });
 
     it('MFA_RATE_LIMITED events evict from sliding window past windowMs', () => {
       cfg = fakeConfig({ elMfaRl: 3, crMfaRl: 99, windowMs: 1000 });
       svc = new ThreatEscalationService(cfg, new PolicyMetrics(), clock);
-      for (let i = 0; i < 3; i++)
-        svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
+      for (let i = 0; i < 3; i++) svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
       expect(svc.snapshot().level).toBe('Elevated');
       advance(1500);
       svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));

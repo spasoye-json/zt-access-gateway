@@ -4,9 +4,7 @@ import * as request from 'supertest';
 // Env vars set by tests/setup-e2e.ts (setupFiles) before this import resolves
 import { AppModule } from '../../src/app.module';
 import { TokenRevocationService } from '../../src/auth/token-revocation.service';
-import {
-  createHs256Token,
-} from '../../src/auth/__tests__/test-keys';
+import { createHs256Token } from '../../src/auth/__tests__/test-keys';
 
 /**
  * E2e test for TREV-04: token revocation pipeline position.
@@ -34,10 +32,7 @@ describe('Auth Revocation Pipeline (e2e)', () => {
   describe('TREV-04: revocation after auth, before downstream', () => {
     it('returns 401 for request with revoked jti', async () => {
       const jti = 'revoke-me-e2e';
-      const token = await createHs256Token(
-        { sub: 'user1', roles: ['user'] },
-        { jti },
-      );
+      const token = await createHs256Token({ sub: 'user1', roles: ['user'] }, { jti });
 
       // Revoke the token's jti before making the request
       revocationService.revoke(jti, Date.now() + 60_000, 'user1');

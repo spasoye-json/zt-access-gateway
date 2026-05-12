@@ -7,10 +7,7 @@ import { TokenRevocationService } from '../token-revocation.service';
 import { IS_PUBLIC_KEY } from '../../shared/public.decorator';
 import { AUTH_INVALID_TOKEN } from '../../policy/policy-events';
 import { GATEWAY_VALIDATED } from '../../gateway/gateway-validated.symbol';
-import {
-  TEST_HS256_SECRET,
-  createHs256Token,
-} from './test-keys';
+import { TEST_HS256_SECRET, createHs256Token } from './test-keys';
 
 /**
  * JwtAuthGuard unit tests -- TDD RED phase.
@@ -73,8 +70,8 @@ describe('JwtAuthGuard', () => {
       getType: () => 'http',
       getArgs: () => [],
       getArgByIndex: () => undefined,
-      switchToRpc: () => ({} as ReturnType<ExecutionContext['switchToRpc']>),
-      switchToWs: () => ({} as ReturnType<ExecutionContext['switchToWs']>),
+      switchToRpc: () => ({}) as ReturnType<ExecutionContext['switchToRpc']>,
+      switchToWs: () => ({}) as ReturnType<ExecutionContext['switchToWs']>,
     } as unknown as ExecutionContext;
   }
 
@@ -98,9 +95,7 @@ describe('JwtAuthGuard', () => {
 
   describe('@Public() bypass (AUTH-07)', () => {
     it('returns true without validating token when route is @Public()', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(true);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
 
       const ctx = createMockExecutionContext();
       const result = await guard.canActivate(ctx);
@@ -110,14 +105,9 @@ describe('JwtAuthGuard', () => {
     });
 
     it('proceeds to validate token when route is NOT @Public()', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(false);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
-      const token = await createHs256Token(
-        { sub: 'u1', roles: ['user'] },
-        { jti: 'jti-1' },
-      );
+      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'jti-1' });
       const ctx = createMockExecutionContext({
         authorization: `Bearer ${token}`,
       });
@@ -211,14 +201,9 @@ describe('JwtAuthGuard', () => {
 
   describe('Bearer extraction (AUTH-06)', () => {
     it('extracts token from Authorization: Bearer <token> header', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(false);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
-      const token = await createHs256Token(
-        { sub: 'u1', roles: ['user'] },
-        { jti: 'jti-extract' },
-      );
+      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'jti-extract' });
       const ctx = createMockExecutionContext({
         authorization: `Bearer ${token}`,
       });
@@ -235,37 +220,27 @@ describe('JwtAuthGuard', () => {
     });
 
     it('throws UnauthorizedException when Authorization header missing', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(false);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
       const ctx = createMockExecutionContext();
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
     });
 
     it('throws UnauthorizedException when Authorization header not Bearer scheme', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(false);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
       const ctx = createMockExecutionContext({
         authorization: 'Basic dXNlcjpwYXNz',
       });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
     });
   });
 
   describe('UserClaims attachment (AUTH-06)', () => {
     it('attaches validated UserClaims to request.user', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(false);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
       const expectedClaims = {
         userId: 'u1',
@@ -273,14 +248,9 @@ describe('JwtAuthGuard', () => {
         jti: 'jti-attach',
         exp: Math.floor(Date.now() / 1000) + 3600,
       };
-      (authService.validateToken as jest.Mock).mockResolvedValue(
-        expectedClaims,
-      );
+      (authService.validateToken as jest.Mock).mockResolvedValue(expectedClaims);
 
-      const token = await createHs256Token(
-        { sub: 'u1', roles: ['user'] },
-        { jti: 'jti-attach' },
-      );
+      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'jti-attach' });
       const ctx = createMockExecutionContext({
         authorization: `Bearer ${token}`,
       });
@@ -294,9 +264,7 @@ describe('JwtAuthGuard', () => {
 
   describe('revocation check (TREV-04, D-08)', () => {
     it('throws UnauthorizedException("Token has been revoked") when jti is revoked', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(false);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
       const claims = {
         userId: 'u1',
@@ -307,26 +275,17 @@ describe('JwtAuthGuard', () => {
       (authService.validateToken as jest.Mock).mockResolvedValue(claims);
       (revocationService.isRevoked as jest.Mock).mockReturnValue(true);
 
-      const token = await createHs256Token(
-        { sub: 'u1', roles: ['user'] },
-        { jti: 'revoked-jti' },
-      );
+      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'revoked-jti' });
       const ctx = createMockExecutionContext({
         authorization: `Bearer ${token}`,
       });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        'Token has been revoked',
-      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow('Token has been revoked');
     });
 
     it('allows request when jti is NOT revoked', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(false);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
       (authService.validateToken as jest.Mock).mockResolvedValue({
         userId: 'u1',
@@ -336,10 +295,7 @@ describe('JwtAuthGuard', () => {
       });
       (revocationService.isRevoked as jest.Mock).mockReturnValue(false);
 
-      const token = await createHs256Token(
-        { sub: 'u1', roles: ['user'] },
-        { jti: 'valid-jti' },
-      );
+      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'valid-jti' });
       const ctx = createMockExecutionContext({
         authorization: `Bearer ${token}`,
       });
@@ -349,9 +305,7 @@ describe('JwtAuthGuard', () => {
     });
 
     it('revocation check runs AFTER jwtVerify (tampered token with revoked jti gets signature error, not revocation error)', async () => {
-      jest
-        .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue(false);
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
 
       // AuthService rejects with signature error BEFORE revocation is checked
       (authService.validateToken as jest.Mock).mockRejectedValue(
@@ -367,9 +321,7 @@ describe('JwtAuthGuard', () => {
       });
 
       // Revocation service should NOT be called because auth failed first
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        'Invalid token signature',
-      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow('Invalid token signature');
       expect(revocationService.isRevoked).not.toHaveBeenCalled();
     });
   });
@@ -385,9 +337,7 @@ describe('JwtAuthGuard', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       const ctx = createMockExecutionContext({ ip: '5.6.7.8' });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
       expect(emitSpy).toHaveBeenCalledWith(
         AUTH_INVALID_TOKEN,
         expect.objectContaining({
@@ -405,9 +355,7 @@ describe('JwtAuthGuard', () => {
         ip: '5.6.7.8',
       });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
       expect(emitSpy).toHaveBeenCalledWith(
         AUTH_INVALID_TOKEN,
         expect.objectContaining({ type: AUTH_INVALID_TOKEN, ip: '5.6.7.8' }),
@@ -423,9 +371,7 @@ describe('JwtAuthGuard', () => {
         authorization: 'Bearer x.y.z',
       });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
       expect(emitSpy).toHaveBeenCalledWith(
         AUTH_INVALID_TOKEN,
         expect.objectContaining({
@@ -448,9 +394,7 @@ describe('JwtAuthGuard', () => {
         authorization: 'Bearer x.y.z',
       });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
       expect(emitSpy).toHaveBeenCalledWith(
         AUTH_INVALID_TOKEN,
         expect.objectContaining({
@@ -464,9 +408,7 @@ describe('JwtAuthGuard', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       const ctx = createMockExecutionContext({ ja4h: 'jh-fp-123' });
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
       expect(emitSpy).toHaveBeenCalledWith(
         AUTH_INVALID_TOKEN,
         expect.objectContaining({ ja4h: 'jh-fp-123' }),

@@ -15,22 +15,14 @@ describe('Policy E2E — fail-closed startup (D-03)', () => {
     process.env.NODE_ENV = 'test';
     process.env.JWT_SECRET =
       process.env.JWT_SECRET ?? 'test-secret-that-is-at-least-32-chars-long!';
-    process.env.HASHCASH_HMAC_SECRET =
-      process.env.HASHCASH_HMAC_SECRET ?? 'a'.repeat(64);
-    process.env.HASHCASH_DIFFICULTY_MIN =
-      process.env.HASHCASH_DIFFICULTY_MIN ?? '4';
-    process.env.HASHCASH_DIFFICULTY_MAX =
-      process.env.HASHCASH_DIFFICULTY_MAX ?? '4';
-    if (!process.env.MTLS_CA_CERT_PATH)
-      process.env.MTLS_CA_CERT_PATH = '/dev/null';
-    if (!process.env.MTLS_CLIENT_CERT_PATH)
-      process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
-    if (!process.env.MTLS_CLIENT_KEY_PATH)
-      process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
-    if (!process.env.MTLS_ALLOWED_SUBJECTS)
-      process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
-    if (!process.env.DATABASE_URL)
-      process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
+    process.env.HASHCASH_HMAC_SECRET = process.env.HASHCASH_HMAC_SECRET ?? 'a'.repeat(64);
+    process.env.HASHCASH_DIFFICULTY_MIN = process.env.HASHCASH_DIFFICULTY_MIN ?? '4';
+    process.env.HASHCASH_DIFFICULTY_MAX = process.env.HASHCASH_DIFFICULTY_MAX ?? '4';
+    if (!process.env.MTLS_CA_CERT_PATH) process.env.MTLS_CA_CERT_PATH = '/dev/null';
+    if (!process.env.MTLS_CLIENT_CERT_PATH) process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
+    if (!process.env.MTLS_CLIENT_KEY_PATH) process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
+    if (!process.env.MTLS_ALLOWED_SUBJECTS) process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
+    if (!process.env.DATABASE_URL) process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
     // Phase 7 MFA vars — required by config validation after MfaModule added to AppModule
     if (!process.env.MFA_JWT_SECRET)
       process.env.MFA_JWT_SECRET = 'mfa-test-secret-that-is-at-least-32-chars!!';
@@ -51,9 +43,7 @@ describe('Policy E2E — fail-closed startup (D-03)', () => {
     try {
       const { Test } = await import('@nestjs/testing');
       const { AppModule } = await import('../../app.module');
-      const { TrustScoreService } = await import(
-        '../../trust-score/trust-score.service'
-      );
+      const { TrustScoreService } = await import('../../trust-score/trust-score.service');
 
       const ref = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(TrustScoreService)

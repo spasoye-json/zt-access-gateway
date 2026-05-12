@@ -222,22 +222,18 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
   // ───────────────────────────────────────────────────────────────────
 
   describe('GTWY-09 — Honeypot bypass', () => {
-    it(
-      'GET /wp-login.php → 200 deceptive response, AuthService.validateToken NOT called (GTWY-09)',
-      async () => {
-        const res = await request(app.getHttpServer()).get('/wp-login.php');
-        expect(res.status).toBe(200);
-        // ShadowController returns either HTML or JSON — both indicate the deception layer ran.
-        expect(res.body || res.text).toBeTruthy();
-        // Critical assertion: auth.validateToken was NOT called for honeypot path
-        expect(authValidateSpy).not.toHaveBeenCalled();
-        // Pipeline stages NOT observed for honeypot bypass
-        expect(stageSpy).not.toHaveBeenCalled();
-        // No proxy invocation
-        expect(fakeProxy.forward).not.toHaveBeenCalled();
-      },
-      10_000, // ShadowController tarpits 2-5s before responding (D-05)
-    );
+    it('GET /wp-login.php → 200 deceptive response, AuthService.validateToken NOT called (GTWY-09)', async () => {
+      const res = await request(app.getHttpServer()).get('/wp-login.php');
+      expect(res.status).toBe(200);
+      // ShadowController returns either HTML or JSON — both indicate the deception layer ran.
+      expect(res.body || res.text).toBeTruthy();
+      // Critical assertion: auth.validateToken was NOT called for honeypot path
+      expect(authValidateSpy).not.toHaveBeenCalled();
+      // Pipeline stages NOT observed for honeypot bypass
+      expect(stageSpy).not.toHaveBeenCalled();
+      // No proxy invocation
+      expect(fakeProxy.forward).not.toHaveBeenCalled();
+    }, 10_000); // ShadowController tarpits 2-5s before responding (D-05)
   });
 
   // ───────────────────────────────────────────────────────────────────
@@ -313,9 +309,7 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
 
       expect(res.status).toBe(401);
       expect(res.body).toMatchObject({ error: 'mfa_required' });
-      expect(res.headers['www-authenticate']).toMatch(
-        /^MFA realm="gateway", challengeId="[^"]+"/,
-      );
+      expect(res.headers['www-authenticate']).toMatch(/^MFA realm="gateway", challengeId="[^"]+"/);
       expect(res.headers['x-mfa-challenge']).toBeDefined();
       // Proxy must NOT have been called on a CHALLENGE without MFA token
       expect(fakeProxy.forward).not.toHaveBeenCalled();
@@ -632,9 +626,7 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
       const metricsRes = await request(app.getHttpServer()).get('/metrics');
       expect(metricsRes.status).toBe(200);
       // Counter must exist with the allow label
-      expect(metricsRes.text).toMatch(
-        /zt_gateway_requests_total\{decision="allow"\}\s+[1-9]/,
-      );
+      expect(metricsRes.text).toMatch(/zt_gateway_requests_total\{decision="allow"\}\s+[1-9]/);
       // Plan 03 widened STAGE_LABELS to 9 (incl. 'mfa')
       expect(metricsRes.text).toContain('zt_gateway_stage_duration_seconds');
       expect(metricsRes.text).toMatch(/stage="proxy"/);

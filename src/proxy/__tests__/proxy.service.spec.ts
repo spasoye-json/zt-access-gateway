@@ -29,7 +29,9 @@ const axiosMock = axios as unknown as jest.Mock;
 
 // --- helpers ---------------------------------------------------------------
 
-function makeRegistryMock(services: string[] = ['users', 'orders']): jest.Mocked<ServiceRegistryService> {
+function makeRegistryMock(
+  services: string[] = ['users', 'orders'],
+): jest.Mocked<ServiceRegistryService> {
   return {
     onModuleInit: jest.fn().mockResolvedValue(undefined),
     resolve: jest.fn((name: string) => {
@@ -92,7 +94,7 @@ function makeRequest(overrides?: Partial<Request>): Request {
     path: '/users/profile',
     url: '/users/profile',
     headers: {
-      'accept': 'application/json',
+      accept: 'application/json',
       'user-agent': 'test-agent',
     },
     body: undefined,
@@ -194,7 +196,13 @@ describe('ProxyService', () => {
     it('strips any incoming x-gateway-* headers', async () => {
       axiosMock.mockResolvedValue(makeOkResponse());
       await service.forward(
-        makeRequest({ headers: { 'x-gateway-foo': 'spoofed', 'x-gateway-request': 'fake', accept: 'application/json' } }),
+        makeRequest({
+          headers: {
+            'x-gateway-foo': 'spoofed',
+            'x-gateway-request': 'fake',
+            accept: 'application/json',
+          },
+        }),
         makeClaims(),
         0.0,
       );
@@ -259,27 +267,35 @@ describe('ProxyService', () => {
 
     it('retries on ETIMEDOUT', async () => {
       const err = Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' });
-      axiosMock
-        .mockRejectedValueOnce(err)
-        .mockResolvedValue(makeOkResponse());
+      axiosMock.mockRejectedValueOnce(err).mockResolvedValue(makeOkResponse());
       await service.forward(makeRequest(), makeClaims(), 0.0);
       expect(axiosMock).toHaveBeenCalledTimes(2);
     });
 
     it('retries on ECONNRESET', async () => {
       const err = Object.assign(new Error('ECONNRESET'), { code: 'ECONNRESET' });
-      axiosMock
-        .mockRejectedValueOnce(err)
-        .mockResolvedValue(makeOkResponse());
+      axiosMock.mockRejectedValueOnce(err).mockResolvedValue(makeOkResponse());
       await service.forward(makeRequest(), makeClaims(), 0.0);
       expect(axiosMock).toHaveBeenCalledTimes(2);
     });
 
     it('retries on 502/503/504 status codes', async () => {
       axiosMock
-        .mockResolvedValueOnce({ status: 502, headers: { 'content-type': 'application/json' }, data: {} })
-        .mockResolvedValueOnce({ status: 503, headers: { 'content-type': 'application/json' }, data: {} })
-        .mockResolvedValueOnce({ status: 504, headers: { 'content-type': 'application/json' }, data: {} })
+        .mockResolvedValueOnce({
+          status: 502,
+          headers: { 'content-type': 'application/json' },
+          data: {},
+        })
+        .mockResolvedValueOnce({
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+          data: {},
+        })
+        .mockResolvedValueOnce({
+          status: 504,
+          headers: { 'content-type': 'application/json' },
+          data: {},
+        })
         .mockResolvedValue(makeOkResponse());
       await service.forward(makeRequest(), makeClaims(), 0.0);
       expect(axiosMock).toHaveBeenCalledTimes(4);
@@ -388,9 +404,9 @@ describe('ProxyService', () => {
       registry.resolve.mockImplementation(() => {
         throw new NotFoundException('Unknown service: unknown-svc');
       });
-      await expect(service.forward(makeRequest({ path: '/unknown-svc/x' }), makeClaims(), 0.0)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.forward(makeRequest({ path: '/unknown-svc/x' }), makeClaims(), 0.0),
+      ).rejects.toBeInstanceOf(NotFoundException);
       expect(dnsGuard.assertSafe).not.toHaveBeenCalled();
       expect(axiosMock).not.toHaveBeenCalled();
     });

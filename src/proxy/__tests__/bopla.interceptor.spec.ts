@@ -49,7 +49,9 @@ describe('BoPlaInterceptor', () => {
       fs.promises.readFile.mockResolvedValueOnce(JSON.stringify(STARTER_POLICY));
       await interceptor.onModuleInit();
       // After init, strip should work using loaded policy
-      const result = interceptor.strip({ id: 1, email: 'x', secret: 's' }, '/users/profile', ['user']);
+      const result = interceptor.strip({ id: 1, email: 'x', secret: 's' }, '/users/profile', [
+        'user',
+      ]);
       expect(result).toEqual({ id: 1, email: 'x' });
     });
 
@@ -114,7 +116,9 @@ describe('BoPlaInterceptor', () => {
     it('non-admin role + matching pattern but role not in roleMap → returns {}', () => {
       // /billing/** only has 'admin' role in starter policy
       const interceptor = makeInterceptor();
-      const result = interceptor.strip({ invoiceId: 123, amount: 500 }, '/billing/invoice', ['user']);
+      const result = interceptor.strip({ invoiceId: 123, amount: 500 }, '/billing/invoice', [
+        'user',
+      ]);
       expect(result).toEqual({});
     });
   });

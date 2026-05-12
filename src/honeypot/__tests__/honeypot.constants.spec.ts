@@ -45,15 +45,10 @@ describe('HONEYPOT_PATHS', () => {
   });
 
   it('parity: every @Get() decorator literal in shadow.controller.ts is in HONEYPOT_PATHS', () => {
-    const src = fs.readFileSync(
-      path.resolve(__dirname, '../shadow.controller.ts'),
-      'utf8',
-    );
+    const src = fs.readFileSync(path.resolve(__dirname, '../shadow.controller.ts'), 'utf8');
     // Match only decorator usage at start of a line (allowing leading whitespace),
     // not occurrences of @Get(...) embedded in comments.
-    const decoratorPaths = [...src.matchAll(/^\s*@Get\('([^']+)'\)/gm)]
-      .map((m) => m[1])
-      .sort();
+    const decoratorPaths = [...src.matchAll(/^\s*@Get\('([^']+)'\)/gm)].map((m) => m[1]).sort();
     const constPaths = [...HONEYPOT_PATHS].sort();
     expect(decoratorPaths).toEqual(constPaths);
   });

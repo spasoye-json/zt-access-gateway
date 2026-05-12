@@ -17,9 +17,7 @@ function isValidIp(ip: string): boolean {
 export function extractIp(req: Request): string {
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) {
-    const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)
-      .split(',')[0]
-      .trim();
+    const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded).split(',')[0].trim();
     if (first && isValidIp(first)) return first;
   }
   return req.socket?.remoteAddress || 'unknown';

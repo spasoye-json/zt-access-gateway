@@ -14,17 +14,14 @@ import * as path from 'path';
  */
 describe('HashcashGuard regression guard (Phase 13 D-03)', () => {
   const repoRoot = path.resolve(__dirname, '../../..');
-  const selfRelative = path.relative(
-    repoRoot,
-    __filename,
-  );
+  const selfRelative = path.relative(repoRoot, __filename);
 
   function grepHashcashGuard(dir: string): string {
     try {
-      const out = execSync(
-        `grep -rE '\\bHashcashGuard\\b' ${dir} --include='*.ts' || true`,
-        { cwd: repoRoot, encoding: 'utf8' },
-      );
+      const out = execSync(`grep -rE '\\bHashcashGuard\\b' ${dir} --include='*.ts' || true`, {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      });
       // Filter out this spec file's own self-reference + D-09 allowlist.
       return out
         .split('\n')

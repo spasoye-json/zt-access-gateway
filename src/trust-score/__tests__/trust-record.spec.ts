@@ -63,12 +63,8 @@ describeDb('TRST-09 trust persistence boundary', () => {
   });
 
   afterEach(async () => {
-    await pool.query(`DELETE FROM trust_activity WHERE user_id LIKE $1`, [
-      `${uidPrefix}%`,
-    ]);
-    await pool.query(`DELETE FROM trust_signals WHERE user_id LIKE $1`, [
-      `${uidPrefix}%`,
-    ]);
+    await pool.query(`DELETE FROM trust_activity WHERE user_id LIKE $1`, [`${uidPrefix}%`]);
+    await pool.query(`DELETE FROM trust_signals WHERE user_id LIKE $1`, [`${uidPrefix}%`]);
   });
 
   const ctx = (id: string): TrustContext => ({
@@ -104,8 +100,6 @@ describeDb('TRST-09 trust persistence boundary', () => {
   });
 
   it('rejects NaN finalScore for recordTrustContextAfterAllow', async () => {
-    await expect(
-      service.recordTrustContextAfterAllow(ctx('nan'), NaN),
-    ).rejects.toThrow(/number/);
+    await expect(service.recordTrustContextAfterAllow(ctx('nan'), NaN)).rejects.toThrow(/number/);
   });
 });

@@ -80,11 +80,7 @@ describe('HashcashService', () => {
     });
 
     it('production curve: with cfg (min=18, max=22), score=0.85 → diff=21 (D-10 lock)', () => {
-      const prodService = new HashcashService(
-        fakeConfig({ min: 18, max: 22 }),
-        store,
-        metrics,
-      );
+      const prodService = new HashcashService(fakeConfig({ min: 18, max: 22 }), store, metrics);
       const issued = prodService.issueChallenge('u', 'd', 0.85);
       const [pB64] = issued.nonce.split('.');
       const payload = JSON.parse(Buffer.from(pB64, 'base64url').toString('utf8'));
@@ -93,11 +89,7 @@ describe('HashcashService', () => {
     });
 
     it('production curve: with cfg (min=18, max=22), score=0.90 → diff=22', () => {
-      const prodService = new HashcashService(
-        fakeConfig({ min: 18, max: 22 }),
-        store,
-        metrics,
-      );
+      const prodService = new HashcashService(fakeConfig({ min: 18, max: 22 }), store, metrics);
       const issued = prodService.issueChallenge('u', 'd', 0.9);
       const [pB64] = issued.nonce.split('.');
       const payload = JSON.parse(Buffer.from(pB64, 'base64url').toString('utf8'));
@@ -184,11 +176,7 @@ describe('HashcashService', () => {
 
     it('difficulty mismatch: payload.diff differs from difficultyForScore(liveScore, min, max) → reject (D-11)', () => {
       // Use prod-curve service so score changes can shift expected difficulty
-      const prodService = new HashcashService(
-        fakeConfig({ min: 18, max: 22 }),
-        store,
-        metrics,
-      );
+      const prodService = new HashcashService(fakeConfig({ min: 18, max: 22 }), store, metrics);
       // Issue at score 0.71 (diff=18) but verify with live score 0.85 (expected diff=21)
       const issued = prodService.issueChallenge('u', 'd', 0.71);
       const result = prodService.verifySolution(issued.nonce, 'sol', 0.85, 'u', 'd');
@@ -213,11 +201,7 @@ describe('HashcashService', () => {
 
     it('insufficient leading zero bits → reject', () => {
       // Use prod curve so the bar (18 bits) is high enough that 'a' won't pass
-      const prodService = new HashcashService(
-        fakeConfig({ min: 18, max: 22 }),
-        store,
-        metrics,
-      );
+      const prodService = new HashcashService(fakeConfig({ min: 18, max: 22 }), store, metrics);
       const issued = prodService.issueChallenge('u', 'd', 0.71);
       const result = prodService.verifySolution(issued.nonce, 'a', 0.71, 'u', 'd');
       expect(result.ok).toBe(false);

@@ -15,11 +15,7 @@ export class Ja4hDriftProvider implements TrustSignalProvider {
   ) {}
 
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
-    const row = await this.repo.getSignalRow(
-      ctx.userId,
-      ctx.deviceId,
-      ctx.ip,
-    );
+    const row = await this.repo.getSignalRow(ctx.userId, ctx.deviceId, ctx.ip);
     if (!row || row.ja4h == null || row.ja4h === '') {
       return { delta: -0.05, reason: 'ja4h_stable' };
     }
