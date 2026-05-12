@@ -1,8 +1,10 @@
 import { Test } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
+import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthController } from '../auth.controller';
 import { TokenRevocationService } from '../token-revocation.service';
 import { JwtAuthGuard } from '../jwt-auth.guard';
+import { AUTH_TOKEN_REVOKED } from '../../metrics/metrics-events';
 
 /**
  * AuthController unit tests -- TDD RED phase.
@@ -27,6 +29,7 @@ describe('AuthController', () => {
     // pull in AuthService/EventEmitter — these unit tests bypass the pipeline
     // and call controller.revoke() directly.
     const module = await Test.createTestingModule({
+      imports: [EventEmitterModule.forRoot()],
       controllers: [AuthController],
       providers: [
         {
@@ -108,6 +111,48 @@ describe('AuthController', () => {
 
       const result = controller.revoke(dto, req);
       expect(result).toEqual({ message: 'Token revoked' });
+    });
+  });
+
+  describe('Phase 14 Plan 01 — emits AUTH_TOKEN_REVOKED (SC-1)', () => {
+    it('emits on successful revoke', () => {
+      const localRevocationService = {
+        revoke: jest.fn(),
+        getEntry: jest.fn(),
+      } as unknown as TokenRevocationService;
+      const events = new EventEmitter2();
+      const listener = jest.fn();
+      events.on(AUTH_TOKEN_REVOKED, listener);
+      const localController = new AuthController(localRevocationService, events);
+
+      const result = localController.revoke(
+        { jti: 'jti-1', exp: Math.floor(Date.now() / 1000) + 60 },
+        { user: { userId: 'u-1', roles: ['user'] } } as never,
+      );
+
+      expect(result).toEqual({ message: 'Token revoked' });
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT emit on 403 ownership failure', () => {
+      const localRevocationService = {
+        revoke: jest.fn(),
+        getEntry: jest.fn().mockReturnValue({ userId: 'someone-else' }),
+      } as unknown as TokenRevocationService;
+      const events = new EventEmitter2();
+      const listener = jest.fn();
+      events.on(AUTH_TOKEN_REVOKED, listener);
+      const localController = new AuthController(localRevocationService, events);
+
+      expect(() =>
+        localController.revoke(
+          { jti: 'jti-1', exp: Math.floor(Date.now() / 1000) + 60 },
+          { user: { userId: 'u-1', roles: ['user'] } } as never,
+        ),
+      ).toThrow(ForbiddenException);
+
+      expect(listener).not.toHaveBeenCalled();
+      expect(localRevocationService.revoke).not.toHaveBeenCalled();
     });
   });
 });

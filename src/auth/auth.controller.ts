@@ -8,10 +8,12 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TokenRevocationService } from './token-revocation.service';
 import { RevokeTokenDto } from './dto/revoke-token.dto';
 import { UserClaims } from './interfaces/user-claims.interface';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { AUTH_TOKEN_REVOKED } from '../metrics/metrics-events';
 
 /**
  * Auth controller -- POST /auth/revoke endpoint (TREV-03).
@@ -29,10 +31,16 @@ import { JwtAuthGuard } from './jwt-auth.guard';
  *
  * Idempotent -- revoking the same jti twice overwrites cleanly (Pitfall 7).
  * Uniform response for new and already-revoked JTIs prevents enumeration (T-3-10).
+ *
+ * Phase 14 Plan 01: emits AUTH_TOKEN_REVOKED after a successful revoke so
+ * MetricsService.incrementTokenRevocation increments the counter via @OnEvent.
  */
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly revocationService: TokenRevocationService) {}
+  constructor(
+    private readonly revocationService: TokenRevocationService,
+    private readonly events: EventEmitter2,
+  ) {}
 
   /**
    * Revoke a JWT by its jti claim.
@@ -60,6 +68,7 @@ export class AuthController {
     }
 
     this.revocationService.revoke(dto.jti, expiresAtMs, user.userId);
+    this.events.emit(AUTH_TOKEN_REVOKED, {});
 
     return { message: 'Token revoked' };
   }
