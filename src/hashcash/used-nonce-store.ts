@@ -42,8 +42,8 @@ export class UsedNonceStore {
    */
   add(nonce: string, expiresAt: number): void {
     if (this.store.size >= this.capacity) {
-      const oldest = this.store.keys().next().value;
-      if (oldest !== undefined) this.store.delete(oldest);
+      const next = this.store.keys().next();
+      if (!next.done) this.store.delete(next.value);
     }
     this.store.set(nonce, expiresAt);
   }

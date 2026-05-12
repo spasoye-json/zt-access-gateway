@@ -16,8 +16,8 @@ export function assertValidProxyResponse(response: AxiosResponse): void {
     throw new ServiceUnavailableException(`Upstream returned ${response.status}`);
   }
 
-  const ct = response.headers?.['content-type'];
-  const ctStr = Array.isArray(ct) ? ct[0] : ct;
+  const ct: unknown = response.headers?.['content-type'];
+  const ctStr: unknown = Array.isArray(ct) ? ct[0] : ct;
   if (!ctStr || !String(ctStr).toLowerCase().includes('application/json')) {
     throw new BadGatewayException(`Unexpected Content-Type from upstream: ${ctStr ?? 'missing'}`);
   }

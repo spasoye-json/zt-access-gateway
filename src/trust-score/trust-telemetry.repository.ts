@@ -137,7 +137,7 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
     if (existing.rowCount === 0) {
       firstSeen = ts;
       allowCount = 1;
-      hist = new Array(24).fill(0);
+      hist = new Array<number>(24).fill(0);
       hist[hr] = 1;
       newMean = 0;
       newVar = 0;

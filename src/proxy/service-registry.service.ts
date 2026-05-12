@@ -31,7 +31,7 @@ export class ServiceRegistryService implements OnModuleInit {
     // require-await; spec contract is unchanged — callers still `await onModuleInit()`.
     let parsed: Record<string, string>;
     try {
-      parsed = JSON.parse(this.cfg.proxyServiceRegistry);
+      parsed = JSON.parse(this.cfg.proxyServiceRegistry) as Record<string, string>;
     } catch (err) {
       return Promise.reject(
         new Error(`PROXY_SERVICE_REGISTRY is not valid JSON: ${(err as Error).message}`),

@@ -101,7 +101,7 @@ export class ProxyService implements OnModuleInit {
       method: req.method,
       url: target.toString(),
       headers: this.buildProxyHeaders(req.headers, claims, trustScore),
-      data: req.body,
+      data: req.body as unknown,
       httpsAgent,
       // axios default responseType='json' — required for BOPLA (Pitfall 4); do NOT change
       validateStatus: () => true, // validate explicitly via assertValidProxyResponse

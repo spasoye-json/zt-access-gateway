@@ -105,7 +105,7 @@ export class BoPlaInterceptor implements OnModuleInit {
   private isNonPlainObject(value: object): boolean {
     if (Buffer.isBuffer(value)) return true;
     if (value instanceof Date) return true;
-    const proto = Object.getPrototypeOf(value);
+    const proto: unknown = Object.getPrototypeOf(value);
     return proto !== Object.prototype && proto !== null;
   }
 }
