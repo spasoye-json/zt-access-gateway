@@ -77,7 +77,7 @@ export class MtlsService {
       keyStat.mtimeMs !== this.certCache.mtimes.key;
 
     if (mtimesChanged) {
-      if (!this.reloadPromise) {
+      if (this.reloadPromise === null) {
         this.reloadPromise = this.loadCertificates().finally(() => {
           this.reloadPromise = null;
         });
