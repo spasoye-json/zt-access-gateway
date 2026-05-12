@@ -221,7 +221,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 11. MFA Enrollment | 5/5 | Complete | 2026-05-03 |
 | 12. Admin Route Allowlist Closure | 2/2 | Complete    | 2026-05-09 |
 | 13. v1.0 Tech Debt Cleanup | 3/3 | Complete    | 2026-05-11 |
-| 14. v1.0 Observability + Hygiene Closure | 1/4 | In Progress|  |
+| 14. v1.0 Observability + Hygiene Closure | 3/4 | In Progress|  |
 
 ### Phase 11: MFA Enrollment
 
@@ -290,10 +290,10 @@ Plans:
   3. ThreatEscalationService subscribes to `SignalType.MFA_RATE_LIMITED` and increments its sliding-window counter on emission
   4. `MfaGuard` export is removed from MfaModule (or wired at the controller level) and the "Phase 10 will register it" comment is deleted
   5. Full unit + e2e suite remains green; `npm run lint` clean
-**Plans:** 1/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 14-01-PLAN.md — Item 9: wire 3 orphan MetricsService seams (FingerprintStore size sample, Ja4hMiddleware drift detection, AuthController.revoke token revocation)
-- [ ] 14-02-PLAN.md — Item 10: live e2e forcing hashcash 429 issue/verify round-trip through AppModule
-- [ ] 14-03-PLAN.md — Item 11: `@OnEvent(SignalType.MFA_RATE_LIMITED)` subscriber in ThreatEscalationService + sliding-window unit coverage
+- [x] 14-02-PLAN.md — Item 10: live e2e forcing hashcash 429 issue/verify round-trip through AppModule
+- [x] 14-03-PLAN.md — Item 11: `@OnEvent(SignalType.MFA_RATE_LIMITED)` subscriber in ThreatEscalationService + sliding-window unit coverage
 - [ ] 14-04-PLAN.md — Item 12: delete MfaGuard export + outdated comment, confirm no @UseGuards references remain
