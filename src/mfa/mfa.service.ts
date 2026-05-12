@@ -70,6 +70,13 @@ export type MfaDeleteEnrollmentResult =
 @Injectable()
 export class MfaService {
   private readonly logger = new Logger(MfaService.name);
+  /**
+   * BL-02 (phase 14): cap on failed confirmEnrollment TOTP attempts per
+   * pending-id. After exhaustion the pending entry is dropped and
+   * MFA_RATE_LIMITED is emitted so ThreatEscalationService.onMfaRateLimited
+   * observes the brute-force attempt.
+   */
+  static readonly ENROLL_MAX_ATTEMPTS = 5;
   private readonly jwtSecretBytes: Uint8Array;
   private readonly encryptionKey: string;
   private readonly challengeTtlMs: number;
@@ -384,7 +391,30 @@ export class MfaService {
       // D-04: same verify call as Phase 7 verifyTotp (window ±1, 30s period)
       const isValid = authenticator.verify({ token: totpCode, secret: pending.secret });
       if (!isValid) {
-        // D-04: do NOT delete pending — user can retry within TTL
+        // BL-02 (phase 14): emit MFA_FAILED so threat escalation observes the
+        // failure, and bound retries per pending-id. Previously a stolen /
+        // guessed enrollmentId allowed unlimited 6-digit TOTP guesses for the
+        // 10-minute pending TTL with zero signal — a silent brute-force window.
+        this.events.emit(MFA_FAILED, {
+          type: MFA_FAILED,
+          userId,
+          reason: 'invalid_totp_enrollment',
+          ts: Date.now(),
+        });
+        const attempts = this.pendingStore.incrementAttempts(enrollmentId);
+        if (attempts >= MfaService.ENROLL_MAX_ATTEMPTS) {
+          // Drop the pending entry on exhaustion and emit MFA_RATE_LIMITED so
+          // ThreatEscalationService.onMfaRateLimited (phase 14 plan 03) counts
+          // the brute-force attempt against the threat ladder.
+          this.pendingStore.delete(enrollmentId);
+          this.events.emit(MFA_RATE_LIMITED, {
+            type: MFA_RATE_LIMITED,
+            userId,
+            reason: 'enrollment_attempts_exhausted',
+            ts: Date.now(),
+          });
+        }
+        // D-04: keep pending entry available for retry within TTL while under cap.
         return { ok: false, reason: 'invalid_totp' };
       }
 

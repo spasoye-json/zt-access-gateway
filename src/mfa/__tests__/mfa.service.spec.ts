@@ -106,7 +106,15 @@ describe('MfaService', () => {
   let tokenRepo: jest.Mocked<MfaTokenRepository>;
   let secretsRepo: jest.Mocked<UserSecretsRepository>;
   let emitter: jest.Mocked<EventEmitter2>;
-  let pendingStore: { set: jest.Mock; get: jest.Mock; delete: jest.Mock; size: jest.Mock; clear: jest.Mock; hasPendingForUser: jest.Mock };
+  let pendingStore: {
+    set: jest.Mock;
+    get: jest.Mock;
+    delete: jest.Mock;
+    size: jest.Mock;
+    clear: jest.Mock;
+    hasPendingForUser: jest.Mock;
+    incrementAttempts: jest.Mock;
+  };
 
   // PendingEnrollmentStore is provided in Plan 11-01. Use a deferred require for Wave 0.
   let PendingEnrollmentStore: unknown;
@@ -154,6 +162,7 @@ describe('MfaService', () => {
       size: jest.fn().mockReturnValue(0),
       clear: jest.fn(),
       hasPendingForUser: jest.fn().mockReturnValue(false),
+      incrementAttempts: jest.fn().mockReturnValue(1),
     };
 
     const module = await Test.createTestingModule({
@@ -628,12 +637,54 @@ describe('MfaService', () => {
       expect(pendingStore.delete).toHaveBeenCalledWith(ENROLL_ID);
     });
 
-    it('ENROLL-05: returns invalid_totp on wrong code; pending entry NOT deleted', async () => {
+    it('ENROLL-05: returns invalid_totp on wrong code; pending entry NOT deleted (within attempt cap)', async () => {
+      pendingStore.incrementAttempts.mockReturnValue(1);
       const result = await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER);
       assertOkFalse<Extract<MfaConfirmResult, { ok: false }>>(result);
       expect(result.reason).toBe('invalid_totp');
       expect(pendingStore.delete).not.toHaveBeenCalled();
       expect(secretsRepo.save).not.toHaveBeenCalled();
+    });
+
+    // BL-02 (phase 14): close silent TOTP brute-force window during enrollment.
+    it('BL-02: emits MFA_FAILED on invalid TOTP during enrollment', async () => {
+      pendingStore.incrementAttempts.mockReturnValue(1);
+      await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER);
+      const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
+      const failed = calls.find((c) => c.name === MFA_FAILED);
+      expect(failed).toBeDefined();
+      expect((failed!.p as { reason: string }).reason).toBe(
+        'invalid_totp_enrollment',
+      );
+      expect((failed!.p as { userId: string }).userId).toBe(TEST_USER);
+    });
+
+    it('BL-02: increments the per-enrollmentId attempt counter on each failure', async () => {
+      pendingStore.incrementAttempts.mockReturnValue(1);
+      await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER);
+      expect(pendingStore.incrementAttempts).toHaveBeenCalledWith(ENROLL_ID);
+    });
+
+    it('BL-02: on attempts >= ENROLL_MAX_ATTEMPTS deletes pending and emits MFA_RATE_LIMITED', async () => {
+      pendingStore.incrementAttempts.mockReturnValue(
+        MfaService.ENROLL_MAX_ATTEMPTS,
+      );
+      const result = await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER);
+      assertOkFalse<Extract<MfaConfirmResult, { ok: false }>>(result);
+      expect(result.reason).toBe('invalid_totp');
+      expect(pendingStore.delete).toHaveBeenCalledWith(ENROLL_ID);
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).toContain(MFA_RATE_LIMITED);
+    });
+
+    it('BL-02: under the attempt cap does NOT emit MFA_RATE_LIMITED', async () => {
+      pendingStore.incrementAttempts.mockReturnValue(
+        MfaService.ENROLL_MAX_ATTEMPTS - 1,
+      );
+      await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER);
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).not.toContain(MFA_RATE_LIMITED);
+      expect(pendingStore.delete).not.toHaveBeenCalled();
     });
 
     it('ENROLL-06b: returns expired_enrollment when pending entry missing/expired', async () => {

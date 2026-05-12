@@ -14,6 +14,13 @@ export interface PendingEnrollment {
   userId: string;
   secret: string;
   expiresAt: number;
+  /**
+   * BL-02 (phase 14): per-pending-id counter of failed TOTP attempts during
+   * confirmEnrollment. Bounded by MfaService.ENROLL_MAX_ATTEMPTS to close the
+   * silent 10⁶-keyspace brute-force window that existed when the only TTL
+   * cap was 10 minutes.
+   */
+  attempts: number;
 }
 
 /**
@@ -38,7 +45,20 @@ export class PendingEnrollmentStore {
       userId: entry.userId,
       secret: entry.secret,
       expiresAt: Date.now() + this.ttlMs,
+      attempts: 0,
     });
+  }
+
+  /**
+   * BL-02 (phase 14): increment the failed-attempt counter on the pending
+   * entry and return the new count. No-op + returns 0 when entry is missing
+   * (caller should already have handled expired_enrollment).
+   */
+  incrementAttempts(enrollmentId: string): number {
+    const entry = this.store.get(enrollmentId);
+    if (!entry) return 0;
+    entry.attempts += 1;
+    return entry.attempts;
   }
 
   /**

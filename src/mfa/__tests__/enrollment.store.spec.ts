@@ -59,4 +59,28 @@ describe('PendingEnrollmentStore', () => {
   });
 
   it.todo('ENROLL-06b: re-set on existing id refreshes expiresAt');
+
+  // BL-02 (phase 14): per-pending-id attempt counter
+  it('BL-02: set initialises attempts=0', async () => {
+    const { PendingEnrollmentStore } = await loadStore();
+    const store = new PendingEnrollmentStore(buildCfg(60_000));
+    store.set('eid-attempts-1', { userId: 'u1', secret: 'SSS' });
+    expect(store.get('eid-attempts-1')!.attempts).toBe(0);
+  });
+
+  it('BL-02: incrementAttempts returns monotonically increasing count', async () => {
+    const { PendingEnrollmentStore } = await loadStore();
+    const store = new PendingEnrollmentStore(buildCfg(60_000));
+    store.set('eid-attempts-2', { userId: 'u1', secret: 'SSS' });
+    expect(store.incrementAttempts('eid-attempts-2')).toBe(1);
+    expect(store.incrementAttempts('eid-attempts-2')).toBe(2);
+    expect(store.incrementAttempts('eid-attempts-2')).toBe(3);
+    expect(store.get('eid-attempts-2')!.attempts).toBe(3);
+  });
+
+  it('BL-02: incrementAttempts on unknown id returns 0 without throwing', async () => {
+    const { PendingEnrollmentStore } = await loadStore();
+    const store = new PendingEnrollmentStore(buildCfg(60_000));
+    expect(store.incrementAttempts('nope')).toBe(0);
+  });
 });
