@@ -34,6 +34,10 @@ export class MfaChallengeRepository implements OnModuleDestroy {
    * Count challenges created for userId within windowMs milliseconds.
    * Used for per-user rate limiting (D-17, MFA-08).
    * Postgres INTERVAL cast: ($2::bigint * INTERVAL '1 millisecond') — Pitfall 7.
+   *
+   * NOTE (phase 14 WR-05): kept for legacy callers but the service no longer
+   * uses this in the rate-limit hot path — see insertChallengeIfUnderLimit
+   * which fuses count + insert into one atomic statement.
    */
   async countRecentChallenges(userId: string, windowMs: number): Promise<number> {
     const r = await this.pool.query<{ c: number }>(
@@ -43,5 +47,36 @@ export class MfaChallengeRepository implements OnModuleDestroy {
       [userId, windowMs],
     );
     return r.rows[0]?.c ?? 0;
+  }
+
+  /**
+   * WR-05 (phase 14): atomic rate-limited insert. Inserts the challenge row
+   * iff the count of rows for this userId within the past windowMs is strictly
+   * less than maxCount. Returns true on insert, false when the rate limit
+   * was hit. Closes the count + insert TOCTOU window where N concurrent
+   * requests could each observe count < max and all insert past the cap.
+   *
+   * Implementation: INSERT ... SELECT $values WHERE (SELECT COUNT(*)) < $max.
+   * Returns 1 affected row on success, 0 if the WHERE predicate filtered it.
+   */
+  async insertChallengeIfUnderLimit(
+    challengeId: string,
+    userId: string,
+    expiresAt: Date,
+    windowMs: number,
+    maxCount: number,
+  ): Promise<boolean> {
+    const r = await this.pool.query(
+      `INSERT INTO mfa_challenges (challenge_id, user_id, expires_at)
+       SELECT $1, $2, $3
+       WHERE (
+         SELECT COUNT(*)
+         FROM mfa_challenges
+         WHERE user_id = $2
+           AND created_at > NOW() - ($4::bigint * INTERVAL '1 millisecond')
+       ) < $5`,
+      [challengeId, userId, expiresAt, windowMs, maxCount],
+    );
+    return (r.rowCount ?? 0) > 0;
   }
 }

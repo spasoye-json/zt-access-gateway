@@ -129,8 +129,22 @@ export class MfaService {
     ja4h?: string,
   ): Promise<MfaCreateResult> {
     try {
-      const count = await this.challengeRepo.countRecentChallenges(userId, this.rateLimitWindowMs);
-      if (count >= this.rateLimitMax) {
+      // WR-05 (phase 14): atomic conditional insert closes the count + insert
+      // TOCTOU window. The previous two-query pattern allowed N concurrent
+      // requests for the same userId to each see count < max and all insert,
+      // blowing past MFA_RATE_LIMIT_MAX, under-reporting MFA_RATE_LIMITED, and
+      // amplifying the TOTP-attempt window. The atomic helper inserts iff the
+      // count predicate is still satisfied at write time.
+      const challengeId = randomUUID();
+      const expiresAt = new Date(Date.now() + this.challengeTtlMs);
+      const inserted = await this.challengeRepo.insertChallengeIfUnderLimit(
+        challengeId,
+        userId,
+        expiresAt,
+        this.rateLimitWindowMs,
+        this.rateLimitMax,
+      );
+      if (!inserted) {
         // D-18: rate-limit denial emits MFA_RATE_LIMITED, not MFA_FAILED
         this.events.emit(MFA_RATE_LIMITED, {
           type: MFA_RATE_LIMITED,
@@ -141,10 +155,6 @@ export class MfaService {
         });
         return { ok: false, reason: 'rate_limited' };
       }
-
-      const challengeId = randomUUID();
-      const expiresAt = new Date(Date.now() + this.challengeTtlMs);
-      await this.challengeRepo.insertChallenge(challengeId, userId, expiresAt);
       return { ok: true, challengeId, expiresAt: expiresAt.getTime() };
     } catch (err) {
       this.recordInfraError('createChallenge', userId, err);

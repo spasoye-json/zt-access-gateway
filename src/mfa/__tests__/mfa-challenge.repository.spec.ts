@@ -59,4 +59,61 @@ describeDb('MfaChallengeRepository', () => {
     const count = await repo.countRecentChallenges(TEST_UID, 60_000);
     expect(count).toBe(2);
   });
+
+  // WR-05 (phase 14): atomic insert-if-under-limit.
+  it('WR-05: insertChallengeIfUnderLimit inserts when count < max', async () => {
+    const ok = await repo.insertChallengeIfUnderLimit(
+      'test-wr05-1',
+      TEST_UID,
+      new Date(Date.now() + 300_000),
+      60_000,
+      3,
+    );
+    expect(ok).toBe(true);
+    const r = await pool.query(
+      `SELECT user_id FROM mfa_challenges WHERE challenge_id = $1`,
+      ['test-wr05-1'],
+    );
+    expect(r.rows[0]?.user_id).toBe(TEST_UID);
+  });
+
+  it('WR-05: insertChallengeIfUnderLimit returns false when count >= max (no insert)', async () => {
+    // Pre-fill exactly maxCount=2 rows
+    await repo.insertChallenge('test-wr05-2a', TEST_UID, new Date(Date.now() + 300_000));
+    await repo.insertChallenge('test-wr05-2b', TEST_UID, new Date(Date.now() + 300_000));
+    const ok = await repo.insertChallengeIfUnderLimit(
+      'test-wr05-2c',
+      TEST_UID,
+      new Date(Date.now() + 300_000),
+      60_000,
+      2,
+    );
+    expect(ok).toBe(false);
+    const r = await pool.query(
+      `SELECT challenge_id FROM mfa_challenges WHERE challenge_id = $1`,
+      ['test-wr05-2c'],
+    );
+    expect(r.rows.length).toBe(0);
+  });
+
+  it('WR-05: concurrent inserts cap at maxCount even under racing callers', async () => {
+    // Fire N concurrent inserts with maxCount=3. Exactly 3 should succeed.
+    const fires = Array.from({ length: 10 }, (_, i) =>
+      repo.insertChallengeIfUnderLimit(
+        `test-wr05-race-${i}`,
+        TEST_UID,
+        new Date(Date.now() + 300_000),
+        60_000,
+        3,
+      ),
+    );
+    const results = await Promise.all(fires);
+    const successes = results.filter((r) => r === true).length;
+    expect(successes).toBe(3);
+    const r = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM mfa_challenges WHERE user_id = $1 AND challenge_id LIKE 'test-wr05-race-%'`,
+      [TEST_UID],
+    );
+    expect(r.rows[0]?.c).toBe(3);
+  });
 });

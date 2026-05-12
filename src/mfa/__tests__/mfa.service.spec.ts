@@ -129,6 +129,8 @@ describe('MfaService', () => {
     challengeRepo = {
       countRecentChallenges: jest.fn().mockResolvedValue(0),
       insertChallenge: jest.fn().mockResolvedValue(undefined),
+      // WR-05 (phase 14): atomic conditional insert. Default to success (true).
+      insertChallengeIfUnderLimit: jest.fn().mockResolvedValue(true),
       getChallenge: jest.fn().mockResolvedValue({ userId: TEST_USER, expiresAt: FUTURE_DATE }),
     } as unknown as jest.Mocked<MfaChallengeRepository>;
 
@@ -205,31 +207,53 @@ describe('MfaService', () => {
       expect(typeof result.expiresAt).toBe('number');
       expect(result.expiresAt).toBeGreaterThan(Date.now());
 
-      expect(challengeRepo.insertChallenge).toHaveBeenCalledTimes(1);
-      expect(challengeRepo.insertChallenge).toHaveBeenCalledWith(
+      // WR-05: atomic conditional insert is the hot path. Legacy
+      // insertChallenge is not called by the service.
+      expect(challengeRepo.insertChallengeIfUnderLimit).toHaveBeenCalledTimes(1);
+      expect(challengeRepo.insertChallengeIfUnderLimit).toHaveBeenCalledWith(
         result.challengeId,
         TEST_USER,
         expect.any(Date),
+        expect.any(Number),
+        expect.any(Number),
       );
+      expect(challengeRepo.insertChallenge).not.toHaveBeenCalled();
+    });
+
+    // WR-05 (phase 14): atomic conditional insert closes count+insert TOCTOU.
+    it('WR-05: does NOT call the racy two-query pair (countRecentChallenges + insertChallenge)', async () => {
+      await service.createChallenge(TEST_USER, TEST_IP);
+      expect(challengeRepo.countRecentChallenges).not.toHaveBeenCalled();
+      expect(challengeRepo.insertChallenge).not.toHaveBeenCalled();
+    });
+
+    it('WR-05: forwards rateLimitWindowMs + rateLimitMax to the atomic call', async () => {
+      await service.createChallenge(TEST_USER, TEST_IP);
+      const args = challengeRepo.insertChallengeIfUnderLimit.mock.calls[0];
+      // args order: id, userId, expiresAt, windowMs, maxCount
+      expect(args[3]).toBe(60_000); // mfaRateLimitWindowMs from buildMockConfig
+      expect(args[4]).toBe(5); // mfaRateLimitMax from buildMockConfig
     });
 
     it('Test 2: returns rate_limited after MFA_RATE_LIMIT_MAX initiations in window (MFA-08)', async () => {
-      challengeRepo.countRecentChallenges.mockResolvedValue(5);
+      // WR-05: rate-limit denial is now expressed as a false return from the
+      // atomic conditional insert (predicate failed at write time).
+      challengeRepo.insertChallengeIfUnderLimit.mockResolvedValueOnce(false);
 
       const result = await service.createChallenge(TEST_USER, TEST_IP);
 
       expect(result.ok).toBe(false);
       assertOkFalse<Extract<MfaCreateResult, { ok: false }>>(result);
       expect(result.reason).toBe('rate_limited');
-
-      expect(challengeRepo.insertChallenge).not.toHaveBeenCalled();
     });
 
     // WR-03 (phase 14): silent infra errors used to return { ok: false,
     // reason: 'internal' } with no log, no event, no audit. Threat escalation
     // could not fire. Every catch site must log error + emit mfa.infra_error.
     it('WR-03: createChallenge infra error logs + emits mfa.infra_error', async () => {
-      challengeRepo.countRecentChallenges.mockRejectedValueOnce(new Error('db down'));
+      challengeRepo.insertChallengeIfUnderLimit.mockRejectedValueOnce(
+        new Error('db down'),
+      );
       const result = await service.createChallenge(TEST_USER, TEST_IP);
       assertOkFalse<Extract<MfaCreateResult, { ok: false }>>(result);
       expect(result.reason).toBe('internal');
@@ -238,7 +262,7 @@ describe('MfaService', () => {
     });
 
     it('Test 3: emits MFA_RATE_LIMITED (not MFA_FAILED) on rate-limit denial (D-18)', async () => {
-      challengeRepo.countRecentChallenges.mockResolvedValue(5);
+      challengeRepo.insertChallengeIfUnderLimit.mockResolvedValueOnce(false);
 
       await service.createChallenge(TEST_USER, TEST_IP, 'ja4h-fingerprint');
 
