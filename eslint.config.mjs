@@ -32,4 +32,26 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    // D-04 escape valve (Phase 16) — relax type-safety rules in test scope only.
+    //
+    // Test specs heavily mock Express req/res with `as any` and `jest.fn() as unknown
+    // as ...` patterns; clearing the ~900 resulting `no-unsafe-*` hits is a high-
+    // volume / low-correctness-value mock-typing exercise. Per CONTEXT.md D-04 and
+    // RESEARCH §"D-04 Cutoff Recommendation" + §"D-15 `--max-warnings 0`
+    // Reachability" option (a), test-scope cleanup is parked in backlog phase
+    // 999.x. Production code (src/**/*.ts excluding __tests__) keeps these rules
+    // at ERROR — see preceding `tseslint.configs.recommendedTypeChecked`.
+    files: ['**/__tests__/**/*.ts', 'test/**/*.ts', 'tests/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      // `unbound-method` flips frequently on `jest.toHaveBeenCalledWith(svc.method)`
+      // mocking pattern. Same backlog 999.x parking applies.
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );
