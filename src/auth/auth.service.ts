@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { jwtVerify, decodeProtectedHeader, importSPKI, createRemoteJWKSet, errors } from 'jose';
-import type { JWTVerifyResult, KeyLike, JWTPayload } from 'jose';
+import type { JWTVerifyResult, JWTPayload } from 'jose';
 import { AppConfigService } from '../config/config.service';
 import { UserClaims } from './interfaces/user-claims.interface';
 

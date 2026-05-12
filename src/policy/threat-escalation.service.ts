@@ -80,33 +80,33 @@ export class ThreatEscalationService {
   // ── Subscribers (D-13, D-14) ──
 
   @OnEvent(POLICY_DENY)
-  onPolicyDeny(p: ThreatSignalPayload): void {
-    this.record(POLICY_DENY, p);
+  onPolicyDeny(_p: ThreatSignalPayload): void {
+    this.record(POLICY_DENY);
   }
 
   @OnEvent(AUTH_INVALID_TOKEN)
-  onAuthInvalidToken(p: ThreatSignalPayload): void {
-    this.record(AUTH_INVALID_TOKEN, p);
+  onAuthInvalidToken(_p: ThreatSignalPayload): void {
+    this.record(AUTH_INVALID_TOKEN);
   }
 
   @OnEvent(HONEYPOT_TRIGGER)
-  onHoneypotTrigger(p: ThreatSignalPayload): void {
-    this.record(HONEYPOT_TRIGGER, p);
+  onHoneypotTrigger(_p: ThreatSignalPayload): void {
+    this.record(HONEYPOT_TRIGGER);
   }
 
   @OnEvent(MFA_FAILED)
-  onMfaFailed(p: ThreatSignalPayload): void {
-    this.record(MFA_FAILED, p);
+  onMfaFailed(_p: ThreatSignalPayload): void {
+    this.record(MFA_FAILED);
   }
 
   @OnEvent(MFA_RATE_LIMITED)
-  onMfaRateLimited(p: ThreatSignalPayload): void {
-    this.record(MFA_RATE_LIMITED, p);
+  onMfaRateLimited(_p: ThreatSignalPayload): void {
+    this.record(MFA_RATE_LIMITED);
   }
 
   @OnEvent(AUDIT_SIGNAL)
-  onAuditSignal(p: ThreatSignalPayload): void {
-    this.record(AUDIT_SIGNAL, p);
+  onAuditSignal(_p: ThreatSignalPayload): void {
+    this.record(AUDIT_SIGNAL);
   }
 
   // ── Read API consumed by PolicyEvaluatorService (D-21) ──
@@ -176,7 +176,7 @@ export class ThreatEscalationService {
 
   // ── Internal ──
 
-  private record(type: SignalType, _p: ThreatSignalPayload): void {
+  private record(type: SignalType): void {
     const now = this.clock();
     this.events.push({ ts: now, type });
     // Hard cap (D-18): prevent unbounded growth

@@ -6,7 +6,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import axios from 'axios';
-import type { AxiosRequestConfig, AxiosResponse, Method } from 'axios';
+import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 import CircuitBreaker = require('opossum');
 import type { Request } from 'express';
 import { AppConfigService } from '../config/config.service';

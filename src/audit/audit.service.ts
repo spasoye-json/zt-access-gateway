@@ -36,7 +36,7 @@ export class AuditService {
       try {
         await this.repo.insert(entry);
         return;
-      } catch (e) {
+      } catch {
         if (attempt < maxRetries - 1) {
           await sleep(baseDelay * Math.pow(2, attempt));
         }
