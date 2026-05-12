@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: Tech Debt Cleanup
 status: executing
 stopped_at: Phase 13 context gathered
-last_updated: "2026-05-11T19:51:10.751Z"
-last_activity: 2026-05-11
+last_updated: "2026-05-12T08:37:18.690Z"
+last_activity: 2026-05-12
 progress:
-  total_phases: 1
-  completed_phases: 0
-  total_plans: 3
-  completed_plans: 1
-  percent: 33
+  total_phases: 2
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 4
+  percent: 57
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-11)
 
 **Core value:** Every request is verified, scored, and authorized before reaching any downstream service
-**Current focus:** Phase 13 — v1-0-tech-debt-cleanup
+**Current focus:** Phase 14 — v1.0 Observability + Hygiene Closure
 
 ## Current Position
 
-Phase: 13 (v1-0-tech-debt-cleanup) — EXECUTING
-Plan: 2 of 3
+Phase: 14 (v1.0 Observability + Hygiene Closure) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-05-11
+Last activity: 2026-05-12
 
-Progress: [███░░░░░░░] 33%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 35 (Phases 1–5)
+- Total plans completed: 38 (Phases 1–5)
 - Average duration: -
 - Total execution time: 0 hours
 
@@ -52,6 +52,7 @@ Progress: [███░░░░░░░] 33%
 | 08 | 5 | - | - |
 | 09 | 4 | - | - |
 | 12 | 2 | - | - |
+| 13 | 3 | - | - |
 
 **Recent Trend:**
 
@@ -84,6 +85,8 @@ Progress: [███░░░░░░░] 33%
 | Phase 12 P01 | 17min | 2 tasks | 4 files |
 | Phase 12 P02 | 5min | 1 tasks | 1 files |
 | Phase 13 P01 | 3min | 3 tasks | 7 files |
+| Phase 13 P02 | 10min | 3 tasks | 5 files |
+| Phase 14 P01 | 35min | 6 tasks | 9 files |
 
 ## Quick Tasks Completed
 
@@ -155,6 +158,13 @@ Recent decisions affecting current work:
 - [Phase 12]: Plan 12-01: OPTIONS early-return placed inline in GatewayMiddleware.use() after reqPath IIFE, before PUBLIC_PATHS check — locally auditable, mirrors existing idiom, avoids MiddlewareConsumer.exclude() complexity (closes I-08, F-p)
 - [Phase 12]: Plan 12-02: EscalationLevelDto @IsIn(['Normal','Elevated','Critical']) is Title case — e2e sends 'Elevated' not 'elevated'; ThreatLevel type and setManualLevel match Title case convention
 - [Phase ?]: [Phase 13]: Plan 13-01: HashcashGuard orphan deleted; regression spec uses grep-allowlist hybrid — single source of truth for what's permitted to mention deleted class (D-03+D-09 fused)
+- [Phase ?]: [Phase 13]: Plan 13-02: Sentinel sequencing placed AFTER revocation (line 159), NOT next to req.user (line 147) — prevents revoked token from polluting the sentinel between auth-success and revocation-check (D-04 verbatim)
+- [Phase ?]: [Phase 13]: Plan 13-02: GATEWAY_VALIDATED is Symbol identity (unique symbol) — Symbol identity is process-private; client-controlled HTTP headers or string keys cannot spoof (D-04, T-13-02-01 mitigated; spoof-safety unit test as permanent regression guard)
+- [Phase ?]: [Phase 13]: Plan 13-02: JwtAuthGuard reads only the Symbol-keyed property, not bare req.user — defence-in-depth against future code paths that set req.user without running auth (D-04, T-13-02-02)
+- [Phase ?]: [Phase 14]: Plan 14-01: EventEmitter2 seam for orphan MetricsService seams — MetricsModule transitively imports FingerprintModule (via HoneypotModule) and AuthModule (via PolicyModule); reverse direct injection creates a DI cycle. Matches audit.record_failed precedent (D-01)
+- [Phase ?]: [Phase 14]: Plan 14-01: Drift event emitted from Ja4hDriftProvider.compute drift branch (not Ja4hMiddleware as audit phrased) — middleware runs before auth with no prior-fingerprint state; row.ja4h !== ctx.ja4h is the only physically correct emit site (D-02)
+- [Phase ?]: [Phase 14]: Plan 14-01: AuthController emits AUTH_TOKEN_REVOKED ONLY after revocationService.revoke success (after 403 ownership check); spec covers both branches so counter never inflates on forbidden attempts
+- [Phase ?]: [Phase 14]: Plan 14-01: New src/metrics/metrics-events.ts mirrors policy-events.ts shape — per-direction event-name constants module avoids string-typo drift across emit/subscribe sites (D-03)
 
 ### Roadmap Evolution
 
@@ -172,7 +182,7 @@ _Resolved 2026-05-04: Phase 8 opossum/mTLS wiring — MtlsService.getHttpsAgent(
 
 ## Session Continuity
 
-Last session: 2026-05-11T19:50:58.903Z
+Last session: 2026-05-12T08:36:54.941Z
 Stopped at: Phase 13 context gathered
 
 **Planned Phase:** 05 (hashcash-pow) — 9 plans — 2026-04-26T08:20:40.720Z
