@@ -104,9 +104,18 @@ export class AuthService {
     if (typeof deviceId !== 'string' || deviceId.trim() === '') {
       throw new UnauthorizedException('Token missing deviceId claim');
     }
+    // WR-04 (phase 14): never trust the shape of the roles claim. A token with
+    // roles:"admin" (string) or roles:42 (number) is malformed; downstream
+    // consumers (RolesGuard, AuthController.revoke) assume an array of strings
+    // and either silently misbehave (substring match on a string primitive) or
+    // throw (.includes on a number). Filter to a string[] defensively.
+    const rawRoles: unknown = payload.roles;
+    const roles = Array.isArray(rawRoles)
+      ? rawRoles.filter((r): r is string => typeof r === 'string')
+      : [];
     return {
       userId: payload.sub!,
-      roles: (payload.roles as string[]) ?? [],
+      roles,
       jti: payload.jti!,
       exp: payload.exp!,
       email: payload.email as string | undefined,
