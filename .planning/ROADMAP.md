@@ -28,6 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 15: v1.0 Docs & Traceability Closure** - Backfill 03-VERIFICATION.md and reconcile REQUIREMENTS.md trace table + upper checklist drift (52 stale Pending entries; ROADMAP previously said 41) (completed 2026-05-12)
 - [x] **Phase 16: v1.0 Legacy Harness & Lint Repairs** - Restore `npm run lint` (typescript-eslint meta-package) and align legacy `test/jest-e2e.json` bootstrap.e2e-spec.ts unknown-route assertion with current 401 behaviour (completed 2026-05-12)
 - [x] **Phase 17: v1.0 Nyquist Sign-Off Sweep** - Promote 7 partial + 1 missing VALIDATION.md to nyquist_compliant=true via `/gsd-validate-phase` per phase (1, 7, 8, 10, 11, 12, 13) + promote phase 9 draft → finalized (completed 2026-05-12)
+- [ ] **Phase 18: v1.0 Nyquist Process Closure** - Close 3 net-new Nyquist process gaps from v1.0 re-audit (2026-05-12T21:09:45Z): author 15-VALIDATION.md (doc-only phase), promote 16-VALIDATION.md draft → finalized, author 17-VALIDATION.md self-attesting the Nyquist sweep phase
 
 ## Phase Details
 
@@ -360,3 +361,19 @@ Plans:
 Plans:
 - [x] 17-01-PLAN.md — Pre-flight + bulk promotion of 7 VALIDATION.md files (commits 1–7 of D-06)
 - [x] 17-02-PLAN.md — Phase 13 VALIDATION.md authoring + v1.0 milestone audit re-run (commits 8–9 of D-06)
+
+### Phase 18: v1.0 Nyquist Process Closure
+**Goal**: Close the 3 net-new Nyquist process gaps surfaced by the 2026-05-12T21:09:45Z v1.0 re-audit so the milestone audit re-runs at `nyquist: overall: compliant` (17/17 compliant)
+**Depends on**: Phase 17
+**Requirements**: (none — pure process sign-off; no new REQ-IDs)
+**Gap Closure**: Closes v1.0 audit tech_debt items 5a (Phase 16 draft VALIDATION.md not promoted), 5b (Phase 15 VALIDATION.md missing), 5c (Phase 17 VALIDATION.md missing)
+**Success Criteria** (what must be TRUE):
+  1. `.planning/phases/15-v1-0-docs-and-traceability-closure/15-VALIDATION.md` exists with `status: finalized, nyquist_compliant: true` — mirrors Phase 13/14 shape per D-02 from Phase 17 (doc-only phase attestation)
+  2. `.planning/phases/16-v1-0-legacy-harness-and-lint-repairs/16-VALIDATION.md` promoted from `status: draft, nyquist_compliant: false` to `status: finalized, nyquist_compliant: true` via the D-04 status + footer pattern from Phase 17
+  3. `.planning/phases/17-v1-0-nyquist-signoff-sweep/17-VALIDATION.md` exists with `status: finalized, nyquist_compliant: true` — self-attesting the Nyquist sweep phase (or formally exempt by design with rationale recorded in PLAN)
+  4. `.planning/v1.0-MILESTONE-AUDIT.md` re-run shows `nyquist: compliant_phases: 17, partial_phases: 0, missing_phases: 0, overall: compliant`
+  5. Each VALIDATION.md change committed atomically (`chore(nyquist): finalize phase {N} validation`) to preserve audit trail
+**Plans:**
+- [ ] 18-01-PLAN.md — Author 15-VALIDATION.md (doc-only phase attestation; mirror Phase 13/14 shape)
+- [ ] 18-02-PLAN.md — Promote 16-VALIDATION.md draft → finalized + nyquist_compliant: true (D-04 pattern)
+- [ ] 18-03-PLAN.md — Author 17-VALIDATION.md self-attesting Nyquist sweep + re-run milestone audit
