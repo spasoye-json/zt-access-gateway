@@ -67,7 +67,7 @@ describe('computeJa4h', () => {
   });
 
   it('uses req.httpVersion, falls back to 1.1 if undefined', () => {
-    const req = mockReq([], {}, 'GET', undefined as any);
+    const req = mockReq([], {}, 'GET', undefined);
     const expected = makeHash('GET|1.1|||');
     expect(computeJa4h(req)).toBe(expected);
   });

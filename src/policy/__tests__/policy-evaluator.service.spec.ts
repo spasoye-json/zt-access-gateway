@@ -159,7 +159,7 @@ describe('PolicyEvaluatorService', () => {
   // ── D-03 fail-closed runtime ──────────────────────────────────────────
   it('D-03 fail-closed runtime: enforce() throws → DENY policy_error + metrics.errors++ + emits policy.deny', async () => {
     const errCounter = metrics.registry.getSingleMetric('zt_gateway_policy_errors_total');
-    const before = await errCounter!.get();
+    const before = await errCounter.get();
     const beforeVal = (before as { values: { value: number }[] }).values[0]?.value ?? 0;
 
     jest
@@ -169,7 +169,7 @@ describe('PolicyEvaluatorService', () => {
     const r = await svc.evaluate(fakeReq({ trustScore: 0.1 }));
     expect(r).toEqual(expect.objectContaining({ decision: 'DENY', reason: 'policy_error' }));
 
-    const after = await errCounter!.get();
+    const after = await errCounter.get();
     const afterVal = (after as { values: { value: number }[] }).values[0].value;
     expect(afterVal).toBeGreaterThan(beforeVal);
     expect(emitSpy).toHaveBeenCalledWith(POLICY_DENY, expect.any(Object));

@@ -94,8 +94,8 @@ describe('TokenRevocationService', () => {
       const entry = service.getEntry('jti-owned');
 
       expect(entry).toBeDefined();
-      expect(entry!.userId).toBe('owner-1');
-      expect(entry!.expiresAt).toBe(now + 3600_000);
+      expect(entry.userId).toBe('owner-1');
+      expect(entry.expiresAt).toBe(now + 3600_000);
     });
 
     it('returns undefined for expired revocation', () => {

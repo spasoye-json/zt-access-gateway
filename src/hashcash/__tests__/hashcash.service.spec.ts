@@ -248,7 +248,7 @@ describe('HashcashService', () => {
       service.verifySolution(issued.nonce, solution, 0.85, 'u', 'd'); // solved
       service.verifySolution('garbage', 'x', 0.85, 'u', 'd'); // failed (malformed)
       const json = await metrics.registry.getMetricsAsJSON();
-      const total = json.find((x) => x.name === 'zt_gateway_hashcash_total')!;
+      const total = json.find((x) => x.name === 'zt_gateway_hashcash_total');
       const solved = total.values.find((v) => v.labels.outcome === 'solved');
       const failed = total.values.find((v) => v.labels.outcome === 'failed');
       expect((solved as { value: number }).value).toBeGreaterThanOrEqual(1);

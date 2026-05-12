@@ -43,7 +43,7 @@ describe('JwtAuthGuard', () => {
       },
       ip,
       socket: { remoteAddress: ip },
-      user: undefined as unknown,
+      user: undefined,
     };
     if (overrides?.ja4h !== undefined) {
       request['x-ja4h'] = overrides.ja4h;
@@ -187,7 +187,7 @@ describe('JwtAuthGuard', () => {
         authorization: `Bearer ${token}`,
       });
       // Attempt spoof — string key, NOT the Symbol.
-      const req = ctx.switchToHttp().getRequest() as Record<string, unknown>;
+      const req = ctx.switchToHttp().getRequest();
       req['GATEWAY_VALIDATED'] = true;
       (req.headers as Record<string, string>)['x-gateway-validated'] = 'true';
 

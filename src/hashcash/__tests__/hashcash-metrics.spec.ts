@@ -8,7 +8,7 @@ describe('HashcashMetrics', () => {
       const json = await m.registry.getMetricsAsJSON();
       const total = json.find((x) => x.name === 'zt_gateway_hashcash_total');
       expect(total).toBeDefined();
-      const sample = total!.values.find(
+      const sample = total.values.find(
         (v: { labels: Record<string, string>; value: number }) =>
           v.labels.outcome === 'issued' && v.labels.difficulty === '18',
       );
@@ -20,7 +20,7 @@ describe('HashcashMetrics', () => {
       m.total.inc({ outcome: 'solved', difficulty: '22' });
       const json = await m.registry.getMetricsAsJSON();
       const sample = json
-        .find((x) => x.name === 'zt_gateway_hashcash_total')!
+        .find((x) => x.name === 'zt_gateway_hashcash_total')
         .values.find(
           (v: { labels: Record<string, string>; value: number }) =>
             v.labels.outcome === 'solved' && v.labels.difficulty === '22',
@@ -33,7 +33,7 @@ describe('HashcashMetrics', () => {
       m.total.inc({ outcome: 'failed', difficulty: '20' });
       const json = await m.registry.getMetricsAsJSON();
       const sample = json
-        .find((x) => x.name === 'zt_gateway_hashcash_total')!
+        .find((x) => x.name === 'zt_gateway_hashcash_total')
         .values.find(
           (v: { labels: Record<string, string>; value: number }) =>
             v.labels.outcome === 'failed' && v.labels.difficulty === '20',

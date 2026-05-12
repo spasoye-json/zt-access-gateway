@@ -76,7 +76,7 @@ describe('UserSecretsRepository — write surface', () => {
     });
 
     it('ENROLL-07: handles rowCount null (pg driver quirk) as false', async () => {
-      const pool = buildMockPool({ rows: [], rowCount: null as unknown as number });
+      const pool = buildMockPool({ rows: [], rowCount: null });
       const repo = new UserSecretsRepository(buildConfig());
       (repo as unknown as { pool: typeof pool }).pool = pool;
 

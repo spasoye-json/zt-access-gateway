@@ -26,7 +26,7 @@ describe('AuditController', () => {
   describe('GET /audit/logs delegation (AUDT-05)', () => {
     it('forwards DTO to AuditService.queryLogs and returns { items, total }', async () => {
       svc.queryLogs.mockResolvedValueOnce({ items: [], total: 7 });
-      const out = await ctrl.getLogs({ userId: 'u', limit: 10, offset: 0 } as AuditLogsQueryDto);
+      const out = await ctrl.getLogs({ userId: 'u', limit: 10, offset: 0 });
       expect(svc.queryLogs).toHaveBeenCalledWith({ userId: 'u', limit: 10, offset: 0 });
       expect(out).toEqual({ items: [], total: 7 });
     });

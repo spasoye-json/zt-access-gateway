@@ -121,7 +121,7 @@ describe.skip('Hashcash e2e (superseded by plan 10-06 GatewayMiddleware e2e)', (
     expect(r1.headers['retry-after']).toBe('1');
     expect(r1.body.error).toBe('proof_of_work_required');
 
-    const challenge = r1.headers['x-hashcash-challenge'] as string;
+    const challenge = r1.headers['x-hashcash-challenge'];
     const lastColon = challenge.lastIndexOf(':');
     const nonce = challenge.slice(0, lastColon);
     const difficulty = parseInt(challenge.slice(lastColon + 1), 10);

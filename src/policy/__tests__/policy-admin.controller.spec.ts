@@ -61,7 +61,7 @@ describe('PolicyAdminController', () => {
       sub: 'role:t',
       obj: '/t',
       act: 'GET',
-    } as never);
+    });
     expect(evaluator.addRule).toHaveBeenCalledWith('role:t', '/t', 'GET');
     expect(r).toEqual({ added: true });
   });
@@ -72,7 +72,7 @@ describe('PolicyAdminController', () => {
       sub: 'role:dup',
       obj: '/x',
       act: 'GET',
-    } as never);
+    });
     expect(r).toEqual({ added: false });
   });
 
@@ -80,7 +80,7 @@ describe('PolicyAdminController', () => {
     evaluator.addRule.mockRejectedValueOnce(
       new Error('savePolicy returned false — check policy/model.conf has [role_definition]'),
     );
-    await expect(ctrl.addRule({ sub: 'r', obj: '/x', act: 'GET' } as never)).rejects.toThrow(
+    await expect(ctrl.addRule({ sub: 'r', obj: '/x', act: 'GET' })).rejects.toThrow(
       /savePolicy returned false/,
     );
   });
@@ -90,7 +90,7 @@ describe('PolicyAdminController', () => {
       sub: 'r',
       obj: '/x',
       act: 'GET',
-    } as never);
+    });
     expect(evaluator.removeRule).toHaveBeenCalledWith('r', '/x', 'GET');
     expect(r).toEqual({ removed: true });
   });
@@ -101,7 +101,7 @@ describe('PolicyAdminController', () => {
       sub: 'role:ghost',
       obj: '/none',
       act: 'GET',
-    } as never);
+    });
     expect(r).toEqual({ removed: false });
   });
 
@@ -136,9 +136,9 @@ describe('PolicyAdminController', () => {
   // is owned by PolicyEvaluatorService.addRule (verified in 06-02 spec).
   it('controller does not bypass evaluator (mutex enforced upstream)', async () => {
     await Promise.all([
-      ctrl.addRule({ sub: 'r1', obj: '/x', act: 'GET' } as never),
-      ctrl.addRule({ sub: 'r2', obj: '/x', act: 'GET' } as never),
-      ctrl.addRule({ sub: 'r3', obj: '/x', act: 'GET' } as never),
+      ctrl.addRule({ sub: 'r1', obj: '/x', act: 'GET' }),
+      ctrl.addRule({ sub: 'r2', obj: '/x', act: 'GET' }),
+      ctrl.addRule({ sub: 'r3', obj: '/x', act: 'GET' }),
     ]);
     expect(evaluator.addRule).toHaveBeenCalledTimes(3);
   });

@@ -29,7 +29,7 @@ describe('AuthService', () => {
       jwksUri: undefined,
       jwtIssuer: undefined,
       jwtAudience: undefined,
-    } as Partial<AppConfigService>;
+    };
 
     const module = await Test.createTestingModule({
       providers: [AuthService, { provide: AppConfigService, useValue: mockConfig }],
@@ -228,7 +228,7 @@ describe('AuthService', () => {
     // WR-04 (phase 14): defend against malformed roles claim values.
     it('WR-04: returns empty roles when claim is a string (not an array)', async () => {
       const token = await createHs256Token(
-        { sub: 'u1', roles: 'admin' as unknown as string[] },
+        { sub: 'u1', roles: 'admin' },
         { jti: 'jti-roles-string' },
       );
       const claims = await authService.validateToken(token);
@@ -236,10 +236,7 @@ describe('AuthService', () => {
     });
 
     it('WR-04: returns empty roles when claim is a number', async () => {
-      const token = await createHs256Token(
-        { sub: 'u1', roles: 42 as unknown as string[] },
-        { jti: 'jti-roles-number' },
-      );
+      const token = await createHs256Token({ sub: 'u1', roles: 42 }, { jti: 'jti-roles-number' });
       const claims = await authService.validateToken(token);
       expect(claims.roles).toEqual([]);
     });
@@ -248,7 +245,7 @@ describe('AuthService', () => {
       const token = await createHs256Token(
         {
           sub: 'u1',
-          roles: ['admin', 7, { evil: true }, 'editor'] as unknown as string[],
+          roles: ['admin', 7, { evil: true }, 'editor'] as unknown,
         },
         { jti: 'jti-roles-mixed' },
       );
@@ -319,7 +316,7 @@ describe('AuthService', () => {
         jti: 'j1',
         deviceId: 'd1',
         typ: 'mfa',
-      } as Record<string, unknown>)
+      })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('1h')

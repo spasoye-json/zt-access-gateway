@@ -185,7 +185,7 @@ describe('ShadowController', () => {
       });
 
       it('uses "unknown" as fingerprint when x-ja4h is absent', async () => {
-        const req = makeMockReq(path, undefined as any);
+        const req = makeMockReq(path, undefined);
         delete req['x-ja4h'];
         const res = makeMockRes();
         await (controller as any)[method](req, res);

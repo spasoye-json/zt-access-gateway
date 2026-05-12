@@ -4,7 +4,7 @@ import type { AppConfigService } from '../../config/config.service';
 
 function ztTestUrlFromEnv(): string {
   const raw = process.env.DATABASE_URL;
-  const u = new URL(raw!);
+  const u = new URL(raw);
   u.pathname = '/zt_test';
   return u.href;
 }

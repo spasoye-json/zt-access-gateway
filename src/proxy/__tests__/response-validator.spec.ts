@@ -13,7 +13,7 @@ function makeResponse(status: number, contentType?: string): AxiosResponse {
     data: {},
     statusText: 'OK',
     config: {} as AxiosResponse['config'],
-  } as unknown as AxiosResponse;
+  };
 }
 
 describe('assertValidProxyResponse', () => {

@@ -77,7 +77,7 @@ async function mintMfaJwt(opts: {
     typ = 'mfa',
     expiresIn = '10m',
   } = opts;
-  return new SignJWT({ sub: userId, jti, deviceId, fpHash, typ } as Record<string, unknown>)
+  return new SignJWT({ sub: userId, jti, deviceId, fpHash, typ })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(expiresIn)
@@ -627,7 +627,7 @@ describe('MfaService', () => {
         deviceId: TEST_DEVICE,
         typ: 'mfa',
         fpHash: expectedFingerprint(TEST_USER, TEST_DEVICE, TEST_IP),
-      } as Record<string, unknown>)
+      })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('10m')
@@ -761,8 +761,8 @@ describe('MfaService', () => {
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const failed = calls.find((c) => c.name === MFA_FAILED);
       expect(failed).toBeDefined();
-      expect((failed!.p as { reason: string }).reason).toBe('invalid_totp_enrollment');
-      expect((failed!.p as { userId: string }).userId).toBe(TEST_USER);
+      expect((failed.p as { reason: string }).reason).toBe('invalid_totp_enrollment');
+      expect((failed.p as { userId: string }).userId).toBe(TEST_USER);
     });
 
     it('BL-02: increments the per-enrollmentId attempt counter on each failure', async () => {
@@ -801,8 +801,8 @@ describe('MfaService', () => {
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const failed = calls.find((c) => c.name === MFA_FAILED);
       expect(failed).toBeDefined();
-      expect((failed!.p as { ip: string }).ip).toBe(TEST_IP);
-      expect((failed!.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-1');
+      expect((failed.p as { ip: string }).ip).toBe(TEST_IP);
+      expect((failed.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-1');
     });
 
     it('IN-04: MFA_RATE_LIMITED on attempts exhausted carries ip + ja4h', async () => {
@@ -811,8 +811,8 @@ describe('MfaService', () => {
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const rateLimited = calls.find((c) => c.name === MFA_RATE_LIMITED);
       expect(rateLimited).toBeDefined();
-      expect((rateLimited!.p as { ip: string }).ip).toBe(TEST_IP);
-      expect((rateLimited!.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-2');
+      expect((rateLimited.p as { ip: string }).ip).toBe(TEST_IP);
+      expect((rateLimited.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-2');
     });
 
     it('IN-04: omits ja4h key when caller does not supply it', async () => {
@@ -821,8 +821,8 @@ describe('MfaService', () => {
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const failed = calls.find((c) => c.name === MFA_FAILED);
       expect(failed).toBeDefined();
-      expect((failed!.p as { ip: string }).ip).toBe(TEST_IP);
-      expect((failed!.p as { ja4h?: string }).ja4h).toBeUndefined();
+      expect((failed.p as { ip: string }).ip).toBe(TEST_IP);
+      expect((failed.p as { ja4h?: string }).ja4h).toBeUndefined();
     });
 
     it('ENROLL-06b: returns expired_enrollment when pending entry missing/expired', async () => {

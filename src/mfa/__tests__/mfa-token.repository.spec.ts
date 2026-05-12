@@ -14,7 +14,7 @@ describeDb('MfaTokenRepository', () => {
   beforeAll(() => {
     pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
     repo = new MfaTokenRepository({
-      databaseUrl: process.env.DATABASE_URL!,
+      databaseUrl: process.env.DATABASE_URL,
     } as unknown as AppConfigService);
   });
 
@@ -53,10 +53,10 @@ describeDb('MfaTokenRepository', () => {
     await repo.insertMfaToken(jti, TEST_UID, TEST_FP, exp);
     const row = await repo.getMfaTokenWithStatus(jti);
     expect(row).not.toBeNull();
-    expect(row!.jti).toBe(jti);
-    expect(row!.fingerprintHash).toBe(TEST_FP);
-    expect(row!.isRevoked).toBe(false);
-    expect(row!.isExpired).toBe(false);
+    expect(row.jti).toBe(jti);
+    expect(row.fingerprintHash).toBe(TEST_FP);
+    expect(row.isRevoked).toBe(false);
+    expect(row.isExpired).toBe(false);
   });
 
   it('WR-01: getMfaTokenWithStatus returns isRevoked=true when revoked_at is set', async () => {
@@ -66,8 +66,8 @@ describeDb('MfaTokenRepository', () => {
     await repo.revokeMfaToken(jti);
     const row = await repo.getMfaTokenWithStatus(jti);
     expect(row).not.toBeNull();
-    expect(row!.isRevoked).toBe(true);
-    expect(row!.isExpired).toBe(false);
+    expect(row.isRevoked).toBe(true);
+    expect(row.isExpired).toBe(false);
   });
 
   it('WR-01: getMfaTokenWithStatus returns isExpired=true for a past expires_at', async () => {
@@ -79,7 +79,7 @@ describeDb('MfaTokenRepository', () => {
     );
     const row = await repo.getMfaTokenWithStatus(jti);
     expect(row).not.toBeNull();
-    expect(row!.isExpired).toBe(true);
+    expect(row.isExpired).toBe(true);
   });
 
   it('WR-01: getMfaTokenWithStatus returns null for unknown jti', async () => {

@@ -29,9 +29,9 @@ describe('PendingEnrollmentStore', () => {
     store.set('eid-1', { userId: 'u1', secret: 'JBSWY3DPEHPK3PXP' });
     const got = store.get('eid-1');
     expect(got).not.toBeNull();
-    expect(got!.userId).toBe('u1');
-    expect(got!.secret).toBe('JBSWY3DPEHPK3PXP');
-    expect(got!.expiresAt).toBe(Date.now() + 5_000);
+    expect(got.userId).toBe('u1');
+    expect(got.secret).toBe('JBSWY3DPEHPK3PXP');
+    expect(got.expiresAt).toBe(Date.now() + 5_000);
   });
 
   it('ENROLL-06: get returns null and lazy-evicts after TTL', async () => {
@@ -65,7 +65,7 @@ describe('PendingEnrollmentStore', () => {
     const { PendingEnrollmentStore } = await loadStore();
     const store = new PendingEnrollmentStore(buildCfg(60_000));
     store.set('eid-attempts-1', { userId: 'u1', secret: 'SSS' });
-    expect(store.get('eid-attempts-1')!.attempts).toBe(0);
+    expect(store.get('eid-attempts-1').attempts).toBe(0);
   });
 
   it('BL-02: incrementAttempts returns monotonically increasing count', async () => {
@@ -75,7 +75,7 @@ describe('PendingEnrollmentStore', () => {
     expect(store.incrementAttempts('eid-attempts-2')).toBe(1);
     expect(store.incrementAttempts('eid-attempts-2')).toBe(2);
     expect(store.incrementAttempts('eid-attempts-2')).toBe(3);
-    expect(store.get('eid-attempts-2')!.attempts).toBe(3);
+    expect(store.get('eid-attempts-2').attempts).toBe(3);
   });
 
   it('BL-02: incrementAttempts on unknown id returns 0 without throwing', async () => {

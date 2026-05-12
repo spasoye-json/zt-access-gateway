@@ -14,7 +14,7 @@ import type { TrustContext } from '../trust-context';
 
 function ztTestUrlFromEnv(): string {
   const raw = process.env.DATABASE_URL;
-  const u = new URL(raw!);
+  const u = new URL(raw);
   u.pathname = '/zt_test';
   return u.href;
 }
@@ -96,7 +96,7 @@ describeDb('TRST-09 trust persistence boundary', () => {
 
     const row = await repository.getSignalRow(c.userId, c.deviceId, c.ip);
     expect(row).not.toBeNull();
-    expect(row!.allow_count).toBe(1);
+    expect(row.allow_count).toBe(1);
   });
 
   it('rejects NaN finalScore for recordTrustContextAfterAllow', async () => {

@@ -9,7 +9,7 @@ import {
 
 function ztTestUrlFromEnv(): string {
   const raw = process.env.DATABASE_URL;
-  const u = new URL(raw!);
+  const u = new URL(raw);
   u.pathname = '/zt_test';
   return u.href;
 }
@@ -52,7 +52,7 @@ describeDb('TrustTelemetryRepository', () => {
     );
     const row = await repository.getSignalRow(uid, did, ip);
     expect(row).not.toBeNull();
-    expect(row!.allow_count).toBe(4);
+    expect(row.allow_count).toBe(4);
     const n = await repository.countAllowsForUserDeviceIp(uid, did, ip);
     expect(n).toBe(4);
   });

@@ -12,7 +12,7 @@ describeDb('MfaChallengeRepository', () => {
   beforeAll(() => {
     pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
     repo = new MfaChallengeRepository({
-      databaseUrl: process.env.DATABASE_URL!,
+      databaseUrl: process.env.DATABASE_URL,
     } as unknown as AppConfigService);
   });
 
@@ -120,7 +120,7 @@ describeDb('MfaChallengeRepository', () => {
     for (let i = 0; i < WORKERS; i++) {
       workerRepos.push(
         new MfaChallengeRepository({
-          databaseUrl: process.env.DATABASE_URL!,
+          databaseUrl: process.env.DATABASE_URL,
         } as unknown as AppConfigService),
       );
     }
