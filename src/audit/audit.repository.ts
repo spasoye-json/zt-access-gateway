@@ -84,7 +84,10 @@ export class AuditRepository implements OnModuleDestroy {
     };
   }
 
-  private toAuditLog(row: AuditLogRow): AuditLog {
+  // `this: void` annotation: this mapper does not reference `this`; the explicit
+  // annotation closes the unbound-method warning when passed as a callback
+  // (e.g. `res.rows.map(this.toAuditLog)`).
+  private toAuditLog(this: void, row: AuditLogRow): AuditLog {
     return {
       id: Number(row.id),
       userId: row.user_id,
