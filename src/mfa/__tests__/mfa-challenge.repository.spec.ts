@@ -116,4 +116,54 @@ describeDb('MfaChallengeRepository', () => {
     );
     expect(r.rows[0]?.c).toBe(3);
   });
+
+  // WR-NEW-02 (phase 14, iter2): the prior race spec routed every worker
+  // through a single shared pg.Pool (max:5). Driver-level connection multiplexing
+  // can serialise the INSERTs enough that the racy SQL passes coincidentally.
+  // This spec gives each worker its OWN MfaChallengeRepository (hence its own
+  // pool / connection) so concurrent INSERTs actually run on independent
+  // Postgres backends. Without pg_advisory_xact_lock the count + insert TOCTOU
+  // reopens and successes overshoot maxCount.
+  it('WR-NEW-02: concurrent inserts from INDEPENDENT connections still cap at maxCount', async () => {
+    const TEST_UID_RACE = 'test-mfa-race-independent';
+    await pool.query(`DELETE FROM mfa_challenges WHERE user_id = $1`, [TEST_UID_RACE]);
+
+    const WORKERS = 12;
+    const MAX = 3;
+    const workerRepos: MfaChallengeRepository[] = [];
+    for (let i = 0; i < WORKERS; i++) {
+      workerRepos.push(
+        new MfaChallengeRepository({
+          databaseUrl: process.env.DATABASE_URL!,
+        } as unknown as AppConfigService),
+      );
+    }
+
+    try {
+      const fires = workerRepos.map((workerRepo, i) =>
+        workerRepo.insertChallengeIfUnderLimit(
+          `test-wr-new-02-race-${i}`,
+          TEST_UID_RACE,
+          new Date(Date.now() + 300_000),
+          60_000,
+          MAX,
+        ),
+      );
+      const results = await Promise.all(fires);
+      const successes = results.filter((r) => r === true).length;
+      // EXACTLY MAX successes — overshoot proves the race; undershoot proves
+      // accidental over-serialisation in the lock implementation.
+      expect(successes).toBe(MAX);
+
+      const r = await pool.query(
+        `SELECT COUNT(*)::int AS c FROM mfa_challenges
+         WHERE user_id = $1 AND challenge_id LIKE 'test-wr-new-02-race-%'`,
+        [TEST_UID_RACE],
+      );
+      expect(r.rows[0]?.c).toBe(MAX);
+    } finally {
+      await Promise.all(workerRepos.map((r) => r.onModuleDestroy()));
+      await pool.query(`DELETE FROM mfa_challenges WHERE user_id = $1`, [TEST_UID_RACE]);
+    }
+  });
 });
