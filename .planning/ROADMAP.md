@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 14: v1.0 Observability + Hygiene Closure** - Wire 3 orphan MetricsService seams, add MFA_RATE_LIMITED ThreatEscalation subscriber, add Hashcash 429 e2e, delete MfaGuard dead export (completed 2026-05-12)
 - [x] **Phase 15: v1.0 Docs & Traceability Closure** - Backfill 03-VERIFICATION.md and reconcile REQUIREMENTS.md trace table + upper checklist drift (52 stale Pending entries; ROADMAP previously said 41) (completed 2026-05-12)
 - [x] **Phase 16: v1.0 Legacy Harness & Lint Repairs** - Restore `npm run lint` (typescript-eslint meta-package) and align legacy `test/jest-e2e.json` bootstrap.e2e-spec.ts unknown-route assertion with current 401 behaviour (completed 2026-05-12)
-- [ ] **Phase 17: v1.0 Nyquist Sign-Off Sweep** - Promote 7 partial + 1 missing VALIDATION.md to nyquist_compliant=true via `/gsd-validate-phase` per phase (1, 7, 8, 10, 11, 12, 13) + promote phase 9 draft → finalized
+- [x] **Phase 17: v1.0 Nyquist Sign-Off Sweep** - Promote 7 partial + 1 missing VALIDATION.md to nyquist_compliant=true via `/gsd-validate-phase` per phase (1, 7, 8, 10, 11, 12, 13) + promote phase 9 draft → finalized (completed 2026-05-12)
 
 ## Phase Details
 
@@ -227,7 +227,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 14. v1.0 Observability + Hygiene Closure | 4/4 | Complete   | 2026-05-12 |
 | 15. v1.0 Docs & Traceability Closure | 0/? | Pending | — |
 | 16. v1.0 Legacy Harness & Lint Repairs | 8/8 | Complete    | 2026-05-12 |
-| 17. v1.0 Nyquist Sign-Off Sweep | 0/? | Pending | — |
+| 17. v1.0 Nyquist Sign-Off Sweep | 2/2 | Complete    | 2026-05-12 |
 
 ### Phase 11: MFA Enrollment
 
@@ -356,4 +356,7 @@ Plans:
   3. Phase 09 VALIDATION.md is promoted from `status: draft` → `status: finalized` while preserving `nyquist_compliant: true`
   4. `.planning/v1.0-MILESTONE-AUDIT.md` re-run shows `nyquist: compliant_phases: 14, partial_phases: 0, missing_phases: 0, overall: compliant`
   5. Sweep is committed with one `chore(nyquist): finalize phase {N} validation` commit per phase to keep audit trail atomic
-**Plans**: TBD (run `/gsd-plan-phase 17`)
+**Plans:** 2/2 plans complete
+Plans:
+- [x] 17-01-PLAN.md — Pre-flight + bulk promotion of 7 VALIDATION.md files (commits 1–7 of D-06)
+- [x] 17-02-PLAN.md — Phase 13 VALIDATION.md authoring + v1.0 milestone audit re-run (commits 8–9 of D-06)
