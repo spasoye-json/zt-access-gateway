@@ -103,6 +103,23 @@ export class MfaService {
   }
 
   /**
+   * WR-03 (phase 14): centralised structured logging + observability emission
+   * for swallowed infra errors. Operators previously saw zero signal when a
+   * Postgres outage turned every MFA call into a silent { ok:false,
+   * reason:'internal' } — no log, no event, no audit trail. Each catch site
+   * now routes through this helper so dashboards / alerts can fire on
+   * mfa.infra_error spikes.
+   */
+  private recordInfraError(op: string, userId: string | undefined, err: unknown): void {
+    this.logger.error(`MfaService.${op} infra error`, err as Error);
+    this.events.emit('mfa.infra_error', {
+      userId,
+      op,
+      ts: Date.now(),
+    });
+  }
+
+  /**
    * Creates an MFA challenge for userId. Rate-limited per D-17.
    * Returns { ok: true, challengeId, expiresAt } or { ok: false, reason }.
    */
@@ -129,7 +146,8 @@ export class MfaService {
       const expiresAt = new Date(Date.now() + this.challengeTtlMs);
       await this.challengeRepo.insertChallenge(challengeId, userId, expiresAt);
       return { ok: true, challengeId, expiresAt: expiresAt.getTime() };
-    } catch {
+    } catch (err) {
+      this.recordInfraError('createChallenge', userId, err);
       return { ok: false, reason: 'internal' };
     }
   }
@@ -224,7 +242,12 @@ export class MfaService {
       await this.tokenRepo.insertMfaToken(jti, userId, fpHash, new Date(expiresAtMs));
 
       return { ok: true, token, expiresAt: expiresAtMs };
-    } catch {
+    } catch (err) {
+      // WR-03 (phase 14): log + emit infra signal alongside the existing
+      // MFA_FAILED { reason: 'internal' } so dashboards see the underlying
+      // infra failure (the MFA_FAILED is for the threat ladder; mfa.infra_error
+      // is for ops observability).
+      this.recordInfraError('verifyTotp', userId, err);
       emitFail('internal');
       return { ok: false, reason: 'internal' };
     }
@@ -312,12 +335,9 @@ export class MfaService {
       // level via ThreatEscalationService.onMfaFailed. Route to the dedicated
       // 'internal' branch: fail-closed but NOT a security signal. The inner
       // try around jwtVerify already isolates true signature failures.
-      this.logger.error('MFA validation infra failure', err as Error);
-      this.events.emit('mfa.infra_error', {
-        userId,
-        op: 'validateMfaToken',
-        ts: Date.now(),
-      });
+      // WR-03: log + emit mfa.infra_error via the shared recordInfraError
+      // helper so dashboards see every MFA infra blip.
+      this.recordInfraError('validateMfaToken', userId, err);
       return { ok: false, reason: 'internal' };
     }
   }
@@ -361,7 +381,8 @@ export class MfaService {
       this.pendingStore.set(enrollmentId, { userId, secret });
 
       return { ok: true, enrollmentId, otpauthUri };
-    } catch {
+    } catch (err) {
+      this.recordInfraError('createEnrollment', userId, err);
       return { ok: false, reason: 'internal' };
     }
   }
@@ -435,7 +456,8 @@ export class MfaService {
         ts: Date.now(),
       });
       return { ok: true };
-    } catch {
+    } catch (err) {
+      this.recordInfraError('confirmEnrollment', userId, err);
       return { ok: false, reason: 'internal' };
     }
   }
@@ -460,7 +482,8 @@ export class MfaService {
         ts: Date.now(),
       });
       return { ok: true, deleted };
-    } catch {
+    } catch (err) {
+      this.recordInfraError('deleteEnrollment', userId, err);
       return { ok: false, reason: 'internal' };
     }
   }

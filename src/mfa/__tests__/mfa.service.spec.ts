@@ -225,6 +225,18 @@ describe('MfaService', () => {
       expect(challengeRepo.insertChallenge).not.toHaveBeenCalled();
     });
 
+    // WR-03 (phase 14): silent infra errors used to return { ok: false,
+    // reason: 'internal' } with no log, no event, no audit. Threat escalation
+    // could not fire. Every catch site must log error + emit mfa.infra_error.
+    it('WR-03: createChallenge infra error logs + emits mfa.infra_error', async () => {
+      challengeRepo.countRecentChallenges.mockRejectedValueOnce(new Error('db down'));
+      const result = await service.createChallenge(TEST_USER, TEST_IP);
+      assertOkFalse<Extract<MfaCreateResult, { ok: false }>>(result);
+      expect(result.reason).toBe('internal');
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).toContain('mfa.infra_error');
+    });
+
     it('Test 3: emits MFA_RATE_LIMITED (not MFA_FAILED) on rate-limit denial (D-18)', async () => {
       challengeRepo.countRecentChallenges.mockResolvedValue(5);
 
@@ -703,6 +715,14 @@ describe('MfaService', () => {
       assertOkFalse<Extract<MfaEnrollResult, { ok: false }>>(result);
       expect(result.reason).toBe('internal');
     });
+
+    // WR-03 (phase 14)
+    it('WR-03: createEnrollment infra error emits mfa.infra_error', async () => {
+      secretsRepo.getEncryptedSecret = jest.fn().mockRejectedValue(new Error('db down'));
+      await service.createEnrollment(TEST_USER, 'alice@example.com');
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).toContain('mfa.infra_error');
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -809,6 +829,14 @@ describe('MfaService', () => {
       assertOkFalse<Extract<MfaConfirmResult, { ok: false }>>(result);
       expect(result.reason).toBe('internal');
     });
+
+    // WR-03 (phase 14)
+    it('WR-03: confirmEnrollment infra error emits mfa.infra_error', async () => {
+      (secretsRepo.save as jest.Mock).mockRejectedValueOnce(new Error('db down'));
+      await service.confirmEnrollment(ENROLL_ID, validCode(), TEST_USER);
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).toContain('mfa.infra_error');
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -844,6 +872,32 @@ describe('MfaService', () => {
       const result = await service.deleteEnrollment(TEST_USER);
       assertOkFalse<Extract<MfaDeleteEnrollmentResult, { ok: false }>>(result);
       expect(result.reason).toBe('internal');
+    });
+
+    // WR-03 (phase 14)
+    it('WR-03: deleteEnrollment infra error emits mfa.infra_error', async () => {
+      (secretsRepo.deleteByUserId as jest.Mock).mockRejectedValueOnce(new Error('db down'));
+      await service.deleteEnrollment(TEST_USER);
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).toContain('mfa.infra_error');
+    });
+  });
+
+  // WR-03 (phase 14): verifyTotp outer-catch infra error also routes through
+  // recordInfraError so dashboards observe verify-time DB outages.
+  describe('verifyTotp() infra observability (WR-03)', () => {
+    it('verifyTotp outer infra error emits mfa.infra_error', async () => {
+      challengeRepo.getChallenge.mockRejectedValueOnce(new Error('db down'));
+      const result = await service.verifyTotp(
+        TEST_CHALLENGE_ID,
+        '000000',
+        TEST_USER,
+        TEST_IP,
+        TEST_DEVICE,
+      );
+      expect(result.ok).toBe(false);
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).toContain('mfa.infra_error');
     });
   });
 });
