@@ -25,6 +25,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Admin Route Allowlist Closure** - Close v1.0 milestone audit BLOCKERS: route /audit/logs and /policy/admin/* through gateway, whitelist OPTIONS preflight, live e2e (completed 2026-05-09)
 - [x] **Phase 13: v1.0 Tech Debt Cleanup** - Remove orphaned HashcashGuard, short-circuit double JwtAuthGuard validation on AUTH_ONLY routes, and fix audit-metrics.e2e content-type ordering assertion (completed 2026-05-11)
 - [x] **Phase 14: v1.0 Observability + Hygiene Closure** - Wire 3 orphan MetricsService seams, add MFA_RATE_LIMITED ThreatEscalation subscriber, add Hashcash 429 e2e, delete MfaGuard dead export (completed 2026-05-12)
+- [ ] **Phase 15: v1.0 Docs & Traceability Closure** - Backfill 03-VERIFICATION.md and reconcile REQUIREMENTS.md trace table + upper checklist drift (41 stale Pending entries)
+- [ ] **Phase 16: v1.0 Legacy Harness & Lint Repairs** - Restore `npm run lint` (typescript-eslint meta-package) and align legacy `test/jest-e2e.json` bootstrap.e2e-spec.ts unknown-route assertion with current 401 behaviour
+- [ ] **Phase 17: v1.0 Nyquist Sign-Off Sweep** - Promote 7 partial + 1 missing VALIDATION.md to nyquist_compliant=true via `/gsd-validate-phase` per phase (1, 7, 8, 10, 11, 12, 13) + promote phase 9 draft → finalized
 
 ## Phase Details
 
@@ -222,6 +225,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 12. Admin Route Allowlist Closure | 2/2 | Complete    | 2026-05-09 |
 | 13. v1.0 Tech Debt Cleanup | 3/3 | Complete    | 2026-05-11 |
 | 14. v1.0 Observability + Hygiene Closure | 4/4 | Complete   | 2026-05-12 |
+| 15. v1.0 Docs & Traceability Closure | 0/? | Pending | — |
+| 16. v1.0 Legacy Harness & Lint Repairs | 0/? | Pending | — |
+| 17. v1.0 Nyquist Sign-Off Sweep | 0/? | Pending | — |
 
 ### Phase 11: MFA Enrollment
 
@@ -297,3 +303,42 @@ Plans:
 - [x] 14-02-PLAN.md — Item 10: live e2e forcing hashcash 429 issue/verify round-trip through AppModule
 - [x] 14-03-PLAN.md — Item 11: `@OnEvent(SignalType.MFA_RATE_LIMITED)` subscriber in ThreatEscalationService + sliding-window unit coverage
 - [x] 14-04-PLAN.md — Item 12: delete MfaGuard export + outdated comment, confirm no @UseGuards references remain
+
+### Phase 15: v1.0 Docs & Traceability Closure
+**Goal**: Close the two doc-only carryover items from the 2026-05-12 v1.0 milestone re-audit so REQUIREMENTS.md, the upper checklist, and Phase 03 artifacts reflect the actual functional state of the codebase
+**Depends on**: Phase 14
+**Requirements**: (none — pure doc reconciliation; no new REQ-IDs)
+**Gap Closure**: Closes v1.0 milestone audit (2026-05-12T17:46:53Z) tech-debt Items 1 and 8
+**Success Criteria** (what must be TRUE):
+  1. `.planning/phases/03-auth-token-revocation/03-VERIFICATION.md` exists and reflects the live coverage in `tests/integration/auth-revocation.e2e-spec.ts` + GTWY-03 (status: passed)
+  2. The REQUIREMENTS.md upper checklist shows `[x]` for all 41 stale unchecked REQ-IDs (MFA-01..08, ENROLL-01..10, CONF-11, PRXY-01..09, BOPL-01..04, AUDT-01..06, MTRC-01..05, GTWY-01..09) — coverage count at top of file refreshed
+  3. The REQUIREMENTS.md traceability table shows `Complete` (not `Pending`) for all 41 stale entries with their actual completion phase
+  4. `grep -c "Pending" .planning/REQUIREMENTS.md` returns 0 (or only legitimate residual references, not trace-table state)
+  5. Changes are committed with a single doc(milestone): commit; no source code modified
+**Plans**: TBD (run `/gsd-plan-phase 15`)
+
+### Phase 16: v1.0 Legacy Harness & Lint Repairs
+**Goal**: Restore `npm run lint` and the legacy `test/jest-e2e.json` bootstrap suite so v1.0 ships with both quality gates green
+**Depends on**: Phase 14
+**Requirements**: (none — pure build/test hygiene; no new REQ-IDs)
+**Gap Closure**: Closes the two pre-existing carryover items in v1.0 audit (legacy bootstrap.e2e-spec.ts 404-vs-401; `npm run lint` typescript-eslint meta-package missing) documented in `.planning/phases/14-v1-0-observability-hygiene-closure/deferred-items.md`
+**Success Criteria** (what must be TRUE):
+  1. `npm run lint` exits 0 against current `eslint.config.mjs` (either by adding the `typescript-eslint` meta-package to devDependencies or reverting to `@typescript-eslint/eslint-plugin` + `@typescript-eslint/parser` legacy flat-config imports — decision recorded in PLAN)
+  2. `test/jest-e2e.json` bootstrap.e2e-spec.ts unknown-route assertion is aligned with GatewayMiddleware behaviour from Phase 10 onward (either patch the spec to expect 401 OR add a route-not-found early-exit for unauth requests — decision recorded in PLAN)
+  3. Full `npm test` and `npm run test:e2e` suites remain green
+  4. No regression in any of the 14 prior phases' VERIFICATION.md status
+  5. Changes are committed atomically (one commit per fix)
+**Plans**: TBD (run `/gsd-plan-phase 16`)
+
+### Phase 17: v1.0 Nyquist Sign-Off Sweep
+**Goal**: Promote every v1.0 phase to formal Nyquist sign-off so the milestone closes with `nyquist: overall: compliant`
+**Depends on**: Phase 14
+**Requirements**: (none — pure process sign-off; no new REQ-IDs)
+**Gap Closure**: Closes the Nyquist coverage carryover (6 compliant / 7 partial / 1 missing → 14 compliant) per v1.0 audit (2026-05-12T17:46:53Z)
+**Success Criteria** (what must be TRUE):
+  1. `.planning/phases/13-v1-0-tech-debt-cleanup/13-VALIDATION.md` is created and carries `nyquist_compliant: true`
+  2. Phases 01, 07, 08, 10, 11, 12 each have an updated VALIDATION.md with `nyquist_compliant: true` (was: false / draft)
+  3. Phase 09 VALIDATION.md is promoted from `status: draft` → `status: finalized` while preserving `nyquist_compliant: true`
+  4. `.planning/v1.0-MILESTONE-AUDIT.md` re-run shows `nyquist: compliant_phases: 14, partial_phases: 0, missing_phases: 0, overall: compliant`
+  5. Sweep is committed with one `chore(nyquist): finalize phase {N} validation` commit per phase to keep audit trail atomic
+**Plans**: TBD (run `/gsd-plan-phase 17`)
