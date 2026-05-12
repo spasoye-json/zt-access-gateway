@@ -85,7 +85,7 @@ export class MtlsService {
       await this.reloadPromise;
     }
 
-    return this.certCache!.agent;
+    return this.certCache.agent;
   }
 
   /**

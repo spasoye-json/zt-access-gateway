@@ -252,7 +252,7 @@ export class MfaService {
         deviceId,
         fpHash,
         typ: 'mfa',
-      } as Record<string, unknown>)
+      })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime(expiresAtSec)

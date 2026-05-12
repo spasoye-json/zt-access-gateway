@@ -98,7 +98,7 @@ export class ProxyService implements OnModuleInit {
     const httpsAgent = await this.mtls.getHttpsAgent();
 
     const axiosConfig: AxiosRequestConfig = {
-      method: req.method as Method,
+      method: req.method,
       url: target.toString(),
       headers: this.buildProxyHeaders(req.headers, claims, trustScore),
       data: req.body,
@@ -110,8 +110,8 @@ export class ProxyService implements OnModuleInit {
 
     try {
       const response = await breaker.fire(axiosConfig);
-      assertValidProxyResponse(response as AxiosResponse);
-      return response as AxiosResponse;
+      assertValidProxyResponse(response);
+      return response;
     } catch (err) {
       if (CircuitBreaker.isOurError(err)) {
         throw new ServiceUnavailableException(`Circuit open for service: ${serviceName}`);

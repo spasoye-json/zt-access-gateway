@@ -21,8 +21,8 @@ export function computeJa4h(req: Request): string {
     headerNames.push(req.rawHeaders[i]);
   }
 
-  const accept = (req.headers['accept'] as string) ?? '';
-  const contentType = (req.headers['content-type'] as string) ?? '';
+  const accept = req.headers['accept'] ?? '';
+  const contentType = req.headers['content-type'] ?? '';
   // req.httpVersion is set by Node.js http.IncomingMessage; fall back to '1.1' in tests
   const httpVersion = (req as any).httpVersion ?? '1.1';
 

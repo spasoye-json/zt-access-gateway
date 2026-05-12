@@ -27,7 +27,7 @@ export function extractIp(req: Request): string {
  * Extracts the User-Agent header value or returns 'unknown'.
  */
 export function extractUserAgent(req: Request): string {
-  return (req.headers['user-agent'] as string) || 'unknown';
+  return req.headers['user-agent'] || 'unknown';
 }
 
 /**

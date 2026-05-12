@@ -134,7 +134,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
         decision: 'ALLOW',
         reason: 'score_below_challenge_threshold',
         score,
-        matchedSubject: matchedSubject!,
+        matchedSubject: matchedSubject,
       };
     } else {
       decision = {
@@ -147,7 +147,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
 
     // 6) Side effects: metrics + event emit on DENY (D-14).
     this.metrics.decisions.inc({
-      decision: decision.decision.toLowerCase() as 'allow' | 'challenge' | 'deny',
+      decision: decision.decision.toLowerCase(),
     });
     if (decision.decision === 'DENY') {
       this.emitDeny(req, user, score, obj, act);

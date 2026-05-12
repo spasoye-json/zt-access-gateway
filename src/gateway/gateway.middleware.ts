@@ -212,9 +212,9 @@ export class GatewayMiddleware implements NestMiddleware {
 
         const issue = (errCode: 'proof_of_work_required' | 'proof_of_work_invalid'): void => {
           const { nonce, difficulty, expiresAt } = this.hashcash.issueChallenge(
-            claims!.userId,
-            claims!.deviceId || '',
-            trustScoreValue!,
+            claims.userId,
+            claims.deviceId || '',
+            trustScoreValue,
           );
           observe('hashcash', (Date.now() - t0) / 1000);
           res

@@ -56,11 +56,11 @@ export class AuthService {
     }
 
     // T-07-fix3: MFA JWTs (typ:'mfa') must only pass MfaService.validateMfaToken — reject from JwtAuthGuard (D-10).
-    if ((result!.payload as Record<string, unknown>).typ === 'mfa') {
+    if ((result.payload as Record<string, unknown>).typ === 'mfa') {
       throw new UnauthorizedException('MFA token cannot be used as access token');
     }
 
-    return this.extractClaims(result!.payload);
+    return this.extractClaims(result.payload);
   }
 
   /**
@@ -106,10 +106,10 @@ export class AuthService {
       ? rawRoles.filter((r): r is string => typeof r === 'string')
       : [];
     return {
-      userId: payload.sub!,
+      userId: payload.sub,
       roles,
-      jti: payload.jti!,
-      exp: payload.exp!,
+      jti: payload.jti,
+      exp: payload.exp,
       email: payload.email as string | undefined,
       sessionId: payload.sessionId as string | undefined,
       deviceId,
