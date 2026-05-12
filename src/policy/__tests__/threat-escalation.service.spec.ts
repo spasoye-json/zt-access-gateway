@@ -228,6 +228,63 @@ describe('ThreatEscalationService', () => {
     expect(svc.snapshot().level).toBe('Normal');
   });
 
+  // WR-07 (phase 14): multi-step cooldowns should emit each transition so
+  // zt_gateway_threat_transitions_total accurately reflects the ladder. Prior
+  // implementation collapsed Critical→Elevated→Normal into a single
+  // Critical→Normal counter increment; operators reading the metric could not
+  // reconstruct the actual step path.
+  it('WR-07: long idle increments transitions counter per step (Critical→Elevated, Elevated→Normal)', async () => {
+    const localMetrics = new PolicyMetrics();
+    const local = new ThreatEscalationService(cfg, localMetrics, clock);
+    for (let i = 0; i < 50; i++) local.onPolicyDeny(payload());
+    expect(local.snapshot().level).toBe('Critical');
+    advance(1_800_001); // 3 cooldown windows of idle → 2 step downs
+
+    // Trigger cooldown via a read API
+    local.currentChallengeThreshold();
+    expect(local.snapshot().level).toBe('Normal');
+
+    const text = await localMetrics.registry.metrics();
+    // Per-step counters must each show 1 increment
+    expect(text).toMatch(
+      /zt_gateway_threat_transitions_total\{from="critical",to="elevated"\} 1/,
+    );
+    expect(text).toMatch(
+      /zt_gateway_threat_transitions_total\{from="elevated",to="normal"\} 1/,
+    );
+    // The collapsed (incorrect) transition must NOT have fired
+    expect(text).not.toMatch(
+      /zt_gateway_threat_transitions_total\{from="critical",to="normal"\}/,
+    );
+  });
+
+  it('WR-07: long idle logs each intermediate transition, not a collapsed one', () => {
+    const localMetrics = new PolicyMetrics();
+    const local = new ThreatEscalationService(cfg, localMetrics, clock);
+    const logger = (local as unknown as { logger: { warn: jest.Mock; log: jest.Mock } }).logger;
+    const info = jest.spyOn(logger, 'log').mockImplementation(() => {});
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    for (let i = 0; i < 50; i++) local.onPolicyDeny(payload());
+    info.mockClear();
+    warn.mockClear();
+    advance(1_800_001);
+    local.currentChallengeThreshold();
+    // Critical→Elevated is info; Elevated→Normal is info. No "Critical → Normal".
+    const messages = [
+      ...info.mock.calls.map((c) => String(c[0])),
+      ...warn.mock.calls.map((c) => String(c[0])),
+    ];
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/Critical → Elevated/),
+        expect.stringMatching(/Elevated → Normal/),
+      ]),
+    );
+    expect(messages).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/Critical → Normal/)]),
+    );
+  });
+
   // W3: clearManualLevel must engage cooldown
   it('W3: clearManualLevel after long idle resumes auto-aggregation and steps level down via cooldown', () => {
     svc.setManualLevel('Critical');

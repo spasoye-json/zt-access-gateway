@@ -255,13 +255,18 @@ export class ThreatEscalationService {
     );
     if (stepsElapsed <= 0) return;
 
-    let target: ThreatLevel = this.level;
+    // WR-07 (phase 14): emit each intermediate step through transitionTo so
+    // zt_gateway_threat_transitions_total records the actual ladder (e.g.,
+    // Critical→Elevated then Elevated→Normal), not a collapsed single hop.
+    // Operators reading the metric / logs must be able to reconstruct the
+    // exact cooldown path.
     for (let i = 0; i < stepsElapsed; i++) {
-      if (target === 'Critical') target = 'Elevated';
-      else if (target === 'Elevated') target = 'Normal';
+      let next: ThreatLevel;
+      if (this.level === 'Critical') next = 'Elevated';
+      else if (this.level === 'Elevated') next = 'Normal';
       else break;
+      this.transitionTo(next, now);
     }
-    if (target !== this.level) this.transitionTo(target, now);
   }
 
   private effectiveLevel(): ThreatLevel {
