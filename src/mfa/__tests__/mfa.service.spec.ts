@@ -22,7 +22,12 @@ import { MfaTokenRepository } from '../repositories/mfa-token.repository';
 import { UserSecretsRepository } from '../repositories/user-secrets.repository';
 import { AppConfigService } from '../../config/config.service';
 import { aesGcmEncrypt, aesGcmDecrypt } from '../../shared/aes-gcm.util';
-import { MFA_FAILED, MFA_RATE_LIMITED } from '../../policy/policy-events';
+import {
+  MFA_FAILED,
+  MFA_INFRA_ERROR,
+  MFA_RATE_LIMITED,
+  MFA_SECRET_DECRYPT_FAILED,
+} from '../../policy/policy-events';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -259,7 +264,7 @@ describe('MfaService', () => {
       assertOkFalse<Extract<MfaCreateResult, { ok: false }>>(result);
       expect(result.reason).toBe('internal');
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
-      expect(eventNames).toContain('mfa.infra_error');
+      expect(eventNames).toContain(MFA_INFRA_ERROR);
     });
 
     it('Test 3: emits MFA_RATE_LIMITED (not MFA_FAILED) on rate-limit denial (D-18)', async () => {
@@ -407,7 +412,7 @@ describe('MfaService', () => {
       expect(result.reason).toBe('unknown_user');
 
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
-      expect(eventNames).toContain('mfa.secret_decrypt_failed');
+      expect(eventNames).toContain(MFA_SECRET_DECRYPT_FAILED);
       // Threat ladder still observes MFA_FAILED with reason='unknown_user'.
       expect(eventNames).toContain(MFA_FAILED);
     });
@@ -646,7 +651,7 @@ describe('MfaService', () => {
         'ja4h-x',
       );
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
-      expect(eventNames).toContain('mfa.infra_error');
+      expect(eventNames).toContain(MFA_INFRA_ERROR);
     });
 
     it('BL-01: real signature failure still reports signature and emits MFA_FAILED', async () => {
@@ -746,7 +751,7 @@ describe('MfaService', () => {
       secretsRepo.getEncryptedSecret = jest.fn().mockRejectedValue(new Error('db down'));
       await service.createEnrollment(TEST_USER, 'alice@example.com');
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
-      expect(eventNames).toContain('mfa.infra_error');
+      expect(eventNames).toContain(MFA_INFRA_ERROR);
     });
   });
 
@@ -860,7 +865,7 @@ describe('MfaService', () => {
       (secretsRepo.save as jest.Mock).mockRejectedValueOnce(new Error('db down'));
       await service.confirmEnrollment(ENROLL_ID, validCode(), TEST_USER);
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
-      expect(eventNames).toContain('mfa.infra_error');
+      expect(eventNames).toContain(MFA_INFRA_ERROR);
     });
   });
 
@@ -904,7 +909,7 @@ describe('MfaService', () => {
       (secretsRepo.deleteByUserId as jest.Mock).mockRejectedValueOnce(new Error('db down'));
       await service.deleteEnrollment(TEST_USER);
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
-      expect(eventNames).toContain('mfa.infra_error');
+      expect(eventNames).toContain(MFA_INFRA_ERROR);
     });
   });
 
@@ -922,7 +927,7 @@ describe('MfaService', () => {
       );
       expect(result.ok).toBe(false);
       const eventNames = emitter.emit.mock.calls.map(([name]) => name);
-      expect(eventNames).toContain('mfa.infra_error');
+      expect(eventNames).toContain(MFA_INFRA_ERROR);
     });
   });
 

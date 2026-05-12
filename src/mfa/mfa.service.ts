@@ -8,7 +8,14 @@ import { MfaChallengeRepository } from './repositories/mfa-challenge.repository'
 import { MfaTokenRepository } from './repositories/mfa-token.repository';
 import { UserSecretsRepository } from './repositories/user-secrets.repository';
 import { aesGcmDecrypt, aesGcmEncrypt } from '../shared/aes-gcm.util';
-import { MFA_ENROLLMENT_CONFIRMED, MFA_ENROLLMENT_RESET, MFA_FAILED, MFA_RATE_LIMITED } from '../policy/policy-events';
+import {
+  MFA_ENROLLMENT_CONFIRMED,
+  MFA_ENROLLMENT_RESET,
+  MFA_FAILED,
+  MFA_INFRA_ERROR,
+  MFA_RATE_LIMITED,
+  MFA_SECRET_DECRYPT_FAILED,
+} from '../policy/policy-events';
 import { PendingEnrollmentStore } from './enrollment.store';
 import type { MfaTokenClaims } from './interfaces/mfa-token-claims.interface';
 
@@ -119,7 +126,7 @@ export class MfaService {
     // dashboards / log aggregators preserve the full trace.
     const e = err instanceof Error ? err : new Error(String(err));
     this.logger.error(`MfaService.${op} infra error: ${e.message}`, e.stack);
-    this.events.emit('mfa.infra_error', {
+    this.events.emit(MFA_INFRA_ERROR, {
       userId,
       op,
       ts: Date.now(),
@@ -219,7 +226,7 @@ export class MfaService {
         // could not alert on a spike of decrypt failures from a botched
         // MFA_TOTP_ENCRYPTION_KEY rotation.
         this.logger.warn('TOTP secret decrypt failed', { userId });
-        this.events.emit('mfa.secret_decrypt_failed', {
+        this.events.emit(MFA_SECRET_DECRYPT_FAILED, {
           userId,
           ts: Date.now(),
         });

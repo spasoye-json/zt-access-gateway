@@ -17,6 +17,15 @@ export const MFA_FAILED = 'mfa.failed';
 export const MFA_RATE_LIMITED = 'mfa.rate_limited';
 export const MFA_ENROLLMENT_RESET = 'mfa.enrollment_reset';
 export const MFA_ENROLLMENT_CONFIRMED = 'mfa.enrollment_confirmed';
+/**
+ * IN-01 (phase 14, iter3): infra observability event names previously inlined
+ * as magic strings at the MfaService.recordInfraError emit site and the
+ * verifyTotp decrypt-failure site. Promoted to exported constants so future
+ * subscribers (dashboards, ThreatEscalationService.onMfaInfraError) cannot
+ * silently typo-mismatch the event name.
+ */
+export const MFA_INFRA_ERROR = 'mfa.infra_error';
+export const MFA_SECRET_DECRYPT_FAILED = 'mfa.secret_decrypt_failed';
 export const AUDIT_SIGNAL = 'audit.signal';
 
 /**
@@ -41,4 +50,6 @@ export type SignalType =
   | typeof MFA_RATE_LIMITED
   | typeof MFA_ENROLLMENT_RESET
   | typeof MFA_ENROLLMENT_CONFIRMED
+  | typeof MFA_INFRA_ERROR
+  | typeof MFA_SECRET_DECRYPT_FAILED
   | typeof AUDIT_SIGNAL;
