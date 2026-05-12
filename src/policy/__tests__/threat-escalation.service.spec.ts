@@ -8,6 +8,7 @@ import {
   POLICY_DENY,
   AUTH_INVALID_TOKEN,
   HONEYPOT_TRIGGER,
+  MFA_RATE_LIMITED,
   type ThreatSignalPayload,
 } from '../policy-events';
 
@@ -35,6 +36,8 @@ function fakeConfig(
     crInvalid: number;
     elHoney: number;
     crHoney: number;
+    elMfaRl: number;
+    crMfaRl: number;
     chN: number;
     deN: number;
     chE: number;
@@ -53,6 +56,8 @@ function fakeConfig(
     threatCriticalInvalidTokens: over.crInvalid ?? 80,
     threatElevatedHoneypot: over.elHoney ?? 5,
     threatCriticalHoneypot: over.crHoney ?? 15,
+    threatElevatedMfaRateLimited: over.elMfaRl ?? 5,
+    threatCriticalMfaRateLimited: over.crMfaRl ?? 15,
     policyChallengeThreshold: over.chN ?? 0.5,
     policyDenyThreshold: over.deN ?? 0.8,
     policyElevatedChallengeThreshold: over.chE ?? 0.3,
@@ -286,5 +291,41 @@ describe('ThreatEscalationService', () => {
     svc.onPolicyDeny(payload()); // forces eviction; only 1 in-window event left
     expect(svc.snapshot().signalCounts[POLICY_DENY]).toBe(1);
     expect(svc.snapshot().level).toBe('Normal');
+  });
+
+  describe('Phase 14 Plan 03 — MFA_RATE_LIMITED subscriber (D-07, D-08, D-09)', () => {
+    it('onMfaRateLimited increments per-type counter', () => {
+      svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
+      svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
+      expect(svc.snapshot().signalCounts[MFA_RATE_LIMITED]).toBe(2);
+    });
+
+    it('threatElevatedMfaRateLimited count drives Elevated', () => {
+      cfg = fakeConfig({ elMfaRl: 3, crMfaRl: 99 });
+      svc = new ThreatEscalationService(cfg, new PolicyMetrics(), clock);
+      for (let i = 0; i < 3; i++)
+        svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
+      expect(svc.snapshot().level).toBe('Elevated');
+    });
+
+    it('threatCriticalMfaRateLimited count drives Critical (single-type)', () => {
+      cfg = fakeConfig({ elMfaRl: 3, crMfaRl: 6 });
+      svc = new ThreatEscalationService(cfg, new PolicyMetrics(), clock);
+      for (let i = 0; i < 6; i++)
+        svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
+      expect(svc.snapshot().level).toBe('Critical');
+    });
+
+    it('MFA_RATE_LIMITED events evict from sliding window past windowMs', () => {
+      cfg = fakeConfig({ elMfaRl: 3, crMfaRl: 99, windowMs: 1000 });
+      svc = new ThreatEscalationService(cfg, new PolicyMetrics(), clock);
+      for (let i = 0; i < 3; i++)
+        svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
+      expect(svc.snapshot().level).toBe('Elevated');
+      advance(1500);
+      svc.onMfaRateLimited(payload({ type: MFA_RATE_LIMITED }));
+      expect(svc.snapshot().signalCounts[MFA_RATE_LIMITED]).toBe(1);
+      expect(svc.snapshot().level).toBe('Normal');
+    });
   });
 });

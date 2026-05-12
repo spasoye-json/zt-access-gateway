@@ -6,6 +6,7 @@ import {
   AUTH_INVALID_TOKEN,
   HONEYPOT_TRIGGER,
   MFA_FAILED,
+  MFA_RATE_LIMITED,
   POLICY_DENY,
   type ThreatSignalPayload,
 } from './policy-events';
@@ -38,6 +39,7 @@ type SignalType =
   | typeof AUTH_INVALID_TOKEN
   | typeof HONEYPOT_TRIGGER
   | typeof MFA_FAILED
+  | typeof MFA_RATE_LIMITED
   | typeof AUDIT_SIGNAL;
 
 interface WindowEvent {
@@ -95,6 +97,11 @@ export class ThreatEscalationService {
   @OnEvent(MFA_FAILED)
   onMfaFailed(p: ThreatSignalPayload): void {
     this.record(MFA_FAILED, p);
+  }
+
+  @OnEvent(MFA_RATE_LIMITED)
+  onMfaRateLimited(p: ThreatSignalPayload): void {
+    this.record(MFA_RATE_LIMITED, p);
   }
 
   @OnEvent(AUDIT_SIGNAL)
@@ -215,6 +222,10 @@ export class ThreatEscalationService {
     if ((c[AUTH_INVALID_TOKEN] ?? 0) >= this.cfg.threatCriticalInvalidTokens)
       candidates.push('Critical');
     if ((c[HONEYPOT_TRIGGER] ?? 0) >= this.cfg.threatCriticalHoneypot)
+      candidates.push('Critical');
+    if ((c[MFA_RATE_LIMITED] ?? 0) >= this.cfg.threatElevatedMfaRateLimited)
+      candidates.push('Elevated');
+    if ((c[MFA_RATE_LIMITED] ?? 0) >= this.cfg.threatCriticalMfaRateLimited)
       candidates.push('Critical');
 
     const order: Record<ThreatLevel, number> = {
