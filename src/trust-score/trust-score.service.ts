@@ -46,9 +46,13 @@ export class TrustScoreService {
     const adjustments = await Promise.all(
       this.providers.map((p) =>
         p.compute(ctx).catch((err: unknown) => {
-          this.logger.warn(
-            `Trust provider fault ${p.name}: ${err instanceof Error ? err.message : String(err)}`,
-          );
+          const errMsg =
+            err instanceof Error
+              ? err.message
+              : typeof err === 'string'
+                ? err
+                : JSON.stringify(err);
+          this.logger.warn(`Trust provider fault ${p.name}: ${errMsg}`);
           return { delta: 0.1, reason: `${p.name}_fault` };
         }),
       ),

@@ -17,8 +17,11 @@ export function assertValidProxyResponse(response: AxiosResponse): void {
   }
 
   const ct: unknown = response.headers?.['content-type'];
-  const ctStr: unknown = Array.isArray(ct) ? ct[0] : ct;
-  if (!ctStr || !String(ctStr).toLowerCase().includes('application/json')) {
-    throw new BadGatewayException(`Unexpected Content-Type from upstream: ${ctStr ?? 'missing'}`);
+  const ctRaw: unknown = Array.isArray(ct) ? ct[0] : ct;
+  // Coerce unknown header to a safe string for both inclusion test and template
+  // expression (closes no-base-to-string + restrict-template-expressions).
+  const ctStr: string = typeof ctRaw === 'string' ? ctRaw : '';
+  if (!ctStr || !ctStr.toLowerCase().includes('application/json')) {
+    throw new BadGatewayException(`Unexpected Content-Type from upstream: ${ctStr || 'missing'}`);
   }
 }

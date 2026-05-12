@@ -124,7 +124,8 @@ export class MfaService {
     // the full frame list to "Error: <msg>" and erasing every stack frame from
     // the structured log output. Normalise to (message, stack-string) so
     // dashboards / log aggregators preserve the full trace.
-    const e = err instanceof Error ? err : new Error(String(err));
+    const e =
+      err instanceof Error ? err : new Error(typeof err === 'string' ? err : JSON.stringify(err));
     this.logger.error(`MfaService.${op} infra error: ${e.message}`, e.stack);
     this.events.emit(MFA_INFRA_ERROR, {
       userId,
