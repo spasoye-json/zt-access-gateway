@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Tech Debt Cleanup
 status: executing
-stopped_at: Completed Phase 16 Plan 05 — production-code no-unsafe-* + cleanup rules cleared
-last_updated: "2026-05-12T19:42:56.982Z"
+stopped_at: Completed Phase 16 Plan 07 — production-scope no-floating-promises + no-unsafe-argument warning classes cleared
+last_updated: "2026-05-12T19:54:05.609Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 17
-  completed_plans: 14
-  percent: 82
+  completed_plans: 16
+  percent: 94
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-11)
 ## Current Position
 
 Phase: 16 (v1-0-legacy-harness-and-lint-repairs) — EXECUTING
-Plan: 6 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-05-12
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -94,6 +94,8 @@ Progress: [████████░░] 82%
 | Phase 16 P03 | 2min | 1 tasks | 82 files |
 | Phase 16 P04 | 2min | 2 tasks | 1 files |
 | Phase 16 P05 | 12min | 8 tasks | 23 files |
+| Phase 16 P06 | 2min | 3 tasks | 2 files |
+| Phase 16 P07 | 5min | 3 tasks | 2 files |
 
 ## Quick Tasks Completed
 
@@ -189,6 +191,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 16]: Plan 16-05: Configured argsIgnorePattern: '^_' on no-unused-vars in eslint.config.mjs — standard typescript-eslint convention for opting out underscore-prefixed bindings
 - [Phase ?]: [Phase 16]: Plan 16-05: Task 6 (no-unsafe-call) incidentally cleared by Task 4/5 root-cause fixes — no commit needed; documented in SUMMARY per-task table
 - [Phase ?]: [Phase 16]: Plan 16-05: ServiceRegistryService.onModuleInit returns explicit Promise<void> (not async) — satisfies require-await while preserving .rejects.toThrow() test contract
+- [Phase 16]: Plan 16-06: D-16 correctness fixes (no-floating-promises bootstrap + no-misused-promises mtls) shipped as 2 atomic fix(16) commits per CONTEXT.md D-16; no-console eslint-disable removed (rule not in active recommendedTypeChecked)
+- [Phase 16]: Plan 16-07: production-scope no-floating-promises + no-unsafe-argument cleared (D-13 contract honoured); Task 1 no-op after 16-06; Task 2 commit caa406f narrowed 2 sites via  cast on Map iterator +  guard before opossum isOurError
 
 ### Roadmap Evolution
 
@@ -206,7 +210,7 @@ _Resolved 2026-05-04: Phase 8 opossum/mTLS wiring — MtlsService.getHttpsAgent(
 
 ## Session Continuity
 
-Last session: 2026-05-12T19:42:56.958Z
-Stopped at: Completed Phase 16 Plan 05 — production-code no-unsafe-* + cleanup rules cleared
+Last session: 2026-05-12T19:54:05.600Z
+Stopped at: Completed Phase 16 Plan 07 — production-scope no-floating-promises + no-unsafe-argument warning classes cleared
 
 **Planned Phase:** 05 (hashcash-pow) — 9 plans — 2026-04-26T08:20:40.720Z
