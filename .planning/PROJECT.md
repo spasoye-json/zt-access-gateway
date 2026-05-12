@@ -18,16 +18,20 @@ Every request is verified, scored, and authorized before reaching any downstream
 - [x] Phase 4 — 7-signal trust score, Postgres persistence, record-after-ALLOW pattern
 - [x] Phase 5 — Hashcash PoW guard, HMAC challenges, identity-bound verification, env-driven difficulty
 - [x] Phase 6 — Casbin RBAC policy evaluation, fail-closed DENY, ThreatEscalationService with auto-cooldown, policy admin REST API
+- [x] Phase 7 — MFA challenge lifecycle with fingerprint-bound MFA JWT and rate limiting
+- [x] Phase 8 — mTLS proxy with circuit breaker, retries, SSRF protection, BOPLA response stripping
+- [x] Phase 9 — Audit logging (audit-before-allow) + Prometheus security metrics
+- [x] Phase 10 — 10-step fail-fast GatewayMiddleware orchestrating the full hardened pipeline
+- [x] Phase 11 — Developer experience: auto-solve PoW in gateway pipeline + MFA dev mode
+- [x] Phase 12 — Admin route allowlist closure
+- [x] Phase 13 — v1.0 tech-debt cleanup
+- [x] Phase 14 — v1.0 milestone validation
+- [x] Phase 15 — eslint flat-config migration
+- [x] Phase 16 — Strict typescript-eslint pass (no-floating-promises, --max-warnings 0)
+- [x] Phase 17 — v1.0 Nyquist sign-off sweep (milestone closes with overall: compliant)
 
 ### Active
 
-- [ ] Config groups for proxy, MFA (Phase 7+)
-- [ ] MFA challenge lifecycle with fingerprint-bound MFA JWT and rate limiting
-- [ ] mTLS proxy with circuit breaker, retries, DNS rebinding guard, SSRF protection, service registry
-- [ ] BOPLA response interceptor — role-based field stripping on downstream JSON responses
-- [ ] Audit logging with write-ahead buffer (audit-before-allow pattern for ALLOW decisions)
-- [ ] Prometheus metrics + security-specific metrics (honeypot, hashcash, escalation, revocations)
-- [ ] 10-step fail-fast GatewayMiddleware orchestrating the full hardened pipeline
 - [ ] Docker Compose stack for full observability stack (Prometheus + Grafana + sample microservices — v1 compose is gateway + Postgres only)
 
 ### Out of Scope
@@ -92,4 +96,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-04 — Phase 8 (proxy-bopla) complete; Phases 1-8 validated. Remaining: Phase 11 (developer-experience)*
+*Last updated: 2026-05-12 — v1.0 milestone complete (Phases 1–17). Nyquist coverage: 14 compliant / 0 partial / 0 missing; overall: compliant.*
