@@ -113,7 +113,10 @@ export class ProxyService implements OnModuleInit {
       assertValidProxyResponse(response);
       return response;
     } catch (err) {
-      if (CircuitBreaker.isOurError(err)) {
+      // Narrow the catch binding (typed `unknown`) before passing to opossum's
+      // `isOurError(err: Error)` — closes a no-unsafe-argument warning while
+      // preserving the original control flow (non-Error throws fall through).
+      if (err instanceof Error && CircuitBreaker.isOurError(err)) {
         throw new ServiceUnavailableException(`Circuit open for service: ${serviceName}`);
       }
       throw err;

@@ -42,8 +42,12 @@ export class UsedNonceStore {
    */
   add(nonce: string, expiresAt: number): void {
     if (this.store.size >= this.capacity) {
+      // Typed coercion: under tsconfig with strictNullChecks:false the iterator
+      // result's `value` widens to `any`; the explicit cast pins it back to the
+      // Map's key type so it satisfies Map.delete(key: string) without a
+      // no-unsafe-argument flag while preserving the FIFO-eviction guarantee.
       const next = this.store.keys().next();
-      if (!next.done) this.store.delete(next.value);
+      if (!next.done) this.store.delete(next.value as string);
     }
     this.store.set(nonce, expiresAt);
   }
