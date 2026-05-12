@@ -7,6 +7,11 @@ import {
 } from '@nestjs/common';
 import axios from 'axios';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
+// opossum is a CJS module whose `module.exports` is the CircuitBreaker constructor
+// (no `.default`); `tsconfig.json` has `esModuleInterop:false` so a default-import
+// would not compile to a runtime-callable value. The TypeScript-native idiom for
+// "import the whole CJS export as the binding" is `import = require(...)`.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 import CircuitBreaker = require('opossum');
 import type { Request } from 'express';
 import { AppConfigService } from '../config/config.service';
