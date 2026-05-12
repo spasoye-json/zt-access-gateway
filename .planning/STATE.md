@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: Tech Debt Cleanup
 status: executing
 stopped_at: Phase 16 context gathered
-last_updated: "2026-05-12T19:16:01.377Z"
+last_updated: "2026-05-12T19:21:35.149Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 17
-  completed_plans: 11
-  percent: 65
+  completed_plans: 12
+  percent: 71
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-11)
 ## Current Position
 
 Phase: 16 (v1-0-legacy-harness-and-lint-repairs) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-05-12
 
-Progress: [███████░░░] 65%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -91,6 +91,7 @@ Progress: [███████░░░] 65%
 | Phase 14 P04 | 20min | - tasks | - files |
 | Phase 16 P01 | 4min | 2 tasks | 1 files |
 | Phase 16 P02 | 8min | 2 tasks tasks | 2 files files |
+| Phase 16 P03 | 2min | 1 tasks | 82 files |
 
 ## Quick Tasks Completed
 
@@ -178,6 +179,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 16]: Plan 16-02: Pitfall 4 (no-redeclare on Express Request/Response) DID NOT reproduce under real v8 — shim artefact; drop the rule-disable from all Wave 3 plans
 - [Phase ?]: [Phase 16]: Plan 16-02: real-v8 lint surface 1585 err / 136 warn within +12%/+5% of shim (1410/129) — A2 (±20%) holds; D-04 disposition unchanged; Wave 3 sizing uses this measurement
 - [Phase ?]: [Phase 16]: Plan 16-02: SECURITY_TOOL_APPROVED=true bypass required for npm install/test — work-project security wrapper leaks into PATH; no project-level config change
+- [Phase ?]: [Phase 16]: Plan 16-03: Used prettier --write (Approach B) instead of eslint --fix to keep the style(16) commit a pure single-rule-category atomic per D-12 — eslint --fix would have swept in unrelated autofixes (no-unnecessary-type-assertion etc.)
+- [Phase ?]: [Phase 16]: Plan 16-03: Pitfall 3 (line-ending flap) did NOT manifest — endOfLine: 'auto' already in .prettierrc; 394 → 0 prettier hits in 82 *.ts files across src/test/tests
 
 ### Roadmap Evolution
 
@@ -195,7 +198,7 @@ _Resolved 2026-05-04: Phase 8 opossum/mTLS wiring — MtlsService.getHttpsAgent(
 
 ## Session Continuity
 
-Last session: 2026-05-12T19:15:48.649Z
+Last session: 2026-05-12T19:21:22.625Z
 Stopped at: Phase 16 context gathered
 
 **Planned Phase:** 05 (hashcash-pow) — 9 plans — 2026-04-26T08:20:40.720Z
