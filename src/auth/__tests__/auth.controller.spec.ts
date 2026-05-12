@@ -1,10 +1,18 @@
 import { Test } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter';
+import type { Request } from 'express';
 import { AuthController } from '../auth.controller';
 import { TokenRevocationService } from '../token-revocation.service';
 import { JwtAuthGuard } from '../jwt-auth.guard';
 import { AUTH_TOKEN_REVOKED } from '../../metrics/metrics-events';
+import type { UserClaims } from '../interfaces/user-claims.interface';
+
+/** WR-06 (phase 14): build a minimal Request stub typed via the express
+ *  augmentation in src/shared/express.d.ts. */
+function buildRequest(user: Partial<UserClaims>): Request {
+  return { user: user as UserClaims } as unknown as Request;
+}
 
 /**
  * AuthController unit tests -- TDD RED phase.
@@ -48,9 +56,7 @@ describe('AuthController', () => {
   describe('POST /auth/revoke (TREV-03, D-07)', () => {
     it('revokes own token (userId matches request.user.userId)', () => {
       const dto = { jti: 'my-token-jti', exp: Math.floor(Date.now() / 1000) + 3600 };
-      const req = {
-        user: { userId: 'user-1', roles: ['user'] },
-      } as unknown as Request;
+      const req = buildRequest({ userId: 'user-1', roles: ['user'] });
 
       // Calling user-1 to revoke their own token
       const result = controller.revoke(dto, req);
@@ -71,9 +77,7 @@ describe('AuthController', () => {
       });
 
       const dto = { jti: 'other-user-jti', exp: Math.floor(Date.now() / 1000) + 3600 };
-      const req = {
-        user: { userId: 'admin-1', roles: ['admin'] },
-      } as unknown as Request;
+      const req = buildRequest({ userId: 'admin-1', roles: ['admin'] });
 
       const result = controller.revoke(dto, req);
 
@@ -93,9 +97,7 @@ describe('AuthController', () => {
       });
 
       const dto = { jti: 'other-user-jti', exp: Math.floor(Date.now() / 1000) + 3600 };
-      const req = {
-        user: { userId: 'attacker', roles: ['user'] },
-      } as unknown as Request;
+      const req = buildRequest({ userId: 'attacker', roles: ['user'] });
 
       // Non-admin trying to revoke someone else's token should be forbidden
       expect(() => controller.revoke(dto, req)).toThrow(
@@ -105,12 +107,19 @@ describe('AuthController', () => {
 
     it('returns { message: "Token revoked" } on success', () => {
       const dto = { jti: 'jti-success', exp: Math.floor(Date.now() / 1000) + 3600 };
-      const req = {
-        user: { userId: 'user-1', roles: ['user'] },
-      } as unknown as Request;
+      const req = buildRequest({ userId: 'user-1', roles: ['user'] });
 
       const result = controller.revoke(dto, req);
       expect(result).toEqual({ message: 'Token revoked' });
+    });
+  });
+
+  describe('Phase 14 WR-06 — typed req.user defensive guard', () => {
+    it('throws UnauthorizedException when req.user is absent', () => {
+      const dto = { jti: 'jti-x', exp: Math.floor(Date.now() / 1000) + 60 };
+      const req = {} as unknown as Request; // no .user
+      expect(() => controller.revoke(dto, req)).toThrow(UnauthorizedException);
+      expect(revocationService.revoke).not.toHaveBeenCalled();
     });
   });
 
@@ -127,7 +136,7 @@ describe('AuthController', () => {
 
       const result = localController.revoke(
         { jti: 'jti-1', exp: Math.floor(Date.now() / 1000) + 60 },
-        { user: { userId: 'u-1', roles: ['user'] } } as never,
+        buildRequest({ userId: 'u-1', roles: ['user'] }),
       );
 
       expect(result).toEqual({ message: 'Token revoked' });
@@ -147,7 +156,7 @@ describe('AuthController', () => {
       expect(() =>
         localController.revoke(
           { jti: 'jti-1', exp: Math.floor(Date.now() / 1000) + 60 },
-          { user: { userId: 'u-1', roles: ['user'] } } as never,
+          buildRequest({ userId: 'u-1', roles: ['user'] }),
         ),
       ).toThrow(ForbiddenException);
 

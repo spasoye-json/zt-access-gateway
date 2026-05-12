@@ -4,11 +4,13 @@ import {
   Body,
   Req,
   ForbiddenException,
+  UnauthorizedException,
   HttpCode,
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import type { Request } from 'express';
 import { TokenRevocationService } from './token-revocation.service';
 import { RevokeTokenDto } from './dto/revoke-token.dto';
 import { UserClaims } from './interfaces/user-claims.interface';
@@ -50,8 +52,18 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('revoke')
   @HttpCode(HttpStatus.OK)
-  revoke(@Body() dto: RevokeTokenDto, @Req() req: any): { message: string } {
-    const user = req.user as UserClaims;
+  revoke(
+    @Body() dto: RevokeTokenDto,
+    @Req() req: Request,
+  ): { message: string } {
+    // WR-06 (phase 14): req.user is typed via src/shared/express.d.ts. Keep a
+    // defensive check so this endpoint fails closed if JwtAuthGuard is ever
+    // misconfigured (e.g., AUTH_ONLY pipeline skipped) instead of crashing on
+    // .roles.includes at runtime.
+    const user: UserClaims | undefined = req.user;
+    if (!user) {
+      throw new UnauthorizedException('Missing authenticated user');
+    }
 
     // Convert exp from seconds (JWT standard) to milliseconds (internal storage)
     const expiresAtMs = dto.exp * 1000;
