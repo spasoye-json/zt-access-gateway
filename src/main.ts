@@ -64,4 +64,13 @@ async function bootstrap() {
   // (Phase 2) — NestJS DI-aware middleware runs after the global Express middleware above.
   await app.listen(config.port);
 }
-bootstrap();
+bootstrap().catch((err) => {
+  // D-16 (Phase 16): explicit crash-on-failure for bootstrap rejection.
+  // Without this, port-bind / DB-connect / migration failures became unhandled
+  // promise rejections — Node 18 still exits non-zero, but the error message
+  // may be truncated by shutdown timing. Explicit handler guarantees the
+  // stderr trace lands before exit. See 16-RESEARCH.md §"D-16 Correctness
+  // Findings" + Pattern 2.
+  console.error('Application bootstrap failed', err);
+  process.exit(1);
+});
