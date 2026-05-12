@@ -27,7 +27,7 @@ export default tseslint.config(
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-floating-promises': 'error', // D-14 (Phase 16): promoted after cleanup; correctness rule
       '@typescript-eslint/no-unsafe-argument': 'warn',
       // Standard typescript-eslint convention: prefix intentionally-unused arguments
       // with `_` to opt them out of no-unused-vars. Phase 16 plan 16-05 Task 2.
