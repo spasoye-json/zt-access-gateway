@@ -23,7 +23,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: Audit + Metrics** - Write-ahead audit buffer and Prometheus security metrics (completed 2026-05-09)
 - [x] **Phase 10: Gateway Integration** - 10-step fail-fast GatewayMiddleware orchestrating the full hardened pipeline (completed 2026-05-09)
 - [x] **Phase 12: Admin Route Allowlist Closure** - Close v1.0 milestone audit BLOCKERS: route /audit/logs and /policy/admin/* through gateway, whitelist OPTIONS preflight, live e2e (completed 2026-05-09)
-- [ ] **Phase 13: v1.0 Tech Debt Cleanup** - Remove orphaned HashcashGuard, short-circuit double JwtAuthGuard validation on AUTH_ONLY routes, and fix audit-metrics.e2e content-type ordering assertion
+- [x] **Phase 13: v1.0 Tech Debt Cleanup** - Remove orphaned HashcashGuard, short-circuit double JwtAuthGuard validation on AUTH_ONLY routes, and fix audit-metrics.e2e content-type ordering assertion (completed 2026-05-11)
+- [ ] **Phase 14: v1.0 Observability + Hygiene Closure** - Wire 3 orphan MetricsService seams, add MFA_RATE_LIMITED ThreatEscalation subscriber, add Hashcash 429 e2e, delete MfaGuard dead export
 
 ## Phase Details
 
@@ -219,7 +220,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 10. Gateway Integration | 6/6 | Complete   | 2026-05-09 |
 | 11. MFA Enrollment | 5/5 | Complete | 2026-05-03 |
 | 12. Admin Route Allowlist Closure | 2/2 | Complete    | 2026-05-09 |
-| 13. v1.0 Tech Debt Cleanup | 1/3 | In Progress|  |
+| 13. v1.0 Tech Debt Cleanup | 3/3 | Complete    | 2026-05-11 |
+| 14. v1.0 Observability + Hygiene Closure | 0/4 | Pending    | — |
 
 ### Phase 11: MFA Enrollment
 
@@ -269,10 +271,29 @@ Plans:
   2. JwtAuthGuard short-circuits validation when `req.user` is already populated by GatewayMiddleware on AUTH_ONLY routes (/auth/revoke, /mfa/*); validateToken is invoked at most once per request
   3. `tests/integration/audit-metrics.e2e-spec.ts` content-type assertion accepts both `text/plain; version=0.0.4; charset=utf-8` and `text/plain; charset=utf-8; version=0.0.4` orderings
   4. Full unit + e2e suite remains green; `npm run lint` clean
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
 - [x] 13-01-PLAN.md — SC-1: delete orphan HashcashGuard + its spec + drop kept-for-ref comment + permanent grep regression spec + D-09 dangling comment scrub
-- [ ] 13-02-PLAN.md — SC-2: non-spoofable Symbol sentinel closes JwtAuthGuard double-validation on AUTH_ONLY routes (unit + live e2e proves validateToken called exactly once)
-- [ ] 13-03-PLAN.md — SC-3: split-and-assert rewrite of audit-metrics content-type assertion (order-agnostic, D-11)
+- [x] 13-02-PLAN.md — SC-2: non-spoofable Symbol sentinel closes JwtAuthGuard double-validation on AUTH_ONLY routes (unit + live e2e proves validateToken called exactly once)
+- [x] 13-03-PLAN.md — SC-3: split-and-assert rewrite of audit-metrics content-type assertion (order-agnostic, D-11)
+
+### Phase 14: v1.0 Observability + Hygiene Closure
+**Goal**: Close the four code/test tech-debt items from the v1.0 milestone re-audit (Items 9, 10, 11, 12) so v1.0 can be archived without observability or dead-code drift
+**Depends on**: Phase 13
+**Requirements**: (none — pure cleanup; no new REQ-IDs)
+**Gap Closure**: Closes v1.0 milestone audit (2026-05-12) tech-debt items 9, 10, 11, 12
+**Success Criteria** (what must be TRUE):
+  1. `MetricsService.setJa4hBlacklistSize`, `incrementFingerprintDrift`, and `incrementTokenRevocation` are invoked at runtime by FingerprintStore, Ja4hMiddleware, and AuthController.revoke respectively — `/metrics` scrape produces non-zero samples under exercise
+  2. A live e2e drives `evaluateScore > hashcashTriggerThreshold` through the running AppModule and asserts the 429 + `X-Hashcash-Challenge` + `Retry-After` round-trip
+  3. ThreatEscalationService subscribes to `SignalType.MFA_RATE_LIMITED` and increments its sliding-window counter on emission
+  4. `MfaGuard` export is removed from MfaModule (or wired at the controller level) and the "Phase 10 will register it" comment is deleted
+  5. Full unit + e2e suite remains green; `npm run lint` clean
+**Plans:** 0/4 plans complete
+
+Plans:
+- [ ] 14-01-PLAN.md — Item 9: wire 3 orphan MetricsService seams (FingerprintStore size sample, Ja4hMiddleware drift detection, AuthController.revoke token revocation)
+- [ ] 14-02-PLAN.md — Item 10: live e2e forcing hashcash 429 issue/verify round-trip through AppModule
+- [ ] 14-03-PLAN.md — Item 11: `@OnEvent(SignalType.MFA_RATE_LIMITED)` subscriber in ThreatEscalationService + sliding-window unit coverage
+- [ ] 14-04-PLAN.md — Item 12: delete MfaGuard export + outdated comment, confirm no @UseGuards references remain
