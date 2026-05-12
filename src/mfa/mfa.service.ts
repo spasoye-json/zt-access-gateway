@@ -265,29 +265,22 @@ export class MfaService {
         return { ok: false, reason: 'wrong_type' };
       }
 
-      // 3. Two-query jti lookup: distinguish unknown_jti from revoked (Fix-2 blocker).
-      // Single getMfaToken() returns null for both cases — use a targeted SELECT instead.
-      const jtiRow = await this.tokenRepo.getMfaTokenStatus(payload.jti);
-      // jtiRow === null  → row doesn't exist at all → unknown_jti
-      // jtiRow.isRevoked → row exists but revoked_at is set → revoked
-      // jtiRow.isExpired → row exists but DB-side expired (redundant with jose exp check)
-      if (jtiRow === null) {
+      // 3. WR-01 (phase 14): single atomic SELECT returns row + computed
+      // revoked/expired flags. The prior two-query pattern (getMfaTokenStatus
+      // followed by getMfaToken) opened a TOCTOU window where a concurrent
+      // admin revoke between the two SELECTs would let a now-revoked token
+      // pass through and validate. The atomic helper closes that window.
+      const row = await this.tokenRepo.getMfaTokenWithStatus(payload.jti);
+      if (row === null) {
         emitFail('unknown_jti', payload.jti);
         return { ok: false, reason: 'unknown_jti' };
       }
-      if (jtiRow.isRevoked) {
+      if (row.isRevoked) {
         emitFail('revoked', payload.jti);
         return { ok: false, reason: 'revoked' };
       }
-      if (jtiRow.isExpired) {
+      if (row.isExpired) {
         // jose already caught this via JWTExpired above; defensive DB check
-        emitFail('expired', payload.jti);
-        return { ok: false, reason: 'expired' };
-      }
-      // Fetch the full row for fingerprint comparison
-      const row = await this.tokenRepo.getMfaToken(payload.jti);
-      if (!row) {
-        // Race condition: row expired between status check and full fetch
         emitFail('expired', payload.jti);
         return { ok: false, reason: 'expired' };
       }

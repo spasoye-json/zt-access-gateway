@@ -142,6 +142,16 @@ describe('MfaService', () => {
         expiresAt: FUTURE_DATE,
       }),
       getMfaTokenStatus: jest.fn().mockResolvedValue({ isRevoked: false, isExpired: false }),
+      // WR-01 (phase 14): validateMfaToken now uses the atomic helper.
+      getMfaTokenWithStatus: jest.fn().mockResolvedValue({
+        jti: 'jti-test-1',
+        userId: TEST_USER,
+        fingerprintHash: expectedFingerprint(TEST_USER, TEST_DEVICE, TEST_IP),
+        issuedAt: new Date(),
+        expiresAt: FUTURE_DATE,
+        isRevoked: false,
+        isExpired: false,
+      }),
       revokeMfaToken: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<MfaTokenRepository>;
 
@@ -426,7 +436,15 @@ describe('MfaService', () => {
     });
 
     it('Test 14a: returns { ok: false, reason: revoked } for jti with revoked_at set (D-08)', async () => {
-      tokenRepo.getMfaTokenStatus.mockResolvedValue({ isRevoked: true, isExpired: false });
+      tokenRepo.getMfaTokenWithStatus.mockResolvedValue({
+        jti: 'jti-revoked',
+        userId: TEST_USER,
+        fingerprintHash: expectedFingerprint(TEST_USER, TEST_DEVICE, TEST_IP),
+        issuedAt: new Date(),
+        expiresAt: FUTURE_DATE,
+        isRevoked: true,
+        isExpired: false,
+      });
       const token = await mintMfaJwt({ jti: 'jti-revoked' });
 
       const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
@@ -437,7 +455,7 @@ describe('MfaService', () => {
     });
 
     it('Test 14b: returns { ok: false, reason: unknown_jti } for jti not in mfa_tokens (D-11)', async () => {
-      tokenRepo.getMfaTokenStatus.mockResolvedValue(null);
+      tokenRepo.getMfaTokenWithStatus.mockResolvedValue(null);
       const token = await mintMfaJwt({ jti: 'jti-unknown' });
 
       const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
@@ -448,7 +466,7 @@ describe('MfaService', () => {
     });
 
     it('Test 15: validateMfaToken failure emits MFA_FAILED (D-12)', async () => {
-      tokenRepo.getMfaTokenStatus.mockResolvedValue(null);
+      tokenRepo.getMfaTokenWithStatus.mockResolvedValue(null);
 
       const token = await mintMfaJwt({ jti: 'jti-missing' });
       const result = await service.validateMfaToken(
@@ -466,11 +484,64 @@ describe('MfaService', () => {
       expect(eventName).toBe(MFA_FAILED);
     });
 
+    // WR-01 (phase 14): validateMfaToken must use a single atomic SELECT to
+    // close the revocation TOCTOU window. The legacy two-query pattern
+    // (getMfaTokenStatus + getMfaToken) is no longer the validation hot path.
+    it('WR-01: validateMfaToken uses atomic getMfaTokenWithStatus, not the legacy two-query path', async () => {
+      const token = await mintMfaJwt({ jti: 'jti-atomic' });
+      await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, TEST_IP);
+      expect(tokenRepo.getMfaTokenWithStatus).toHaveBeenCalledWith('jti-atomic');
+      expect(tokenRepo.getMfaTokenStatus).not.toHaveBeenCalled();
+      expect(tokenRepo.getMfaToken).not.toHaveBeenCalled();
+    });
+
+    it('WR-01: revoked flag from atomic helper returns reason=revoked even if expires_at is in the future', async () => {
+      tokenRepo.getMfaTokenWithStatus.mockResolvedValue({
+        jti: 'jti-race',
+        userId: TEST_USER,
+        fingerprintHash: expectedFingerprint(TEST_USER, TEST_DEVICE, TEST_IP),
+        issuedAt: new Date(),
+        expiresAt: FUTURE_DATE,
+        isRevoked: true,
+        isExpired: false,
+      });
+      const token = await mintMfaJwt({ jti: 'jti-race' });
+      const result = await service.validateMfaToken(
+        token,
+        TEST_USER,
+        TEST_DEVICE,
+        TEST_IP,
+      );
+      assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
+      expect(result.reason).toBe('revoked');
+    });
+
+    it('WR-01: expired flag from atomic helper returns reason=expired', async () => {
+      tokenRepo.getMfaTokenWithStatus.mockResolvedValue({
+        jti: 'jti-exp',
+        userId: TEST_USER,
+        fingerprintHash: expectedFingerprint(TEST_USER, TEST_DEVICE, TEST_IP),
+        issuedAt: new Date(),
+        expiresAt: new Date(Date.now() - 1000),
+        isRevoked: false,
+        isExpired: true,
+      });
+      const token = await mintMfaJwt({ jti: 'jti-exp' });
+      const result = await service.validateMfaToken(
+        token,
+        TEST_USER,
+        TEST_DEVICE,
+        TEST_IP,
+      );
+      assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
+      expect(result.reason).toBe('expired');
+    });
+
     // BL-01 (phase 14): Outer catch must report DB / repo errors as 'internal'
     // and MUST NOT emit MFA_FAILED — otherwise ThreatEscalationService
     // .onMfaFailed counts every Postgres blip as a tampering signal.
     it('BL-01: returns reason=internal (not signature) on repo failure', async () => {
-      tokenRepo.getMfaTokenStatus.mockRejectedValueOnce(
+      tokenRepo.getMfaTokenWithStatus.mockRejectedValueOnce(
         new Error('postgres: connection refused'),
       );
       const token = await mintMfaJwt({ jti: 'jti-db-down' });
@@ -486,7 +557,7 @@ describe('MfaService', () => {
     });
 
     it('BL-01: does NOT emit MFA_FAILED on repo failure (infra is not a security signal)', async () => {
-      tokenRepo.getMfaTokenStatus.mockRejectedValueOnce(
+      tokenRepo.getMfaTokenWithStatus.mockRejectedValueOnce(
         new Error('postgres: connection refused'),
       );
       const token = await mintMfaJwt({ jti: 'jti-db-down' });
@@ -502,7 +573,7 @@ describe('MfaService', () => {
     });
 
     it('BL-01: emits mfa.infra_error so dashboards can detect MFA outages', async () => {
-      tokenRepo.getMfaTokenStatus.mockRejectedValueOnce(
+      tokenRepo.getMfaTokenWithStatus.mockRejectedValueOnce(
         new Error('postgres: connection refused'),
       );
       const token = await mintMfaJwt({ jti: 'jti-db-down' });
