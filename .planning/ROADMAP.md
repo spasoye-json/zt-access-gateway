@@ -226,7 +226,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 13. v1.0 Tech Debt Cleanup | 3/3 | Complete    | 2026-05-11 |
 | 14. v1.0 Observability + Hygiene Closure | 4/4 | Complete   | 2026-05-12 |
 | 15. v1.0 Docs & Traceability Closure | 0/? | Pending | — |
-| 16. v1.0 Legacy Harness & Lint Repairs | 4/8 | In Progress|  |
+| 16. v1.0 Legacy Harness & Lint Repairs | 5/8 | In Progress|  |
 | 17. v1.0 Nyquist Sign-Off Sweep | 0/? | Pending | — |
 
 ### Phase 11: MFA Enrollment
@@ -330,7 +330,7 @@ Plans:
   3. Full `npm test` and `npm run test:e2e` suites remain green
   4. No regression in any of the 14 prior phases' VERIFICATION.md status
   5. Changes are committed atomically (one commit per fix)
-**Plans:** 4/8 plans executed
+**Plans:** 5/8 plans executed
 Plans:
 **Wave 1**
 - [x] 16-01-PLAN.md — Patch test/bootstrap.e2e-spec.ts unknown-route assertion 404→401 with actual response shape and Phase-10 inline comment (D-05/D-06/D-07/D-09)
@@ -339,7 +339,7 @@ Plans:
 **Wave 3**
 - [x] 16-03-PLAN.md — Atomic style commit applying prettier formatting across {src,apps,libs,test,tests}/**/*.ts (D-12)
 - [x] 16-04-PLAN.md — D-04 escape valve: relax no-unsafe-* and unbound-method in test scope only via eslint.config.mjs override; backlog 999.x stub for user
-- [ ] 16-05-PLAN.md — Clear production-code no-unsafe-(member-access|assignment|call|return) + no-unnecessary-type-assertion + no-unused-vars + require-await (one atomic commit per rule category per D-12)
+- [x] 16-05-PLAN.md — Clear production-code no-unsafe-(member-access|assignment|call|return) + no-unnecessary-type-assertion + no-unused-vars + require-await (one atomic commit per rule category per D-12)
 - [ ] 16-06-PLAN.md — D-16 correctness fixes: src/main.ts:64 bootstrap rejection handler + src/shared/mtls.service.ts:80 explicit null check, each as own atomic commit with SUMMARY callout
 - [ ] 16-07-PLAN.md — Clear production-code no-floating-promises + no-unsafe-argument warning categories (D-13 in-phase warning cleanup)
 **Wave 4**

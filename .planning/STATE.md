@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Tech Debt Cleanup
 status: executing
-stopped_at: Phase 16 context gathered
-last_updated: "2026-05-12T19:26:18.501Z"
+stopped_at: Completed Phase 16 Plan 05 — production-code no-unsafe-* + cleanup rules cleared
+last_updated: "2026-05-12T19:42:56.982Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 17
-  completed_plans: 13
-  percent: 76
+  completed_plans: 14
+  percent: 82
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-11)
 ## Current Position
 
 Phase: 16 (v1-0-legacy-harness-and-lint-repairs) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-05-12
 
-Progress: [████████░░] 76%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -93,6 +93,7 @@ Progress: [████████░░] 76%
 | Phase 16 P02 | 8min | 2 tasks tasks | 2 files files |
 | Phase 16 P03 | 2min | 1 tasks | 82 files |
 | Phase 16 P04 | 2min | 2 tasks | 1 files |
+| Phase 16 P05 | 12min | 8 tasks | 23 files |
 
 ## Quick Tasks Completed
 
@@ -184,6 +185,10 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 16]: Plan 16-03: Pitfall 3 (line-ending flap) did NOT manifest — endOfLine: 'auto' already in .prettierrc; 394 → 0 prettier hits in 82 *.ts files across src/test/tests
 - [Phase ?]: [Phase 16]: Plan 16-04: D-04 escape valve applied as a flat-config last-element override block scoped to test globs; production scope confirmed untouched (90 unsafe-member-access hits preserved); ESLint 9 dropped --format unix so probe shifted to default formatter + grep -c (deviation Rule 3)
 - [Phase ?]: [Phase 16]: Plan 16-04: Backlog 999.x not auto-registered — per CONTEXT.md deferred precedent, /gsd-add-backlog is a user action documented in 16-04-SUMMARY
+- [Phase ?]: [Phase 16]: Plan 16-05: Installed @types/pg as Rule 3 deviation — single root-cause fix cleared ~67 of 90 no-unsafe-member-access hits across pg-backed repositories
+- [Phase ?]: [Phase 16]: Plan 16-05: Configured argsIgnorePattern: '^_' on no-unused-vars in eslint.config.mjs — standard typescript-eslint convention for opting out underscore-prefixed bindings
+- [Phase ?]: [Phase 16]: Plan 16-05: Task 6 (no-unsafe-call) incidentally cleared by Task 4/5 root-cause fixes — no commit needed; documented in SUMMARY per-task table
+- [Phase ?]: [Phase 16]: Plan 16-05: ServiceRegistryService.onModuleInit returns explicit Promise<void> (not async) — satisfies require-await while preserving .rejects.toThrow() test contract
 
 ### Roadmap Evolution
 
@@ -201,7 +206,7 @@ _Resolved 2026-05-04: Phase 8 opossum/mTLS wiring — MtlsService.getHttpsAgent(
 
 ## Session Continuity
 
-Last session: 2026-05-12T19:25:57.016Z
-Stopped at: Phase 16 context gathered
+Last session: 2026-05-12T19:42:56.958Z
+Stopped at: Completed Phase 16 Plan 05 — production-code no-unsafe-* + cleanup rules cleared
 
 **Planned Phase:** 05 (hashcash-pow) — 9 plans — 2026-04-26T08:20:40.720Z
