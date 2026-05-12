@@ -543,6 +543,22 @@ describe('AppConfigService', () => {
         'THREAT_ELEVATED_HONEYPOT must be < THREAT_CRITICAL_HONEYPOT',
       );
     });
+
+    it('rejects when Elevated mfa_rate_limited >= Critical mfa_rate_limited (14-03)', async () => {
+      setRequiredEnv();
+      process.env.THREAT_ELEVATED_MFA_RATE_LIMITED = '15';
+      process.env.THREAT_CRITICAL_MFA_RATE_LIMITED = '5';
+
+      let errMsg = '';
+      try {
+        await createRealModule();
+      } catch (err) {
+        errMsg = err instanceof Error ? err.message : String(err);
+      }
+      expect(errMsg).toContain(
+        'THREAT_ELEVATED_MFA_RATE_LIMITED must be < THREAT_CRITICAL_MFA_RATE_LIMITED',
+      );
+    });
   });
 
   describe('Phase 6: AppConfigService getters (D-23)', () => {
@@ -596,6 +612,24 @@ describe('AppConfigService', () => {
       expect(cfg.threatCriticalInvalidTokens).toBe(80);
       expect(cfg.threatElevatedHoneypot).toBe(5);
       expect(cfg.threatCriticalHoneypot).toBe(15);
+    });
+
+    it('Test 4b — MFA_RATE_LIMITED threat count getters return defaults [5,15] (14-03 D-09)', async () => {
+      setRequiredEnv();
+      delete process.env.THREAT_ELEVATED_MFA_RATE_LIMITED;
+      delete process.env.THREAT_CRITICAL_MFA_RATE_LIMITED;
+      const cfg = await createRealModule();
+      expect(cfg.threatElevatedMfaRateLimited).toBe(5);
+      expect(cfg.threatCriticalMfaRateLimited).toBe(15);
+    });
+
+    it('Test 4c — env override flows through MFA_RATE_LIMITED threat count getters', async () => {
+      setRequiredEnv();
+      process.env.THREAT_ELEVATED_MFA_RATE_LIMITED = '7';
+      process.env.THREAT_CRITICAL_MFA_RATE_LIMITED = '21';
+      const cfg = await createRealModule();
+      expect(cfg.threatElevatedMfaRateLimited).toBe(7);
+      expect(cfg.threatCriticalMfaRateLimited).toBe(21);
     });
 
     it('Test 5 — env override flows through getter (POLICY_DENY_THRESHOLD=0.95)', async () => {

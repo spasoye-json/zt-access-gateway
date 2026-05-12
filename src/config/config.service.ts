@@ -238,6 +238,16 @@ export class AppConfigService {
     return this.config.get<number>('THREAT_CRITICAL_HONEYPOT')!;
   }
 
+  /** MFA rate-limit hit count in window that triggers ELEVATED threat level (D-09, 14-03). Default 5. */
+  get threatElevatedMfaRateLimited(): number {
+    return this.config.get<number>('THREAT_ELEVATED_MFA_RATE_LIMITED')!;
+  }
+
+  /** MFA rate-limit hit count in window that triggers CRITICAL threat level (D-09, 14-03). Default 15. */
+  get threatCriticalMfaRateLimited(): number {
+    return this.config.get<number>('THREAT_CRITICAL_MFA_RATE_LIMITED')!;
+  }
+
   /** Cooldown (ms) before threat level can de-escalate. Default 600000 (10min). */
   get threatCooldownMs(): number {
     return this.config.get<number>('THREAT_COOLDOWN_MS')!;
