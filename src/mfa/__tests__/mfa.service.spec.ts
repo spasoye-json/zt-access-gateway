@@ -823,6 +823,56 @@ describe('MfaService', () => {
       expect(pendingStore.delete).not.toHaveBeenCalled();
     });
 
+    // IN-04 (phase 14, iter3): confirmEnrollment must propagate ip + ja4h into
+    // both the MFA_FAILED { invalid_totp_enrollment } and the
+    // MFA_RATE_LIMITED { enrollment_attempts_exhausted } payloads so
+    // ThreatEscalationService and downstream IP-bound rate limiters can
+    // correlate the enrollment brute-force to a network identity (parity with
+    // verifyTotp / createChallenge).
+    it('IN-04: MFA_FAILED on invalid enrollment TOTP carries ip + ja4h', async () => {
+      pendingStore.incrementAttempts.mockReturnValue(1);
+      await service.confirmEnrollment(
+        ENROLL_ID,
+        '000000',
+        TEST_USER,
+        TEST_IP,
+        'ja4h-enroll-1',
+      );
+      const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
+      const failed = calls.find((c) => c.name === MFA_FAILED);
+      expect(failed).toBeDefined();
+      expect((failed!.p as { ip: string }).ip).toBe(TEST_IP);
+      expect((failed!.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-1');
+    });
+
+    it('IN-04: MFA_RATE_LIMITED on attempts exhausted carries ip + ja4h', async () => {
+      pendingStore.incrementAttempts.mockReturnValue(
+        MfaService.ENROLL_MAX_ATTEMPTS,
+      );
+      await service.confirmEnrollment(
+        ENROLL_ID,
+        '000000',
+        TEST_USER,
+        TEST_IP,
+        'ja4h-enroll-2',
+      );
+      const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
+      const rateLimited = calls.find((c) => c.name === MFA_RATE_LIMITED);
+      expect(rateLimited).toBeDefined();
+      expect((rateLimited!.p as { ip: string }).ip).toBe(TEST_IP);
+      expect((rateLimited!.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-2');
+    });
+
+    it('IN-04: omits ja4h key when caller does not supply it', async () => {
+      pendingStore.incrementAttempts.mockReturnValue(1);
+      await service.confirmEnrollment(ENROLL_ID, '000000', TEST_USER, TEST_IP);
+      const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
+      const failed = calls.find((c) => c.name === MFA_FAILED);
+      expect(failed).toBeDefined();
+      expect((failed!.p as { ip: string }).ip).toBe(TEST_IP);
+      expect((failed!.p as { ja4h?: string }).ja4h).toBeUndefined();
+    });
+
     it('ENROLL-06b: returns expired_enrollment when pending entry missing/expired', async () => {
       pendingStore.get.mockReturnValue(null);
       const result = await service.confirmEnrollment(ENROLL_ID, validCode(), TEST_USER);
