@@ -22,7 +22,6 @@ function ztTestUrl(databaseUrl: string): string {
 export default async function globalSetup(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    // eslint-disable-next-line no-console
     console.warn('[jest globalSetup] DATABASE_URL not set — skipping zt_test + migrations');
     return;
   }
@@ -51,7 +50,6 @@ export default async function globalSetup(): Promise<void> {
       await migrator.end();
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn(
       '[jest globalSetup] Postgres unavailable — skipping zt_test + migrations (unit tests still run):',
       err instanceof Error ? err.message : err,

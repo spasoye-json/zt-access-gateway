@@ -170,7 +170,7 @@ describe('Phase 14 Plan 02 — Hashcash 429 round-trip e2e (SC-2)', () => {
     expect(res.headers['x-hashcash-challenge']).toBeDefined();
     expect(res.headers['retry-after']).toBe('1');
 
-    const challenge = res.headers['x-hashcash-challenge'] as string;
+    const challenge = res.headers['x-hashcash-challenge'];
     const lastColon = challenge.lastIndexOf(':');
     const nonce = challenge.slice(0, lastColon);
     const difficulty = parseInt(challenge.slice(lastColon + 1), 10);
@@ -195,7 +195,7 @@ describe('Phase 14 Plan 02 — Hashcash 429 round-trip e2e (SC-2)', () => {
       .get('/users/profile')
       .set('Authorization', `Bearer ${token}`);
     expect(r1.status).toBe(429);
-    const challenge = r1.headers['x-hashcash-challenge'] as string;
+    const challenge = r1.headers['x-hashcash-challenge'];
     const lastColon = challenge.lastIndexOf(':');
     const nonce = challenge.slice(0, lastColon);
     const difficulty = parseInt(challenge.slice(lastColon + 1), 10);
@@ -221,7 +221,7 @@ describe('Phase 14 Plan 02 — Hashcash 429 round-trip e2e (SC-2)', () => {
     const r1 = await request(app.getHttpServer())
       .get('/users/profile')
       .set('Authorization', `Bearer ${token}`);
-    const challenge = r1.headers['x-hashcash-challenge'] as string;
+    const challenge = r1.headers['x-hashcash-challenge'];
     const lastColon = challenge.lastIndexOf(':');
     const nonce = challenge.slice(0, lastColon);
     const difficulty = parseInt(challenge.slice(lastColon + 1), 10);

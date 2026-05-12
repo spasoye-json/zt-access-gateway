@@ -33,7 +33,7 @@ async function bootstrapApp() {
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
   await app.init();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   return app as any;
 }
 
@@ -43,17 +43,15 @@ const TEST_USER = `enroll-e2e-${Date.now()}`;
 const ADMIN_USER = `enroll-admin-${Date.now()}`;
 
 describeE2e('MFA Enrollment HTTP e2e', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const supertest = require('supertest') as typeof import('supertest');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let app: any;
   let pool: Pool;
   let userToken: string;
   let adminToken: string;
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString: process.env.DATABASE_URL!, max: 3 });
+    pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
     await pool.query(`DELETE FROM user_secrets WHERE user_id = $1`, [TEST_USER]);
     app = await bootstrapApp();
     userToken = await createHs256Token(
@@ -112,7 +110,7 @@ describeE2e('MFA Enrollment HTTP e2e', () => {
       };
       const secretMatch = otpauthUri.match(/secret=([^&]+)/);
       expect(secretMatch).not.toBeNull();
-      const secret = secretMatch![1];
+      const secret = secretMatch[1];
       const totp = authenticator.generate(secret);
 
       const confirmRes = await supertest(app.getHttpServer())
@@ -144,7 +142,7 @@ describeE2e('MFA Enrollment HTTP e2e', () => {
         enrollmentId: string;
         otpauthUri: string;
       };
-      const secret = otpauthUri.match(/secret=([^&]+)/)![1];
+      const secret = otpauthUri.match(/secret=([^&]+)/)[1];
       const totp = authenticator.generate(secret);
 
       const confirmRes = await supertest(app.getHttpServer())

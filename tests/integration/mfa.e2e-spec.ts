@@ -45,7 +45,7 @@ async function bootstrapApp() {
 
   const app = moduleRef.createNestApplication();
   await app.init();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   return app as any;
 }
 
@@ -57,16 +57,14 @@ const TEST_SECRET = authenticator.generateSecret();
 const MFA_ENCRYPTION_KEY = process.env.MFA_TOTP_ENCRYPTION_KEY ?? '';
 
 describeE2e('MFA HTTP e2e', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const supertest = require('supertest') as typeof import('supertest');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let app: any;
   let pool: Pool;
   let authToken: string;
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString: process.env.DATABASE_URL!, max: 3 });
+    pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
 
     // Seed user_secrets row with encrypted TOTP secret
     const encrypted = aesGcmEncrypt(TEST_SECRET, MFA_ENCRYPTION_KEY);

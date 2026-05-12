@@ -72,7 +72,7 @@ describe('Phase 9 — Audit + Metrics e2e', () => {
       // Phase 13 SC-3 — D-11: split-and-assert to accept both prom-client
       // orderings (`text/plain; version=...; charset=...` and
       // `text/plain; charset=...; version=...`). Order-agnostic by construction.
-      const ct = res.headers['content-type'] as string;
+      const ct = res.headers['content-type'];
       expect(ct).toContain('text/plain');
       expect(ct).toMatch(/version=0\.0\.4/);
       expect(ct).toMatch(/charset=utf-8/);
