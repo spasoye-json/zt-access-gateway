@@ -4,6 +4,12 @@ import { Counter, Gauge, Histogram, Registry } from 'prom-client';
 import { SecurityMetricsService } from '../honeypot/security-metrics.service';
 import { HashcashMetrics } from '../hashcash/hashcash-metrics';
 import { PolicyMetrics } from '../policy/policy-metrics';
+import {
+  AUTH_TOKEN_REVOKED,
+  FINGERPRINT_BLACKLIST_SIZE_CHANGED,
+  FINGERPRINT_DRIFT_DETECTED,
+  type FingerprintBlacklistSizeChangedPayload,
+} from './metrics-events';
 
 /** Buckets for both stage_duration_seconds and audit_wal_duration_seconds (D-09, D-10). */
 const DURATION_BUCKETS = [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1] as const;
@@ -163,6 +169,37 @@ export class MetricsService {
   @OnEvent('audit.record_failed')
   onAuditRecordFailed(): void {
     this.auditFailuresTotal.inc();
+  }
+
+  // ── Phase 14 Plan 01 — orphan seam @OnEvent wiring (SC-1, D-01..D-03) ──
+
+  /**
+   * D-01 — FingerprintStore emits FINGERPRINT_BLACKLIST_SIZE_CHANGED after every
+   * mutation (add/clear/lazy-evict). MetricsModule cannot import FingerprintModule
+   * (circular via HoneypotModule), so EventEmitter2 is the seam.
+   */
+  @OnEvent(FINGERPRINT_BLACKLIST_SIZE_CHANGED)
+  onFingerprintBlacklistSizeChanged(p: FingerprintBlacklistSizeChangedPayload): void {
+    this.setJa4hBlacklistSize(p.size);
+  }
+
+  /**
+   * D-02 — Ja4hDriftProvider emits FINGERPRINT_DRIFT_DETECTED in the drift branch
+   * (row.ja4h !== ctx.ja4h). Drift detection physically lives in the provider,
+   * not Ja4hMiddleware (which runs before auth and has no prior-fingerprint state).
+   */
+  @OnEvent(FINGERPRINT_DRIFT_DETECTED)
+  onFingerprintDriftDetected(): void {
+    this.incrementFingerprintDrift();
+  }
+
+  /**
+   * SC-1 — AuthController.revoke emits AUTH_TOKEN_REVOKED after a successful
+   * revocationService.revoke() call (not on 403 ownership failure).
+   */
+  @OnEvent(AUTH_TOKEN_REVOKED)
+  onAuthTokenRevoked(): void {
+    this.incrementTokenRevocation();
   }
 
   // ── Aggregation surface (MTRC-03) ──

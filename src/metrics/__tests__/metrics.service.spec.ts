@@ -205,4 +205,28 @@ describe('MetricsService', () => {
       }
     });
   });
+
+  describe('Phase 14 Plan 01 — orphan seam @OnEvent wiring (SC-1, D-01..D-03)', () => {
+    it('onFingerprintBlacklistSizeChanged drives setJa4hBlacklistSize gauge', async () => {
+      const m = makeService();
+      m.onFingerprintBlacklistSizeChanged({ size: 7 });
+      const text = await m.getAggregatedMetrics();
+      expect(text).toContain('zt_gateway_ja4h_blacklist_size 7');
+    });
+
+    it('onFingerprintDriftDetected increments fingerprint drift counter', async () => {
+      const m = makeService();
+      m.onFingerprintDriftDetected();
+      m.onFingerprintDriftDetected();
+      const text = await m.getAggregatedMetrics();
+      expect(text).toContain('zt_gateway_fingerprint_drift_total 2');
+    });
+
+    it('onAuthTokenRevoked increments token revocation counter', async () => {
+      const m = makeService();
+      m.onAuthTokenRevoked();
+      const text = await m.getAggregatedMetrics();
+      expect(text).toContain('zt_gateway_token_revocations_total 1');
+    });
+  });
 });
