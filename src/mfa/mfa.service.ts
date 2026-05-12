@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -30,7 +30,15 @@ export type MfaValidateResult =
         | 'fingerprint_mismatch'
         | 'revoked'
         | 'unknown_jti'
-        | 'wrong_type';
+        | 'wrong_type'
+        /**
+         * BL-01 (phase 14): infrastructure failure (DB unavailable, etc.).
+         * Distinguishes a transient repo error from a real signature failure.
+         * Callers MUST treat this as fail-closed (reject the promotion) but
+         * MUST NOT emit MFA_FAILED for it — operators investigating an MFA
+         * outage previously saw a flood of fake \"signature\" events.
+         */
+        | 'internal';
     };
 
 // Phase 11 — Enrollment result types (D-10)
@@ -61,6 +69,7 @@ export type MfaDeleteEnrollmentResult =
  */
 @Injectable()
 export class MfaService {
+  private readonly logger = new Logger(MfaService.name);
   private readonly jwtSecretBytes: Uint8Array;
   private readonly encryptionKey: string;
   private readonly challengeTtlMs: number;
@@ -286,9 +295,20 @@ export class MfaService {
       }
 
       return { ok: true, claims: payload };
-    } catch {
-      emitFail('signature');
-      return { ok: false, reason: 'signature' };
+    } catch (err) {
+      // BL-01 (phase 14): infra failures (DB / repo errors) used to land here
+      // and be reported as 'signature' both to the caller AND to the MFA_FAILED
+      // event bus — misleading incident triage and spuriously promoting threat
+      // level via ThreatEscalationService.onMfaFailed. Route to the dedicated
+      // 'internal' branch: fail-closed but NOT a security signal. The inner
+      // try around jwtVerify already isolates true signature failures.
+      this.logger.error('MFA validation infra failure', err as Error);
+      this.events.emit('mfa.infra_error', {
+        userId,
+        op: 'validateMfaToken',
+        ts: Date.now(),
+      });
+      return { ok: false, reason: 'internal' };
     }
   }
 

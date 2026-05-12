@@ -456,6 +456,87 @@ describe('MfaService', () => {
       const [eventName] = emitter.emit.mock.calls[0] as [string];
       expect(eventName).toBe(MFA_FAILED);
     });
+
+    // BL-01 (phase 14): Outer catch must report DB / repo errors as 'internal'
+    // and MUST NOT emit MFA_FAILED — otherwise ThreatEscalationService
+    // .onMfaFailed counts every Postgres blip as a tampering signal.
+    it('BL-01: returns reason=internal (not signature) on repo failure', async () => {
+      tokenRepo.getMfaTokenStatus.mockRejectedValueOnce(
+        new Error('postgres: connection refused'),
+      );
+      const token = await mintMfaJwt({ jti: 'jti-db-down' });
+      const result = await service.validateMfaToken(
+        token,
+        TEST_USER,
+        TEST_DEVICE,
+        TEST_IP,
+        'ja4h-x',
+      );
+      assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
+      expect(result.reason).toBe('internal');
+    });
+
+    it('BL-01: does NOT emit MFA_FAILED on repo failure (infra is not a security signal)', async () => {
+      tokenRepo.getMfaTokenStatus.mockRejectedValueOnce(
+        new Error('postgres: connection refused'),
+      );
+      const token = await mintMfaJwt({ jti: 'jti-db-down' });
+      await service.validateMfaToken(
+        token,
+        TEST_USER,
+        TEST_DEVICE,
+        TEST_IP,
+        'ja4h-x',
+      );
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).not.toContain(MFA_FAILED);
+    });
+
+    it('BL-01: emits mfa.infra_error so dashboards can detect MFA outages', async () => {
+      tokenRepo.getMfaTokenStatus.mockRejectedValueOnce(
+        new Error('postgres: connection refused'),
+      );
+      const token = await mintMfaJwt({ jti: 'jti-db-down' });
+      await service.validateMfaToken(
+        token,
+        TEST_USER,
+        TEST_DEVICE,
+        TEST_IP,
+        'ja4h-x',
+      );
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).toContain('mfa.infra_error');
+    });
+
+    it('BL-01: real signature failure still reports signature and emits MFA_FAILED', async () => {
+      // Forge a token with the WRONG secret so jwtVerify rejects it inside the
+      // inner try, NOT the outer catch.
+      const wrongSecret = new TextEncoder().encode(
+        'completely-different-secret-32-bytes-or-more!!',
+      );
+      const badToken = await new SignJWT({
+        sub: TEST_USER,
+        jti: 'jti-bad-sig',
+        deviceId: TEST_DEVICE,
+        typ: 'mfa',
+        fpHash: expectedFingerprint(TEST_USER, TEST_DEVICE, TEST_IP),
+      } as Record<string, unknown>)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('10m')
+        .sign(wrongSecret);
+
+      const result = await service.validateMfaToken(
+        badToken,
+        TEST_USER,
+        TEST_DEVICE,
+        TEST_IP,
+      );
+      assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);
+      expect(result.reason).toBe('signature');
+      const eventNames = emitter.emit.mock.calls.map(([name]) => name);
+      expect(eventNames).toContain(MFA_FAILED);
+    });
   });
 
   // -------------------------------------------------------------------------
