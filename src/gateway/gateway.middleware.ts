@@ -29,8 +29,9 @@ import { HONEYPOT_PATHS } from '../honeypot/honeypot.constants';
 import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
 import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
 import { AuthStage } from './pipeline/stages/auth.stage';
+import { RevocationStage } from './pipeline/stages/revocation.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
-import type { UserClaims, AuthenticatedClaims } from '../auth/interfaces/user-claims.interface';
+import type { UserClaims } from '../auth/interfaces/user-claims.interface';
 import type { TrustContext } from '../trust-score/trust-context';
 import type { AuditEntry } from '../audit/audit-entry.interface';
 
@@ -66,6 +67,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly publicBypass: PublicBypassStage,
     private readonly honeypotBypass: HoneypotBypassStage,
     private readonly authStage: AuthStage,
+    private readonly revocationStage: RevocationStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -141,24 +143,14 @@ export class GatewayMiddleware implements NestMiddleware {
       }
       claims = stageCtx.claims!;
 
-      // ── Step 6: Revocation ─────────────────────────────────────────
+      // ── Step 6: Revocation (Phase D — extracted to RevocationStage) ──
       t0 = Date.now();
-      if (this.revocation.isRevoked(claims.jti)) {
-        observe('revocation', (Date.now() - t0) / 1000);
-        res.status(401).json({ error: 'token_revoked', requestId });
+      const revOutcome = await this.revocationStage.run(stageCtx);
+      observe('revocation', (Date.now() - t0) / 1000);
+      if (revOutcome.kind === 'short-circuit') {
+        res.status(revOutcome.status).json(revOutcome.body);
         return;
       }
-      observe('revocation', (Date.now() - t0) / 1000);
-
-      // Phase A2 — single post-revocation assignment of branded claims.
-      // D-08 ordering preserved: the brand is only attached AFTER isRevoked()
-      // clears. Collapses the prior two-write pattern (req.user = claims +
-      // sentinel symbol) into one branded assignment that the guard reads via
-      // property-presence on `__authenticatedByGateway`.
-      (req as Request & { user?: UserClaims | AuthenticatedClaims }).user = {
-        ...claims,
-        __authenticatedByGateway: true,
-      };
 
       // D-04 — AUTH_ONLY early exit (audit allow, then next())
       // WR-03: wrap in recordWithTimeout so a hung Postgres insert cannot

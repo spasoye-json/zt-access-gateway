@@ -130,6 +130,8 @@ function build(m: Mocks): GatewayMiddleware {
   const { HoneypotBypassStage } = require('../pipeline/stages/honeypot-bypass.stage');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { AuthStage } = require('../pipeline/stages/auth.stage');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { RevocationStage } = require('../pipeline/stages/revocation.stage');
   return new GatewayMiddleware(
     m.auth,
     m.revocation,
@@ -146,6 +148,7 @@ function build(m: Mocks): GatewayMiddleware {
     new PublicBypassStage(),
     new HoneypotBypassStage(),
     new AuthStage(m.auth, m.events),
+    new RevocationStage(m.revocation),
   );
 }
 

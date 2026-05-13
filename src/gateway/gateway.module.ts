@@ -14,6 +14,7 @@ import { GatewayMiddleware } from './gateway.middleware';
 import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
 import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
 import { AuthStage } from './pipeline/stages/auth.stage';
+import { RevocationStage } from './pipeline/stages/revocation.stage';
 
 /**
  * Phase 10 — GatewayModule wires the 9 prerequisite modules so that
@@ -44,7 +45,19 @@ import { AuthStage } from './pipeline/stages/auth.stage';
     MetricsModule,
     FingerprintModule,
   ],
-  providers: [GatewayMiddleware, PublicBypassStage, HoneypotBypassStage, AuthStage],
-  exports: [GatewayMiddleware, PublicBypassStage, HoneypotBypassStage, AuthStage],
+  providers: [
+    GatewayMiddleware,
+    PublicBypassStage,
+    HoneypotBypassStage,
+    AuthStage,
+    RevocationStage,
+  ],
+  exports: [
+    GatewayMiddleware,
+    PublicBypassStage,
+    HoneypotBypassStage,
+    AuthStage,
+    RevocationStage,
+  ],
 })
 export class GatewayModule {}
