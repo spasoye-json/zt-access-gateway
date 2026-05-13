@@ -1,0 +1,16 @@
+node_modules
+dist
+artifacts
+coverage
+.git
+.planning
+.bg-shell
+.idea
+.vscode
+*.log
+**/*.tsbuildinfo
+.env
+.env.*
+!.env.demo
+!.env.example
+certs
