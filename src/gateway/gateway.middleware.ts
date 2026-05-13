@@ -27,6 +27,7 @@ import { sleep } from '../shared/sleep.util';
 import { PUBLIC_PATHS, isAuthOnlyPath } from './public-paths';
 import { HONEYPOT_PATHS } from '../honeypot/honeypot.constants';
 import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
+import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims, AuthenticatedClaims } from '../auth/interfaces/user-claims.interface';
 import type { TrustContext } from '../trust-score/trust-context';
@@ -62,6 +63,7 @@ export class GatewayMiddleware implements NestMiddleware {
     @Inject(HASHCASH_CONFIG) private readonly cfg: HashcashConfig,
     private readonly events: TypedEvents,
     private readonly publicBypass: PublicBypassStage,
+    private readonly honeypotBypass: HoneypotBypassStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -89,6 +91,10 @@ export class GatewayMiddleware implements NestMiddleware {
     const stageCtx = buildStageContext(req, res, next);
     const publicOutcome = await this.publicBypass.run(stageCtx);
     if (publicOutcome.kind === 'bypass') return next();
+
+    // Phase D — HONEYPOT bypass via PipelineStage (parallel wire).
+    const honeypotOutcome = await this.honeypotBypass.run(stageCtx);
+    if (honeypotOutcome.kind === 'bypass') return next();
 
     // D-03 — PUBLIC bypass (GTWY-08)
     if (PUBLIC_PATHS.has(reqPath)) return next();
