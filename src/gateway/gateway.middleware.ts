@@ -15,7 +15,7 @@ import { TrustScoreService } from '../trust-score/trust-score.service';
 import { HashcashService } from '../hashcash/hashcash.service';
 import { PolicyEvaluatorService } from '../policy/policy-evaluator.service';
 import { AUDIT_SIGNAL, AUTH_INVALID_TOKEN } from '../policy/policy-events';
-import { MfaService, type MfaCreateResult } from '../mfa/mfa.service';
+import { MfaChallenger, type MfaCreateResult } from '../mfa/mfa-challenger.service';
 import { ProxyService } from '../proxy/proxy.service';
 import { BoPlaInterceptor } from '../proxy/bopla.interceptor';
 import { AuditService } from '../audit/audit.service';
@@ -52,7 +52,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly trustScore: TrustScoreService,
     private readonly hashcash: HashcashService,
     private readonly policy: PolicyEvaluatorService,
-    private readonly mfa: MfaService,
+    private readonly mfa: MfaChallenger,
     private readonly proxy: ProxyService,
     private readonly boPla: BoPlaInterceptor,
     private readonly audit: AuditService,

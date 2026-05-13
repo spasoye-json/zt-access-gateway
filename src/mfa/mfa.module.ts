@@ -4,6 +4,9 @@ import { AuthModule } from '../auth/auth.module';
 import { SharedModule } from '../shared/shared.module';
 import { MfaController } from './mfa.controller';
 import { MfaService } from './mfa.service';
+import { MfaChallenger } from './mfa-challenger.service';
+import { MfaEnroller } from './mfa-enroller.service';
+import { MfaErrorRecorder } from './mfa-error-recorder.util';
 import { MfaChallengeRepository } from './repositories/mfa-challenge.repository';
 import { MfaTokenRepository } from './repositories/mfa-token.repository';
 import { UserSecretsRepository } from './repositories/user-secrets.repository';
@@ -16,18 +19,26 @@ import { PendingEnrollmentStore } from './enrollment.store';
  * EventEmitterModule is global (AppModule root, Phase 6 D-13) — no re-import needed.
  *
  * Phase 14 (Item 12): orphan guard export removed — it had no live consumer.
- * GatewayMiddleware step 9b calls MfaService.validateMfaToken inline.
+ * GatewayMiddleware step 9b calls MfaChallenger.validateMfaToken inline.
+ *
+ * Phase C (260513-mar): MfaService split into MfaChallenger (challenge half,
+ * consumed by GatewayMiddleware + MfaController) and MfaEnroller (enrollment
+ * half, consumed only by MfaController). MfaService is kept transitionally
+ * until task 5 wires MfaController across; the export list will lose it then.
  */
 @Module({
   imports: [ConfigAppModule, AuthModule, SharedModule],
   controllers: [MfaController],
   providers: [
     MfaService,
+    MfaChallenger,
+    MfaEnroller,
+    MfaErrorRecorder,
     MfaChallengeRepository,
     MfaTokenRepository,
     UserSecretsRepository,
     PendingEnrollmentStore,
   ],
-  exports: [MfaService],
+  exports: [MfaService, MfaChallenger, MfaEnroller],
 })
 export class MfaModule {}
