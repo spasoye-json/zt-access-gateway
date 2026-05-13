@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`formatStageLine snapshots each status at fixed widths: chall 1`] = `"[90mabcdef01[39m  [36mhashcash      [39m  [33m⚠ CHALL[39m  [90m  12ms[39m  [2mbits=20[22m"`;
+
+exports[`formatStageLine snapshots each status at fixed widths: deny 1`] = `"[90mabcdef01[39m  [36mauth          [39m  [31m✗ DENY [39m  [90m   0ms[39m  [2mreason=no-token[22m"`;
+
+exports[`formatStageLine snapshots each status at fixed widths: pass 1`] = `"[90mabcdef01[39m  [36mauth          [39m  [32m✓ PASS [39m  [90m   3ms[39m  [2muser=alice[22m"`;
+
+exports[`formatStageLine snapshots each status at fixed widths: skip 1`] = `"[90mabcdef01[39m  [36mmfa           [39m  [2m⊘ SKIP [22m  [90m   0ms[39m"`;
