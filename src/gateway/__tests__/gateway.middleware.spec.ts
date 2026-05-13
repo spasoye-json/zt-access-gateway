@@ -136,6 +136,8 @@ function build(m: Mocks): GatewayMiddleware {
   const { AuthOnlyShortCircuitStage } = require('../pipeline/stages/auth-only-shortcircuit.stage');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { TrustScoreStage } = require('../pipeline/stages/trust-score.stage');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { HashcashStage } = require('../pipeline/stages/hashcash.stage');
   return new GatewayMiddleware(
     m.auth,
     m.revocation,
@@ -155,6 +157,7 @@ function build(m: Mocks): GatewayMiddleware {
     new RevocationStage(m.revocation),
     new AuthOnlyShortCircuitStage(m.audit, m.metrics),
     new TrustScoreStage(m.trustScore),
+    new HashcashStage(m.hashcash, m.cfg),
   );
 }
 

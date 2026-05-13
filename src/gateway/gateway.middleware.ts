@@ -32,6 +32,7 @@ import { AuthStage } from './pipeline/stages/auth.stage';
 import { RevocationStage } from './pipeline/stages/revocation.stage';
 import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcircuit.stage';
 import { TrustScoreStage } from './pipeline/stages/trust-score.stage';
+import { HashcashStage } from './pipeline/stages/hashcash.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
 import type { AuditEntry } from '../audit/audit-entry.interface';
@@ -71,6 +72,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly revocationStage: RevocationStage,
     private readonly authOnlyStage: AuthOnlyShortCircuitStage,
     private readonly trustScoreStage: TrustScoreStage,
+    private readonly hashcashStage: HashcashStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -170,54 +172,19 @@ export class GatewayMiddleware implements NestMiddleware {
       trustScoreValue = stageCtx.trustScore!;
       const ctx = stageCtx.trustCtx!;
 
-      // ── Step 8: Hashcash (D-08; threshold from HashcashConfig) ───
+      // ── Step 8: Hashcash (Phase D — extracted to HashcashStage) ───
       t0 = Date.now();
-      const hcThreshold = this.cfg.triggerThreshold ?? 0.5;
-      if (trustScoreValue > hcThreshold) {
-        const nonceHeader = (req.headers['x-hashcash-nonce'] as string | undefined) || '';
-        const solutionHeader = (req.headers['x-hashcash-solution'] as string | undefined) || '';
-
-        const issue = (errCode: 'proof_of_work_required' | 'proof_of_work_invalid'): void => {
-          const { nonce, difficulty, expiresAt } = this.hashcash.issueChallenge(
-            claims.userId,
-            claims.deviceId || '',
-            trustScoreValue,
-          );
-          observe('hashcash', (Date.now() - t0) / 1000);
-          res
-            .status(429)
-            .set('X-Hashcash-Challenge', `${nonce}:${difficulty}`)
-            .set('Retry-After', '1')
-            .json({
-              error: errCode,
-              nonce,
-              difficulty,
-              expiresAt,
-              requestId,
-            });
-        };
-
-        if (!nonceHeader || !solutionHeader) {
-          issue('proof_of_work_required');
-          return;
-        }
-        if (solutionHeader.length > 256 || solutionHeader.length < 1) {
-          issue('proof_of_work_invalid');
-          return;
-        }
-        const r = this.hashcash.verifySolution(
-          nonceHeader,
-          solutionHeader,
-          trustScoreValue,
-          claims.userId,
-          claims.deviceId || '',
-        );
-        if (!r.ok) {
-          issue('proof_of_work_invalid');
-          return;
-        }
-      }
+      const hashcashOutcome = await this.hashcashStage.run(stageCtx);
       observe('hashcash', (Date.now() - t0) / 1000);
+      if (hashcashOutcome.kind === 'short-circuit') {
+        if (hashcashOutcome.headers) {
+          for (const [k, v] of Object.entries(hashcashOutcome.headers)) {
+            res.set(k, v);
+          }
+        }
+        res.status(hashcashOutcome.status).json(hashcashOutcome.body);
+        return;
+      }
 
       // ── Step 9: Policy ─────────────────────────────────────────────
       t0 = Date.now();
