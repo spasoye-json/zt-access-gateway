@@ -7,7 +7,7 @@
  * the field undefined; consumers MUST tolerate that and recompute via
  * TrustScoreService.evaluateScore.
  *
- * Phase 7 — adds mfaToken populated by GatewayMiddleware (step 9b) after MfaService.validateMfaToken success (D-10).
+ * Phase 7 — adds mfaToken populated by GatewayMiddleware (step 9b) after MfaChallenger.validateMfaToken success (D-10).
  *
  * Phase 8 — adds proxyTarget + boPlaStripped for ProxyService/BoPlaInterceptor.
  */
@@ -28,7 +28,7 @@ declare global {
         | import('../auth/interfaces/user-claims.interface').AuthenticatedClaims;
       /** Optional trust score [0,1] populated by Phase 10 GatewayMiddleware (D-07). */
       trustScore?: number;
-      /** MFA token claims populated by GatewayMiddleware step 9b after MfaService.validateMfaToken success. Absent until validation succeeds. */
+      /** MFA token claims populated by GatewayMiddleware step 9b after MfaChallenger.validateMfaToken success. Absent until validation succeeds. */
       mfaToken?: import('../mfa/interfaces/mfa-token-claims.interface').MfaTokenClaims;
       /** Target service name extracted from URL path prefix by ProxyService (Phase 10). */
       proxyTarget?: string;

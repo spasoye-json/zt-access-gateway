@@ -19,7 +19,7 @@ export const MFA_ENROLLMENT_RESET = 'mfa.enrollment_reset';
 export const MFA_ENROLLMENT_CONFIRMED = 'mfa.enrollment_confirmed';
 /**
  * IN-01 (phase 14, iter3): infra observability event names previously inlined
- * as magic strings at the MfaService.recordInfraError emit site and the
+ * as magic strings at the MfaChallenger/MfaEnroller error-recorder emit site and the
  * verifyTotp decrypt-failure site. Promoted to exported constants so future
  * subscribers (dashboards, ThreatEscalationService.onMfaInfraError) cannot
  * silently typo-mismatch the event name.

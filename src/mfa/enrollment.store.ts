@@ -16,7 +16,7 @@ export interface PendingEnrollment {
   expiresAt: number;
   /**
    * BL-02 (phase 14): per-pending-id counter of failed TOTP attempts during
-   * confirmEnrollment. Bounded by MfaService.ENROLL_MAX_ATTEMPTS to close the
+   * confirmEnrollment. Bounded by MfaEnroller.ENROLL_MAX_ATTEMPTS to close the
    * silent 10⁶-keyspace brute-force window that existed when the only TTL
    * cap was 10 minutes.
    */

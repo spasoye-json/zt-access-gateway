@@ -1,7 +1,7 @@
 /**
  * MFA JWT payload claims (D-10).
  * typ: 'mfa' prevents cross-use with main JWTs (AuthService rejects typ:'mfa';
- * MfaService.validateMfaToken rejects any typ !== 'mfa').
+ * MfaChallenger.validateMfaToken rejects any typ !== 'mfa').
  */
 export interface MfaTokenClaims {
   sub: string; // userId

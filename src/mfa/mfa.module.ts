@@ -3,7 +3,6 @@ import { ConfigAppModule } from '../config/config.module';
 import { AuthModule } from '../auth/auth.module';
 import { SharedModule } from '../shared/shared.module';
 import { MfaController } from './mfa.controller';
-import { MfaService } from './mfa.service';
 import { MfaChallenger } from './mfa-challenger.service';
 import { MfaEnroller } from './mfa-enroller.service';
 import { MfaErrorRecorder } from './mfa-error-recorder.util';
@@ -21,16 +20,15 @@ import { PendingEnrollmentStore } from './enrollment.store';
  * Phase 14 (Item 12): orphan guard export removed — it had no live consumer.
  * GatewayMiddleware step 9b calls MfaChallenger.validateMfaToken inline.
  *
- * Phase C (260513-mar): MfaService split into MfaChallenger (challenge half,
- * consumed by GatewayMiddleware + MfaController) and MfaEnroller (enrollment
- * half, consumed only by MfaController). MfaService is kept transitionally
- * until task 5 wires MfaController across; the export list will lose it then.
+ * Phase C (260513-mar): the previous god-class was split into MfaChallenger
+ * (challenge half, consumed by GatewayMiddleware + MfaController) and
+ * MfaEnroller (enrollment half, consumed only by MfaController). Both share
+ * MfaErrorRecorder for the swallowed-infra-error observability path.
  */
 @Module({
   imports: [ConfigAppModule, AuthModule, SharedModule],
   controllers: [MfaController],
   providers: [
-    MfaService,
     MfaChallenger,
     MfaEnroller,
     MfaErrorRecorder,
@@ -39,6 +37,6 @@ import { PendingEnrollmentStore } from './enrollment.store';
     UserSecretsRepository,
     PendingEnrollmentStore,
   ],
-  exports: [MfaService, MfaChallenger, MfaEnroller],
+  exports: [MfaChallenger, MfaEnroller],
 })
 export class MfaModule {}

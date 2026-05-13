@@ -6,7 +6,7 @@ import * as path from 'path';
  *
  * MfaGuard was deleted in Phase 14 (SC-4). It had zero @UseGuards consumers
  * and was never registered via APP_GUARD anywhere; GatewayMiddleware step 9b
- * calls MfaService.validateMfaToken directly. This spec fails the build if
+ * calls MfaChallenger.validateMfaToken directly. This spec fails the build if
  * anyone re-introduces a reference to the deleted guard class.
  *
  * Implementation per CONTEXT D-13: shell out to grep (mirrors the Phase 13 D-03

@@ -7,7 +7,7 @@
  *   - AuditRepository         — avoids real Postgres
  *   - TrustScoreService       — deterministic 0..1 score; no DB
  *   - PolicyEvaluatorService  — deterministic ALLOW / CHALLENGE / DENY
- *   - MfaService              — deterministic validate / createChallenge
+ *   - MfaChallenger           — deterministic validate / createChallenge
  *
  * Spies on MetricsService.observeStageDuration and the override-jest.fn()
  * mocks prove the pipeline ordering invariants (D-09: audit-before-proxy;
@@ -49,7 +49,7 @@ import { ProxyService } from '../../src/proxy/proxy.service';
 import { AuditRepository } from '../../src/audit/audit.repository';
 import { TrustScoreService } from '../../src/trust-score/trust-score.service';
 import { PolicyEvaluatorService } from '../../src/policy/policy-evaluator.service';
-import { MfaService } from '../../src/mfa/mfa.service';
+import { MfaChallenger } from '../../src/mfa/mfa-challenger.service';
 import { MetricsService } from '../../src/metrics/metrics.service';
 import { AuthService } from '../../src/auth/auth.service';
 import { FingerprintStore } from '../../src/fingerprint/fingerprint.store';
@@ -128,7 +128,7 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
       .useValue(fakeTrustScore)
       .overrideProvider(PolicyEvaluatorService)
       .useValue(fakePolicy)
-      .overrideProvider(MfaService)
+      .overrideProvider(MfaChallenger)
       .useValue(fakeMfa)
       .compile();
 

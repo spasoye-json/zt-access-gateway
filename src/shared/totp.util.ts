@@ -4,7 +4,7 @@
  * Replaces @otplib/v12-adapter to avoid the ESM-only @scure/base dependency
  * that crashes the compiled CJS bundle in Node 18 (ERR_REQUIRE_ESM).
  *
- * Supports the same surface used by MfaService:
+ * Supports the same surface used by MfaChallenger / MfaEnroller:
  *   generateSecret()    — 20-byte random base32 secret (160 bits, same as otplib default)
  *   generate(secret)    — current TOTP code (SHA-1, 6 digits, 30s window)
  *   verify({token, secret}) — accepts ±1 step window (same as otplib default)

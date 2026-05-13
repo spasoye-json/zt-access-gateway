@@ -16,12 +16,15 @@ import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MFA_CONFIG, type MfaConfig } from '../config/slices';
 import {
-  MfaService,
+  MfaChallenger,
   type MfaCreateResult,
   type MfaVerifyResult,
+} from './mfa-challenger.service';
+import {
+  MfaEnroller,
   type MfaEnrollResult,
   type MfaConfirmResult,
-} from './mfa.service';
+} from './mfa-enroller.service';
 import { InitiateMfaDto } from './dto/initiate-mfa.dto';
 import { VerifyMfaDto } from './dto/verify-mfa.dto';
 import { EnrollConfirmDto } from './dto/enroll-confirm.dto';
@@ -43,7 +46,8 @@ import { Roles } from '../auth/roles.decorator';
 @UseGuards(JwtAuthGuard)
 export class MfaController {
   constructor(
-    private readonly mfaService: MfaService,
+    private readonly challenger: MfaChallenger,
+    private readonly enroller: MfaEnroller,
     @Inject(MFA_CONFIG) private readonly config: MfaConfig,
   ) {}
 
@@ -58,7 +62,7 @@ export class MfaController {
     const ip = extractIp(req);
     const ja4h = extractJa4h(req as never);
 
-    const result = await this.mfaService.createChallenge(user.userId, ip, ja4h);
+    const result = await this.challenger.createChallenge(user.userId, ip, ja4h);
 
     if (!result.ok) {
       const failResult = result as Extract<MfaCreateResult, { ok: false }>;
@@ -90,7 +94,7 @@ export class MfaController {
     const deviceId = extractDeviceId(req);
     const ja4h = extractJa4h(req as never);
 
-    const result = await this.mfaService.verifyTotp(
+    const result = await this.challenger.verifyTotp(
       dto.challengeId,
       dto.totpCode,
       user.userId,
@@ -121,7 +125,7 @@ export class MfaController {
   @Post('enroll')
   async enroll(@Req() req: Request, @Res() res: Response): Promise<void> {
     const user = (req as Request & { user: UserClaims }).user;
-    const result = await this.mfaService.createEnrollment(user.userId, user.email);
+    const result = await this.enroller.createEnrollment(user.userId, user.email);
 
     if (!result.ok) {
       const failResult = result as Extract<MfaEnrollResult, { ok: false }>;
@@ -157,7 +161,7 @@ export class MfaController {
     // with /mfa/verify).
     const ip = extractIp(req);
     const ja4h = extractJa4h(req as never);
-    const result = await this.mfaService.confirmEnrollment(
+    const result = await this.enroller.confirmEnrollment(
       dto.enrollmentId,
       dto.totpCode,
       user.userId,
@@ -190,7 +194,7 @@ export class MfaController {
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   async adminDeleteEnrollment(@Param('userId') userId: string): Promise<{ deleted: boolean }> {
-    const result = await this.mfaService.deleteEnrollment(userId);
+    const result = await this.enroller.deleteEnrollment(userId);
     if (!result.ok) {
       throw new InternalServerErrorException();
     }
