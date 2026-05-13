@@ -27,9 +27,7 @@ function tmpCsvCopy(): string {
   return dst;
 }
 
-function fakeConfig(
-  overrides: Partial<{ csvPath: string; modelPath: string }> = {},
-): PolicyConfig {
+function fakeConfig(overrides: Partial<{ csvPath: string; modelPath: string }> = {}): PolicyConfig {
   return {
     modelPath: overrides.modelPath ?? path.join(process.cwd(), 'policy/model.conf'),
     csvPath: overrides.csvPath ?? tmpCsvCopy(),

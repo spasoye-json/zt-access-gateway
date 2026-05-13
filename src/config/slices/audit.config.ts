@@ -17,7 +17,7 @@ export const AUDIT_CONFIG = Symbol('AUDIT_CONFIG');
 
 export function buildAuditConfig(env: ConfigService): AuditConfig {
   return Object.freeze({
-    walBaseDelayMs: env.get<number>('AUDIT_WAL_BASE_DELAY_MS')!,
-    walMaxRetries: env.get<number>('AUDIT_WAL_MAX_RETRIES')!,
+    walBaseDelayMs: env.get<number>('AUDIT_WAL_BASE_DELAY_MS'),
+    walMaxRetries: env.get<number>('AUDIT_WAL_MAX_RETRIES'),
   });
 }

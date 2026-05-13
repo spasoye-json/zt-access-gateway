@@ -50,9 +50,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     // prettier-ignore
     this.enforcer = await newEnforcer(this.cfg.modelPath, this.cfg.csvPath);
-    this.logger.log(
-      `Casbin enforcer ready (model=${this.cfg.modelPath}, csv=${this.cfg.csvPath})`,
-    );
+    this.logger.log(`Casbin enforcer ready (model=${this.cfg.modelPath}, csv=${this.cfg.csvPath})`);
   }
 
   /**

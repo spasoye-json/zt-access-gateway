@@ -79,10 +79,6 @@ export class CertMonitorService implements OnModuleInit, OnModuleDestroy {
   }
 
   private certPaths(): string[] {
-    return [
-      this.config.caCertPath,
-      this.config.clientCertPath,
-      this.config.clientKeyPath,
-    ];
+    return [this.config.caCertPath, this.config.clientCertPath, this.config.clientKeyPath];
   }
 }

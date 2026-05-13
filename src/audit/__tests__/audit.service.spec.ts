@@ -23,7 +23,7 @@ function makeConfig(maxRetries = 3, baseDelay = 50): AuditConfig {
   return {
     walMaxRetries: maxRetries,
     walBaseDelayMs: baseDelay,
-  } as unknown as AuditConfig;
+  };
 }
 
 function makeEmitter(): TypedEvents {

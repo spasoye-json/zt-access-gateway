@@ -29,13 +29,13 @@ export const MFA_CONFIG = Symbol('MFA_CONFIG');
 
 export function buildMfaConfig(env: ConfigService): MfaConfig {
   return Object.freeze({
-    jwtSecret: env.get<string>('MFA_JWT_SECRET')!,
-    totpEncryptionKey: env.get<string>('MFA_TOTP_ENCRYPTION_KEY')!,
-    challengeTtlMs: env.get<number>('MFA_CHALLENGE_TTL_MS')!,
-    tokenTtlMs: env.get<number>('MFA_TOKEN_TTL_MS')!,
-    rateLimitMax: env.get<number>('MFA_RATE_LIMIT_MAX')!,
-    rateLimitWindowMs: env.get<number>('MFA_RATE_LIMIT_WINDOW_MS')!,
-    issuerName: env.get<string>('MFA_ISSUER_NAME')!,
-    enrollPendingTtlMs: env.get<number>('MFA_ENROLL_PENDING_TTL_MS')!,
+    jwtSecret: env.get<string>('MFA_JWT_SECRET'),
+    totpEncryptionKey: env.get<string>('MFA_TOTP_ENCRYPTION_KEY'),
+    challengeTtlMs: env.get<number>('MFA_CHALLENGE_TTL_MS'),
+    tokenTtlMs: env.get<number>('MFA_TOKEN_TTL_MS'),
+    rateLimitMax: env.get<number>('MFA_RATE_LIMIT_MAX'),
+    rateLimitWindowMs: env.get<number>('MFA_RATE_LIMIT_WINDOW_MS'),
+    issuerName: env.get<string>('MFA_ISSUER_NAME'),
+    enrollPendingTtlMs: env.get<number>('MFA_ENROLL_PENDING_TTL_MS'),
   });
 }

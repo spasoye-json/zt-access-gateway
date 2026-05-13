@@ -26,11 +26,11 @@ export const HASHCASH_CONFIG = Symbol('HASHCASH_CONFIG');
 
 export function buildHashcashConfig(env: ConfigService): HashcashConfig {
   return Object.freeze({
-    hmacSecret: env.get<string>('HASHCASH_HMAC_SECRET')!,
-    challengeTtlMs: env.get<number>('HASHCASH_CHALLENGE_TTL_MS')!,
-    usedNonceCapacity: env.get<number>('HASHCASH_USED_NONCE_CAPACITY')!,
-    triggerThreshold: env.get<number>('HASHCASH_TRIGGER_THRESHOLD')!,
-    difficultyMin: env.get<number>('HASHCASH_DIFFICULTY_MIN')!,
-    difficultyMax: env.get<number>('HASHCASH_DIFFICULTY_MAX')!,
+    hmacSecret: env.get<string>('HASHCASH_HMAC_SECRET'),
+    challengeTtlMs: env.get<number>('HASHCASH_CHALLENGE_TTL_MS'),
+    usedNonceCapacity: env.get<number>('HASHCASH_USED_NONCE_CAPACITY'),
+    triggerThreshold: env.get<number>('HASHCASH_TRIGGER_THRESHOLD'),
+    difficultyMin: env.get<number>('HASHCASH_DIFFICULTY_MIN'),
+    difficultyMax: env.get<number>('HASHCASH_DIFFICULTY_MAX'),
   });
 }

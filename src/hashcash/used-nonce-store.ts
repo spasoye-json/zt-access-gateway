@@ -17,9 +17,7 @@ export class UsedNonceStore {
 
   constructor(capacityOrConfig: number | HashcashConfig = 10000) {
     this.capacity =
-      typeof capacityOrConfig === 'number'
-        ? capacityOrConfig
-        : capacityOrConfig.usedNonceCapacity;
+      typeof capacityOrConfig === 'number' ? capacityOrConfig : capacityOrConfig.usedNonceCapacity;
   }
 
   /**

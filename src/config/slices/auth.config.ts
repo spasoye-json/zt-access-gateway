@@ -24,7 +24,7 @@ export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
 
 export function buildAuthConfig(env: ConfigService): AuthConfig {
   return Object.freeze({
-    jwtSecret: env.get<string>('JWT_SECRET')!,
+    jwtSecret: env.get<string>('JWT_SECRET'),
     jwtPublicKey: env.get<string>('JWT_PUBLIC_KEY'),
     jwksUri: env.get<string>('JWKS_URI'),
     jwtIssuer: env.get<string>('JWT_ISSUER'),

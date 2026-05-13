@@ -26,24 +26,27 @@ export interface ServerConfig {
 export const SERVER_CONFIG = Symbol('SERVER_CONFIG');
 
 function parseHoneypotRoutes(raw: string | undefined): readonly string[] {
-  if (!raw) return Object.freeze([]);
+  const empty: readonly string[] = Object.freeze([] as string[]);
+  if (!raw) return empty;
   try {
-    const parsed = JSON.parse(raw) as string[];
-    return Object.freeze(Array.isArray(parsed) ? parsed : []);
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return empty;
+    const onlyStrings: string[] = parsed.filter((v): v is string => typeof v === 'string');
+    return Object.freeze(onlyStrings);
   } catch {
-    return Object.freeze([]);
+    return empty;
   }
 }
 
 export function buildServerConfig(env: ConfigService): ServerConfig {
   return Object.freeze({
-    port: env.get<number>('PORT')!,
-    nodeEnv: env.get<string>('NODE_ENV')!,
-    corsOrigin: env.get<string>('CORS_ORIGIN')!,
-    rateLimitWindowMs: env.get<number>('RATE_LIMIT_WINDOW_MS')!,
-    rateLimitMax: env.get<number>('RATE_LIMIT_MAX')!,
-    databaseUrl: env.get<string>('DATABASE_URL')!,
-    blacklistTtlMs: env.get<number>('BLACKLIST_TTL_MS')!,
+    port: env.get<number>('PORT'),
+    nodeEnv: env.get<string>('NODE_ENV'),
+    corsOrigin: env.get<string>('CORS_ORIGIN'),
+    rateLimitWindowMs: env.get<number>('RATE_LIMIT_WINDOW_MS'),
+    rateLimitMax: env.get<number>('RATE_LIMIT_MAX'),
+    databaseUrl: env.get<string>('DATABASE_URL'),
+    blacklistTtlMs: env.get<number>('BLACKLIST_TTL_MS'),
     honeypotRoutes: parseHoneypotRoutes(env.get<string>('HONEYPOT_ROUTES')),
   });
 }

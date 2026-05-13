@@ -25,11 +25,11 @@ export const PROXY_CONFIG = Symbol('PROXY_CONFIG');
 
 export function buildProxyConfig(env: ConfigService): ProxyConfig {
   return Object.freeze({
-    serviceRegistry: env.get<string>('PROXY_SERVICE_REGISTRY')!,
-    cbVolumeThreshold: env.get<number>('PROXY_CB_VOLUME_THRESHOLD')!,
-    cbErrorThreshold: env.get<number>('PROXY_CB_ERROR_THRESHOLD')!,
-    cbResetTimeout: env.get<number>('PROXY_CB_RESET_TIMEOUT')!,
-    maxRetries: env.get<number>('PROXY_MAX_RETRIES')!,
-    boplaPolicyPath: env.get<string>('BOPLA_POLICY_PATH')!,
+    serviceRegistry: env.get<string>('PROXY_SERVICE_REGISTRY'),
+    cbVolumeThreshold: env.get<number>('PROXY_CB_VOLUME_THRESHOLD'),
+    cbErrorThreshold: env.get<number>('PROXY_CB_ERROR_THRESHOLD'),
+    cbResetTimeout: env.get<number>('PROXY_CB_RESET_TIMEOUT'),
+    maxRetries: env.get<number>('PROXY_MAX_RETRIES'),
+    boplaPolicyPath: env.get<string>('BOPLA_POLICY_PATH'),
   });
 }
