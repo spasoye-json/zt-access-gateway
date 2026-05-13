@@ -24,9 +24,8 @@ import { AppConfigService } from '../config/config.service';
 import { extractIp } from '../shared/request-context.util';
 import { sleep } from '../shared/sleep.util';
 import { PUBLIC_PATHS, isAuthOnlyPath } from './public-paths';
-import { GATEWAY_VALIDATED } from './gateway-validated.symbol';
 import { HONEYPOT_PATHS } from '../honeypot/honeypot.constants';
-import type { UserClaims } from '../auth/interfaces/user-claims.interface';
+import type { UserClaims, AuthenticatedClaims } from '../auth/interfaces/user-claims.interface';
 import type { TrustContext } from '../trust-score/trust-context';
 import type { AuditEntry } from '../audit/audit-entry.interface';
 
@@ -159,7 +158,6 @@ export class GatewayMiddleware implements NestMiddleware {
         }
         throw e;
       }
-      (req as Request & { user?: UserClaims }).user = claims;
       observe('auth', (Date.now() - t0) / 1000);
 
       // ── Step 6: Revocation ─────────────────────────────────────────
@@ -170,7 +168,16 @@ export class GatewayMiddleware implements NestMiddleware {
         return;
       }
       observe('revocation', (Date.now() - t0) / 1000);
-      (req as unknown as Record<symbol, boolean>)[GATEWAY_VALIDATED] = true;
+
+      // Phase A2 — single post-revocation assignment of branded claims.
+      // D-08 ordering preserved: the brand is only attached AFTER isRevoked()
+      // clears. Collapses the prior two-write pattern (req.user = claims +
+      // sentinel symbol) into one branded assignment that the guard reads via
+      // property-presence on `__authenticatedByGateway`.
+      (req as Request & { user?: UserClaims | AuthenticatedClaims }).user = {
+        ...claims,
+        __authenticatedByGateway: true,
+      };
 
       // D-04 — AUTH_ONLY early exit (audit allow, then next())
       // WR-03: wrap in recordWithTimeout so a hung Postgres insert cannot

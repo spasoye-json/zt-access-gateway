@@ -2,18 +2,17 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { Reflector } from '@nestjs/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IS_PUBLIC_KEY } from '../shared/public.decorator';
-import { GATEWAY_VALIDATED } from '../gateway/gateway-validated.symbol';
 import { AuthService } from './auth.service';
 import { TokenRevocationService } from './token-revocation.service';
 import { extractIp, extractJa4h } from '../shared/request-context.util';
 import { AUTH_INVALID_TOKEN, type ThreatSignalPayload } from '../policy/policy-events';
-import type { UserClaims } from './interfaces/user-claims.interface';
+import type { UserClaims, AuthenticatedClaims } from './interfaces/user-claims.interface';
 
 interface AuthRequest {
   ip?: string;
   headers?: Record<string, string | string[] | undefined>;
   socket?: { remoteAddress?: string };
-  user?: UserClaims;
+  user?: UserClaims | AuthenticatedClaims;
 }
 
 /**
@@ -46,14 +45,13 @@ export class JwtAuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<AuthRequest>();
 
-    // Phase 13 D-05 — sentinel short-circuit.
-    // GatewayMiddleware set this property AFTER successfully running auth step 5
-    // (validateToken) and step 6 (isRevoked). Re-running them here would double
-    // the work for every AUTH_ONLY route (/auth/revoke, /mfa/*). Only the Symbol
-    // identity is trusted — string-keyed properties or headers cannot spoof it
-    // (Phase 13 D-04). Standalone routes (no GatewayMiddleware) leave this
-    // property unset and fall through to the full validation path (D-07).
-    if ((request as Record<symbol, unknown>)[GATEWAY_VALIDATED] === true) {
+    // Phase A2 — branded-claims short-circuit (was Phase 13 D-04/D-05 Symbol sentinel).
+    // GatewayMiddleware sets req.user = AuthenticatedClaims AFTER step 5 (validateToken)
+    // and step 6 (isRevoked) succeed. The brand field is unknown to every DTO, so the
+    // global ValidationPipe (whitelist + forbidNonWhitelisted) strips it from bodies;
+    // it cannot be supplied by an attacker. Standalone routes (no GatewayMiddleware)
+    // leave req.user undefined and fall through to full validation (D-07).
+    if (request.user && '__authenticatedByGateway' in request.user) {
       return true;
     }
 
