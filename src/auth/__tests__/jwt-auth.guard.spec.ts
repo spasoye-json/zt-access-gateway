@@ -5,7 +5,6 @@ import { JwtAuthGuard } from '../jwt-auth.guard';
 import { AuthService } from '../auth.service';
 import { TokenRevocationService } from '../token-revocation.service';
 import { AUTH_INVALID_TOKEN } from '../../policy/policy-events';
-import { GATEWAY_VALIDATED } from '../../gateway/gateway-validated.symbol';
 import { createHs256Token } from './test-keys';
 
 /**
@@ -48,11 +47,24 @@ describe('JwtAuthGuard', () => {
     if (overrides?.ja4h !== undefined) {
       request['x-ja4h'] = overrides.ja4h;
     }
-    if (overrides?.gatewayValidated === true) {
-      (request as Record<symbol, unknown>)[GATEWAY_VALIDATED] = true;
-    }
     if (overrides?.user !== undefined) {
       request.user = overrides.user;
+    }
+    if (overrides?.gatewayValidated === true) {
+      // Phase A2 — express "gateway authed" via a branded user object instead
+      // of a Symbol-keyed sentinel. Tests passing `gatewayValidated: true`
+      // get a synthetic AuthenticatedClaims plumbed onto req.user; explicit
+      // `user:` overrides win (placed above so they aren't overwritten).
+      if (request.user === undefined) {
+        request.user = {
+          userId: 'u-gw',
+          roles: ['user'],
+          jti: 'jti-gw',
+          exp: Math.floor(Date.now() / 1000) + 3600,
+          deviceId: 'dev-gw',
+          __authenticatedByGateway: true,
+        };
+      }
     }
 
     const handler = {} as () => void;
@@ -123,19 +135,13 @@ describe('JwtAuthGuard', () => {
     });
   });
 
-  describe('GatewayMiddleware sentinel short-circuit (Phase 13 D-04/D-05)', () => {
-    it('sentinel-present → returns true and does NOT call validateToken / isRevoked / emit', async () => {
+  describe('GatewayMiddleware brand short-circuit (Phase A2)', () => {
+    it('brand-present → returns true and does NOT call validateToken / isRevoked / emit', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       const emitSpy = jest.spyOn(events, 'emit');
 
       const ctx = createMockExecutionContext({
         gatewayValidated: true,
-        user: {
-          userId: 'u-gw',
-          roles: ['user'],
-          jti: 'jti-gw',
-          exp: Math.floor(Date.now() / 1000) + 3600,
-        },
       });
 
       const result = await guard.canActivate(ctx);
@@ -146,7 +152,7 @@ describe('JwtAuthGuard', () => {
       expect(emitSpy).not.toHaveBeenCalled();
     });
 
-    it('sentinel-absent → calls validateToken exactly once (standalone-route fallback per D-07)', async () => {
+    it('brand-absent → calls validateToken exactly once (standalone-route fallback per D-07)', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       (authService.validateToken as jest.Mock).mockResolvedValue({
         userId: 'u-standalone',
@@ -170,30 +176,34 @@ describe('JwtAuthGuard', () => {
       expect(authService.validateToken).toHaveBeenCalledTimes(1);
     });
 
-    it('string-valued sentinel header does NOT bypass (D-04 spoof safety — Symbol identity is the only authority)', async () => {
+    it('plain (un-branded) req.user does NOT bypass — property-presence check rejects non-branded claims (Phase A2 spoof safety)', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       (authService.validateToken as jest.Mock).mockResolvedValue({
-        userId: 'u-spoof',
+        userId: 'u-real',
         roles: ['user'],
-        jti: 'jti-spoof',
+        jti: 'jti-real',
         exp: Math.floor(Date.now() / 1000) + 3600,
+        deviceId: 'dev-real',
       });
 
-      const token = await createHs256Token(
-        { sub: 'u-spoof', roles: ['user'] },
-        { jti: 'jti-spoof' },
-      );
+      const token = await createHs256Token({ sub: 'u-real', roles: ['user'] }, { jti: 'jti-real' });
       const ctx = createMockExecutionContext({
         authorization: `Bearer ${token}`,
+        // Attacker-shaped plain UserClaims pre-populated on req.user without
+        // the brand (e.g. via a hypothetical earlier middleware bug). The
+        // property-presence brand check MUST treat this as "not gateway-authed"
+        // and fall through to full validateToken + isRevoked.
+        user: {
+          userId: 'attacker',
+          roles: ['admin'],
+          jti: 'x',
+          exp: 0,
+          deviceId: 'd',
+        },
       });
-      // Attempt spoof — string key, NOT the Symbol.
-      const req = ctx.switchToHttp().getRequest();
-      req['GATEWAY_VALIDATED'] = true;
-      (req.headers as Record<string, string>)['x-gateway-validated'] = 'true';
 
       await guard.canActivate(ctx);
 
-      // Spoof failed: full validation path ran.
       expect(authService.validateToken).toHaveBeenCalledTimes(1);
     });
   });
