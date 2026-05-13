@@ -11,14 +11,22 @@ import type { AuditLogsQueryDto } from './dto/audit-logs-query.dto';
 /**
  * Phase 9 — AuditService (AUDT-01, AUDT-03, AUDT-04, AUDT-05, AUDT-06).
  *
- * Two write paths (D-04, D-05):
- *   - writeBlocking() — for ALLOW (audit-before-allow). 3 retries, 50→100→200ms backoff.
- *     Throws AuditExhaustedException on exhaustion → Phase 10 returns 503.
- *   - record() — for CHALLENGE/DENY/HONEYPOT_TRIGGERED. Best-effort, never throws.
- *     On error: console.warn + emit('audit.record_failed') so MetricsService can
- *     increment zt_gateway_audit_failures_total via @OnEvent (D-05). The EventEmitter2
- *     bus (Phase 6 D-13) avoids the circular module dependency that would arise from
- *     direct MetricsService injection (D-03).
+ * Single public write port: `log(entry)`. Dispatches internally on
+ * `entry.decision` (Phase A1 of polymorphic-juggling-haven refactor):
+ *
+ *   - `decision === 'allow'`        → fail-closed WAL (D-04 retry loop, 50→100→200ms
+ *                                     backoff). Throws AuditExhaustedException after
+ *                                     maxRetries → GatewayMiddleware central catch
+ *                                     maps to HTTP 503 + Retry-After: 5.
+ *   - `decision === 'challenge'`    → best-effort (D-05). Never throws.
+ *   - `decision === 'deny'`         → best-effort. Never throws. Includes the
+ *     (with `eventType: 'HONEYPOT_TRIGGERED'`   AUDT-06 honeypot variant — discriminator is
+ *     or not)                                   the decision value, not eventType.
+ *
+ * On best-effort error: console.warn + emit('audit.record_failed') so
+ * MetricsService can increment zt_gateway_audit_failures_total via @OnEvent
+ * (D-05). The EventEmitter2 bus (Phase 6 D-13) avoids the circular module
+ * dependency that would arise from direct MetricsService injection (D-03).
  */
 @Injectable()
 export class AuditService {
@@ -28,8 +36,20 @@ export class AuditService {
     private readonly events: EventEmitter2,
   ) {}
 
+  /**
+   * Unified write port. Dispatches on `entry.decision`:
+   *   'allow'   → fail-closed WAL (may throw AuditExhaustedException)
+   *   else      → best-effort (never throws; emits 'audit.record_failed' on error)
+   */
+  async log(entry: AuditEntry): Promise<void> {
+    if (entry.decision === 'allow') {
+      return this.writeBlocking(entry);
+    }
+    return this.recordBestEffort(entry);
+  }
+
   /** AUDT-03, AUDT-04 — fail-closed WAL. Throws AuditExhaustedException after maxRetries. */
-  async writeBlocking(entry: AuditEntry): Promise<void> {
+  private async writeBlocking(entry: AuditEntry): Promise<void> {
     const maxRetries = this.config.auditWalMaxRetries;
     const baseDelay = this.config.auditWalBaseDelayMs;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -45,8 +65,8 @@ export class AuditService {
     throw new AuditExhaustedException(`Audit WAL exhausted after ${maxRetries} retries`);
   }
 
-  /** AUDT-01, AUDT-06 — best-effort record (never throws). */
-  async record(entry: AuditEntry): Promise<void> {
+  /** AUDT-01, AUDT-06 — best-effort record (never throws). D-05/D-13 — emits via bus. */
+  private async recordBestEffort(entry: AuditEntry): Promise<void> {
     try {
       await this.repo.insert(entry);
     } catch (e) {
