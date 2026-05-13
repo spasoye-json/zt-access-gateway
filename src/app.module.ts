@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigAppModule } from './config/config.module';
+import { DbModule } from './db/db.module';
 import { AuthModule } from './auth/auth.module';
 import { SharedModule } from './shared/shared.module';
 import { FingerprintModule } from './fingerprint/fingerprint.module';
@@ -54,6 +55,7 @@ import { GatewayMiddleware } from './gateway/gateway.middleware';
 @Module({
   imports: [
     ConfigAppModule,
+    DbModule, // Phase B2 — global shared pg.Pool (DB token + DbService)
     EventEmitterModule.forRoot(), // Phase 6 — global signal bus (D-13)
     AuthModule,
     SharedModule,
