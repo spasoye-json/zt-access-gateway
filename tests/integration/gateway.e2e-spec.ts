@@ -173,12 +173,15 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
       expect(res.headers['content-type']).toMatch(/^text\/plain/);
     });
 
-    it('public bypass does NOT invoke pipeline stages (no observeStageDuration calls) (GTWY-08)', async () => {
+    it('public bypass does NOT invoke pipeline stages beyond public_bypass (GTWY-08)', async () => {
       stageSpy.mockClear();
       await request(app.getHttpServer()).get('/health');
       await request(app.getHttpServer()).get('/metrics');
-      // PUBLIC bypass returns next() before any observe('auth', ...) call
-      expect(stageSpy).not.toHaveBeenCalled();
+      // Phase D: public_bypass is itself a stage that records timing, but it
+      // short-circuits with `bypass` outcome before auth/policy/proxy. The
+      // stage trace MUST consist of only `public_bypass`.
+      const stages = stageSpy.mock.calls.map((c) => c[0] as string);
+      expect(new Set(stages)).toEqual(new Set(['public_bypass']));
       // No request decision is incremented for public paths
       expect(incRequestSpy).not.toHaveBeenCalled();
     });
@@ -229,8 +232,10 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
       expect(res.body || res.text).toBeTruthy();
       // Critical assertion: auth.validateToken was NOT called for honeypot path
       expect(authValidateSpy).not.toHaveBeenCalled();
-      // Pipeline stages NOT observed for honeypot bypass
-      expect(stageSpy).not.toHaveBeenCalled();
+      // Phase D: only the leaf bypass stages (public_bypass + honeypot_bypass)
+      // observe a duration before honeypot short-circuits with `bypass`.
+      const stages = stageSpy.mock.calls.map((c) => c[0] as string);
+      expect(new Set(stages)).toEqual(new Set(['public_bypass', 'honeypot_bypass']));
       // No proxy invocation
       expect(fakeProxy.forward).not.toHaveBeenCalled();
     }, 10_000); // ShadowController tarpits 2-5s before responding (D-05)
@@ -253,25 +258,29 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
 
       const stages = stageSpy.mock.calls.map((c) => c[0] as string);
 
-      // Order check — strict prefix; mfa is absent on ALLOW, proxy comes last.
-      // Phase D adds the `auth_only` stage observation between revocation and
-      // trust_score (the stage runs unconditionally and emits `continue` on
-      // non-auth-only paths; orchestrator records duration regardless).
-      const expectedPrefix = [
+      // Phase D — the orchestrator iterates the full registered stage list
+      // and records timing on every visited stage. On a successful ALLOW
+      // through /users/profile the stage trace is the entire pipeline:
+      //   public_bypass → honeypot_bypass → auth → revocation → auth_only →
+      //   trust_score → hashcash → policy → mfa_promotion → audit_allow →
+      //   proxy → bopla_strip → record_trust_context
+      // The order is strict — every stage runs in its registered position.
+      const expectedOrder = [
+        'public_bypass',
+        'honeypot_bypass',
         'auth',
         'revocation',
         'auth_only',
         'trust_score',
         'hashcash',
         'policy',
+        'mfa_promotion',
+        'audit_allow',
+        'proxy',
+        'bopla_strip',
+        'record_trust_context',
       ];
-      expect(stages.slice(0, expectedPrefix.length)).toEqual(expectedPrefix);
-      // Phase D: terminal stage chain is proxy → bopla_strip → record_trust_context.
-      // The orchestrator observes each in order; the proxied outcome is written
-      // by writeOutcome after record_trust_context returns.
-      expect(stages[stages.length - 1]).toBe('record_trust_context');
-      expect(stages).toContain('proxy');
-      expect(stages).toContain('bopla_strip');
+      expect(stages).toEqual(expectedOrder);
 
       // D-13 — trust_score MUST be observed at most once per request
       expect(stages.filter((s) => s === 'trust_score')).toHaveLength(1);
@@ -281,7 +290,7 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
       // every invocation (including ALLOW where it just returns continue).
       // The orchestrator-uniform timing rule replaces the inline conditional
       // observe('mfa') that only fired on CHALLENGE.
-      expect(stages.filter((s) => s === 'mfa')).toHaveLength(1);
+      expect(stages.filter((s) => s === 'mfa_promotion')).toHaveLength(1);
     });
 
     it('audit-before-proxy invocation order (D-09 / GTWY-07)', async () => {
