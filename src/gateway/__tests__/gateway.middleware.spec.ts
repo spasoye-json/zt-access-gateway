@@ -313,9 +313,7 @@ describe('GatewayMiddleware', () => {
       });
       const res = mockRes();
       await build(m).use(req, res, next);
-      expect(m.audit.log).toHaveBeenCalledWith(
-        expect.objectContaining({ decision: 'allow' }),
-      );
+      expect(m.audit.log).toHaveBeenCalledWith(expect.objectContaining({ decision: 'allow' }));
       expect(next).toHaveBeenCalledTimes(1);
       expect(m.policy.evaluate).not.toHaveBeenCalled();
     });
