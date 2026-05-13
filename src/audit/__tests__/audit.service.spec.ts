@@ -42,118 +42,147 @@ describe('AuditService', () => {
     warnSpy.mockRestore();
   });
 
-  describe('writeBlocking() — WAL retry path (AUDT-03, AUDT-04)', () => {
-    it('inserts on first attempt — no retries', async () => {
-      const repo = makeRepo();
-      repo.insert.mockResolvedValueOnce(undefined);
-      const svc = new AuditService(makeConfig(), repo, makeEmitter());
+  describe('log() — dispatcher (A1)', () => {
+    describe("entry.decision === 'allow' — fail-closed WAL", () => {
+      it('inserts on first attempt — no retries', async () => {
+        const repo = makeRepo();
+        repo.insert.mockResolvedValueOnce(undefined);
+        const svc = new AuditService(makeConfig(), repo, makeEmitter());
 
-      await svc.writeBlocking({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' });
+        await svc.log({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' });
 
-      expect(repo.insert).toHaveBeenCalledTimes(1);
-      expect(sleep).not.toHaveBeenCalled();
-    });
-
-    it('retries with 50ms→100ms→200ms backoff and succeeds before exhaustion', async () => {
-      const repo = makeRepo();
-      repo.insert
-        .mockRejectedValueOnce(new Error('db1'))
-        .mockRejectedValueOnce(new Error('db2'))
-        .mockResolvedValueOnce(undefined);
-      const svc = new AuditService(makeConfig(3, 50), repo, makeEmitter());
-
-      await svc.writeBlocking({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' });
-
-      expect(repo.insert).toHaveBeenCalledTimes(3);
-      // Two sleeps (between 3 attempts). Defaults: 50ms, 100ms.
-      expect((sleep as jest.Mock).mock.calls).toEqual([[50], [100]]);
-    });
-
-    it('throws AuditExhaustedException after 3 failed attempts (AUDT-04)', async () => {
-      const repo = makeRepo();
-      repo.insert.mockRejectedValue(new Error('db down'));
-      const svc = new AuditService(makeConfig(3, 50), repo, makeEmitter());
-
-      await expect(
-        svc.writeBlocking({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' }),
-      ).rejects.toBeInstanceOf(AuditExhaustedException);
-
-      expect(repo.insert).toHaveBeenCalledTimes(3);
-      // Only 2 sleeps (after attempts 0 and 1; not after final attempt).
-      expect((sleep as jest.Mock).mock.calls).toEqual([[50], [100]]);
-    });
-
-    it('respects auditWalMaxRetries from config', async () => {
-      const repo = makeRepo();
-      repo.insert.mockRejectedValue(new Error('db down'));
-      const svc = new AuditService(makeConfig(5, 50), repo, makeEmitter());
-
-      await expect(
-        svc.writeBlocking({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' }),
-      ).rejects.toBeInstanceOf(AuditExhaustedException);
-      expect(repo.insert).toHaveBeenCalledTimes(5);
-    });
-
-    it('AuditExhaustedException carries name="AuditExhaustedException" for instanceof-free callers', async () => {
-      expect.assertions(1);
-      const repo = makeRepo();
-      repo.insert.mockRejectedValue(new Error('db'));
-      const svc = new AuditService(makeConfig(1, 50), repo, makeEmitter());
-      try {
-        await svc.writeBlocking({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' });
-      } catch (e) {
-        expect((e as Error).name).toBe('AuditExhaustedException');
-      }
-    });
-  });
-
-  describe('record() — best-effort path (AUDT-01, AUDT-06)', () => {
-    it('inserts on success', async () => {
-      const repo = makeRepo();
-      repo.insert.mockResolvedValueOnce(undefined);
-      const events = makeEmitter();
-      const svc = new AuditService(makeConfig(), repo, events);
-
-      await expect(
-        svc.record({ userId: 'u', resource: '/x', action: 'GET', decision: 'challenge' }),
-      ).resolves.toBeUndefined();
-      expect(events.emit).not.toHaveBeenCalledWith('audit.record_failed');
-    });
-
-    it('catches DB errors, logs console.warn, emits audit.record_failed (D-05) — never throws', async () => {
-      const repo = makeRepo();
-      repo.insert.mockRejectedValueOnce(new Error('db down'));
-      const events = makeEmitter();
-      const svc = new AuditService(makeConfig(), repo, events);
-
-      await expect(
-        svc.record({ userId: 'u', resource: '/x', action: 'GET', decision: 'deny' }),
-      ).resolves.toBeUndefined();
-      expect(warnSpy).toHaveBeenCalled();
-      expect(events.emit).toHaveBeenCalledWith('audit.record_failed');
-    });
-
-    it('records HONEYPOT_TRIGGERED entries with eventType (AUDT-06)', async () => {
-      const repo = makeRepo();
-      repo.insert.mockResolvedValueOnce(undefined);
-      const svc = new AuditService(makeConfig(), repo, makeEmitter());
-
-      await svc.record({
-        userId: 'scanner',
-        resource: '/wp-login.php',
-        action: 'GET',
-        decision: 'deny',
-        eventType: 'HONEYPOT_TRIGGERED',
-        ja4hFingerprint: 'ja4h-abc',
-        ipAddress: '10.0.0.1',
+        expect(repo.insert).toHaveBeenCalledTimes(1);
+        expect(sleep).not.toHaveBeenCalled();
       });
-      expect(repo.insert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          decision: 'deny',
+
+      it('retries with 50ms→100ms backoff and succeeds before exhaustion', async () => {
+        const repo = makeRepo();
+        repo.insert
+          .mockRejectedValueOnce(new Error('db1'))
+          .mockRejectedValueOnce(new Error('db2'))
+          .mockResolvedValueOnce(undefined);
+        const svc = new AuditService(makeConfig(3, 50), repo, makeEmitter());
+
+        await svc.log({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' });
+
+        expect(repo.insert).toHaveBeenCalledTimes(3);
+        // Two sleeps (between 3 attempts). Defaults: 50ms, 100ms.
+        expect((sleep as jest.Mock).mock.calls).toEqual([[50], [100]]);
+      });
+
+      it('throws AuditExhaustedException after 3 failed attempts (AUDT-04)', async () => {
+        const repo = makeRepo();
+        repo.insert.mockRejectedValue(new Error('db down'));
+        const svc = new AuditService(makeConfig(3, 50), repo, makeEmitter());
+
+        await expect(
+          svc.log({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' }),
+        ).rejects.toBeInstanceOf(AuditExhaustedException);
+
+        expect(repo.insert).toHaveBeenCalledTimes(3);
+        // Only 2 sleeps (after attempts 0 and 1; not after final attempt).
+        expect((sleep as jest.Mock).mock.calls).toEqual([[50], [100]]);
+      });
+
+      it('respects auditWalMaxRetries from config', async () => {
+        const repo = makeRepo();
+        repo.insert.mockRejectedValue(new Error('db down'));
+        const svc = new AuditService(makeConfig(5, 50), repo, makeEmitter());
+
+        await expect(
+          svc.log({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' }),
+        ).rejects.toBeInstanceOf(AuditExhaustedException);
+        expect(repo.insert).toHaveBeenCalledTimes(5);
+      });
+
+      it('AuditExhaustedException carries name="AuditExhaustedException" for instanceof-free callers', async () => {
+        expect.assertions(1);
+        const repo = makeRepo();
+        repo.insert.mockRejectedValue(new Error('db'));
+        const svc = new AuditService(makeConfig(1, 50), repo, makeEmitter());
+        try {
+          await svc.log({ userId: 'u', resource: '/x', action: 'GET', decision: 'allow' });
+        } catch (e) {
+          expect((e as Error).name).toBe('AuditExhaustedException');
+        }
+      });
+    });
+
+    describe("entry.decision === 'challenge' — best-effort path", () => {
+      it('inserts on success — no throw, no emit', async () => {
+        const repo = makeRepo();
+        repo.insert.mockResolvedValueOnce(undefined);
+        const events = makeEmitter();
+        const svc = new AuditService(makeConfig(), repo, events);
+
+        await expect(
+          svc.log({ userId: 'u', resource: '/x', action: 'GET', decision: 'challenge' }),
+        ).resolves.toBeUndefined();
+        expect(events.emit).not.toHaveBeenCalledWith('audit.record_failed');
+      });
+    });
+
+    describe("entry.decision === 'deny' — best-effort path", () => {
+      it('catches DB errors, logs console.warn, emits audit.record_failed (D-05) — never throws', async () => {
+        const repo = makeRepo();
+        repo.insert.mockRejectedValueOnce(new Error('db down'));
+        const events = makeEmitter();
+        const svc = new AuditService(makeConfig(), repo, events);
+
+        await expect(
+          svc.log({ userId: 'u', resource: '/x', action: 'GET', decision: 'deny' }),
+        ).resolves.toBeUndefined();
+        expect(warnSpy).toHaveBeenCalled();
+        expect(events.emit).toHaveBeenCalledWith('audit.record_failed');
+      });
+    });
+
+    describe("decision === 'deny' + eventType: 'HONEYPOT_TRIGGERED' — best-effort", () => {
+      it('records HONEYPOT_TRIGGERED entries with eventType (AUDT-06) — never throws on insert error', async () => {
+        const repo = makeRepo();
+        repo.insert.mockRejectedValueOnce(new Error('db down'));
+        const events = makeEmitter();
+        const svc = new AuditService(makeConfig(), repo, events);
+
+        await expect(
+          svc.log({
+            userId: 'scanner',
+            resource: '/wp-login.php',
+            action: 'GET',
+            decision: 'deny',
+            eventType: 'HONEYPOT_TRIGGERED',
+            ja4hFingerprint: 'ja4h-abc',
+            ipAddress: '10.0.0.1',
+          }),
+        ).resolves.toBeUndefined();
+        expect(repo.insert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            decision: 'deny',
+            resource: '/wp-login.php',
+            eventType: 'HONEYPOT_TRIGGERED',
+          }),
+        );
+        expect(events.emit).toHaveBeenCalledWith('audit.record_failed');
+      });
+
+      it('on success, records HONEYPOT_TRIGGERED without emitting failure event', async () => {
+        const repo = makeRepo();
+        repo.insert.mockResolvedValueOnce(undefined);
+        const events = makeEmitter();
+        const svc = new AuditService(makeConfig(), repo, events);
+
+        await svc.log({
+          userId: 'scanner',
           resource: '/wp-login.php',
+          action: 'GET',
+          decision: 'deny',
           eventType: 'HONEYPOT_TRIGGERED',
-        }),
-      );
+        });
+        expect(repo.insert).toHaveBeenCalledWith(
+          expect.objectContaining({ eventType: 'HONEYPOT_TRIGGERED' }),
+        );
+        expect(events.emit).not.toHaveBeenCalledWith('audit.record_failed');
+      });
     });
   });
 
