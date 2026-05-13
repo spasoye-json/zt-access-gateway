@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Tech Debt Cleanup
-status: executing
+status: "Phase 18 closed; v1.0 milestone audit overall: compliant 17/17. Milestone remains tech_debt pending HUMAN-UAT items 2/3/4."
 stopped_at: Completed Phase 18 Plan 03 — 17-VALIDATION.md authored (D-04/D-09) + v1.0 milestone audit re-run flipped overall to compliant 17/17 (D-05; tracked commit 90dfdac); Phase 18 closed
-last_updated: "2026-05-13T05:48:00.000Z"
+last_updated: "2026-05-13T07:49:29.674Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 6
@@ -113,6 +113,20 @@ Progress: [██████████] 100%
 | 2026-04-29 | update-stale-planning-docs | Synced PROJECT/REQUIREMENTS/ROADMAP/STATE through Phase 6; promoted decisions, fixed corrupted Phase 7-10 plan lists in ROADMAP, advanced focus to Phase 07 |
 | 2026-05-03 | update-docs-post-phase-7-11 | Phase 7 + 11 UAT verified (all tests pass); ROADMAP + STATE advanced to Phase 8 |
 | 2026-05-04 | complete-phase-8 | Phase 8 UAT 8/8 passed, security review 29/29 threats closed, docs updated; ROADMAP + STATE advanced to Phase 9 |
+
+## Deferred Items
+
+Items acknowledged and deferred at v1.0 milestone close on 2026-05-13:
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification_gap | Phase 02 (ja4h-honeypot) — live decoy-hit blacklist enforcement + x-ja4h on proxied requests | human_needed |
+| verification_gap | Phase 07 (mfa-challenge) — live POST /mfa/initiate→/verify happy path; 429 + Retry-After; Joi bootstrap failures for MFA_* env vars | human_needed |
+| verification_gap | Phase 11 (mfa-enrollment) — live /mfa/enroll, /mfa/enroll/confirm, DELETE /mfa/admin/enrollment/:userId with Postgres + admin/non-admin JWTs | human_needed |
+| quick_task | 260426-ots-update-progress-docs | missing |
+| quick_task | 260428-txp-update-stale-planning-docs-project-md-re | missing |
+
+All 5 items are process/UAT debt; functional coverage attested by VERIFICATION.md per phase. The 3 verification gaps are the long-standing HUMAN-UAT carryover items (2/3/4) tracked in v1.0-MILESTONE-AUDIT.md.
 
 ## Accumulated Context
 
