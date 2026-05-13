@@ -35,6 +35,9 @@ import { HashcashStage } from './pipeline/stages/hashcash.stage';
 import { PolicyStage } from './pipeline/stages/policy.stage';
 import { MfaPromotionStage } from './pipeline/stages/mfa-promotion.stage';
 import { AuditAllowStage } from './pipeline/stages/audit-allow.stage';
+import { ProxyStage } from './pipeline/stages/proxy.stage';
+import { BoplaStripStage } from './pipeline/stages/bopla-strip.stage';
+import { RecordTrustContextStage } from './pipeline/stages/record-trust-context.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
 
@@ -77,6 +80,9 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly policyStage: PolicyStage,
     private readonly mfaPromotionStage: MfaPromotionStage,
     private readonly auditAllowStage: AuditAllowStage,
+    private readonly proxyStage: ProxyStage,
+    private readonly boplaStripStage: BoplaStripStage,
+    private readonly recordTrustContextStage: RecordTrustContextStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -199,20 +205,24 @@ export class GatewayMiddleware implements NestMiddleware {
       await this.auditAllowStage.run(stageCtx); // throws AuditExhaustedException on WAL exhaustion
       observe('audit_allow' as PipelineStage, (Date.now() - t0) / 1000);
 
+      // ── Step 11: Proxy + BOPLA + record trust context (Phase D — three stages) ──
       t0 = Date.now();
-      const upstreamRes = await this.proxy.forward(req, claims, trustScoreValue);
+      await this.proxyStage.run(stageCtx);
       observe('proxy', (Date.now() - t0) / 1000);
 
-      // GTWY-06 BOPLA stripping
-      const stripped = this.boPla.strip(upstreamRes.data, reqPath, claims.roles ?? []);
+      t0 = Date.now();
+      await this.boplaStripStage.run(stageCtx);
+      observe('bopla_strip' as PipelineStage, (Date.now() - t0) / 1000);
 
-      // D-12 / GTWY-05 — trust context only on upstream 2xx
-      if (upstreamRes.status < 400) {
-        await this.trustScore.recordTrustContextAfterAllow(ctx, trustScoreValue);
+      t0 = Date.now();
+      const finalOutcome = await this.recordTrustContextStage.run(stageCtx);
+      observe('record_trust_context' as PipelineStage, (Date.now() - t0) / 1000);
+
+      if (finalOutcome.kind === 'proxied') {
+        this.metrics.incrementRequest('allow');
+        res.status(finalOutcome.status).json(finalOutcome.body);
+        return;
       }
-
-      this.metrics.incrementRequest('allow');
-      res.status(upstreamRes.status).json(stripped);
       return;
     } catch (e) {
       if (e instanceof AuditExhaustedException) {

@@ -21,6 +21,9 @@ import { HashcashStage } from './pipeline/stages/hashcash.stage';
 import { PolicyStage } from './pipeline/stages/policy.stage';
 import { MfaPromotionStage } from './pipeline/stages/mfa-promotion.stage';
 import { AuditAllowStage } from './pipeline/stages/audit-allow.stage';
+import { ProxyStage } from './pipeline/stages/proxy.stage';
+import { BoplaStripStage } from './pipeline/stages/bopla-strip.stage';
+import { RecordTrustContextStage } from './pipeline/stages/record-trust-context.stage';
 
 /**
  * Phase 10 — GatewayModule wires the 9 prerequisite modules so that
@@ -63,6 +66,9 @@ import { AuditAllowStage } from './pipeline/stages/audit-allow.stage';
     PolicyStage,
     MfaPromotionStage,
     AuditAllowStage,
+    ProxyStage,
+    BoplaStripStage,
+    RecordTrustContextStage,
   ],
   exports: [
     GatewayMiddleware,
@@ -76,6 +82,9 @@ import { AuditAllowStage } from './pipeline/stages/audit-allow.stage';
     PolicyStage,
     MfaPromotionStage,
     AuditAllowStage,
+    ProxyStage,
+    BoplaStripStage,
+    RecordTrustContextStage,
   ],
 })
 export class GatewayModule {}

@@ -144,6 +144,12 @@ function build(m: Mocks): GatewayMiddleware {
   const { MfaPromotionStage } = require('../pipeline/stages/mfa-promotion.stage');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { AuditAllowStage } = require('../pipeline/stages/audit-allow.stage');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { ProxyStage } = require('../pipeline/stages/proxy.stage');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { BoplaStripStage } = require('../pipeline/stages/bopla-strip.stage');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { RecordTrustContextStage } = require('../pipeline/stages/record-trust-context.stage');
   return new GatewayMiddleware(
     m.auth,
     m.revocation,
@@ -167,6 +173,9 @@ function build(m: Mocks): GatewayMiddleware {
     new PolicyStage(m.policy),
     new MfaPromotionStage(m.mfa, m.audit, m.metrics),
     new AuditAllowStage(m.audit, m.metrics),
+    new ProxyStage(m.proxy),
+    new BoplaStripStage(m.boPla),
+    new RecordTrustContextStage(m.trustScore),
   );
 }
 

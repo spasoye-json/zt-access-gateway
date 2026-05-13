@@ -266,7 +266,12 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
         'policy',
       ];
       expect(stages.slice(0, expectedPrefix.length)).toEqual(expectedPrefix);
-      expect(stages[stages.length - 1]).toBe('proxy');
+      // Phase D: terminal stage chain is proxy → bopla_strip → record_trust_context.
+      // The orchestrator observes each in order; the proxied outcome is written
+      // by writeOutcome after record_trust_context returns.
+      expect(stages[stages.length - 1]).toBe('record_trust_context');
+      expect(stages).toContain('proxy');
+      expect(stages).toContain('bopla_strip');
 
       // D-13 — trust_score MUST be observed at most once per request
       expect(stages.filter((s) => s === 'trust_score')).toHaveLength(1);
