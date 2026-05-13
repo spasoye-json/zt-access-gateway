@@ -8,7 +8,7 @@
  *  - replay same solution → 429 (single-use enforced)
  *
  * Difficulty pinned to 4 via HASHCASH_DIFFICULTY_MIN=MAX=4 — proves D-17 env knob
- * flows through AppConfigService → HashcashService.cfg.diffMin/Max → both
+ * flows through HashcashConfig → HashcashService.cfg.diffMin/Max → both
  * issueChallenge AND verifySolution (via difficultyForScore(score, 4, 4) === 4).
  * Closes the HCSH-06 gap: returns 200, not 429, on Step 3.
  */

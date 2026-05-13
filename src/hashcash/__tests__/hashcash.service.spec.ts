@@ -1,7 +1,7 @@
 import { HashcashService } from '../hashcash.service';
 import { UsedNonceStore } from '../used-nonce-store';
 import { HashcashMetrics } from '../hashcash-metrics';
-import type { AppConfigService } from '../../config/config.service';
+import type { HashcashConfig } from '../../config/slices';
 import { hashSolution, countLeadingZeroBits } from '../hashcash.util';
 
 function fakeConfig(
@@ -11,13 +11,13 @@ function fakeConfig(
     min: number;
     max: number;
   }> = {},
-): AppConfigService {
+): HashcashConfig {
   return {
-    hashcashHmacSecret: overrides.secret ?? 'a'.repeat(64),
-    hashcashChallengeTtlMs: overrides.ttlMs ?? 120000,
-    hashcashDifficultyMin: overrides.min ?? 4, // collapsed range — fast solves in tests
-    hashcashDifficultyMax: overrides.max ?? 4,
-  } as unknown as AppConfigService;
+    hmacSecret: overrides.secret ?? 'a'.repeat(64),
+    challengeTtlMs: overrides.ttlMs ?? 120000,
+    difficultyMin: overrides.min ?? 4, // collapsed range — fast solves in tests
+    difficultyMax: overrides.max ?? 4,
+  } as unknown as HashcashConfig;
 }
 
 function solveAt(nonce: string, difficulty: number): string {

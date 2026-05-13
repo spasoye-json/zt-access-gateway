@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { AppConfigService } from '../config/config.service';
+import { HASHCASH_CONFIG, type HashcashConfig } from '../config/slices';
 import { UsedNonceStore } from './used-nonce-store';
 import { HashcashMetrics } from './hashcash-metrics';
 import { difficultyForScore, countLeadingZeroBits, hashSolution } from './hashcash.util';
@@ -46,7 +46,7 @@ export type VerifyResult =
  * Phase 5 — HashcashService: stateless HMAC PoW issue + verify (D-01).
  *
  * issueChallenge(userId, deviceId, score):
- *   - computes difficulty = difficultyForScore(score, cfg.hashcashDifficultyMin, cfg.hashcashDifficultyMax)
+ *   - computes difficulty = difficultyForScore(score, cfg.difficultyMin, cfg.difficultyMax)
  *   - builds payload, signs with HASHCASH_HMAC_SECRET, returns { nonce, difficulty, expiresAt }
  *     where the returned values match the encoded payload exactly.
  *
@@ -63,14 +63,14 @@ export class HashcashService {
   private readonly diffMax: number;
 
   constructor(
-    cfg: AppConfigService,
+    @Inject(HASHCASH_CONFIG) cfg: HashcashConfig,
     private readonly nonceStore: UsedNonceStore,
     private readonly metrics: HashcashMetrics,
   ) {
-    this.secret = Buffer.from(cfg.hashcashHmacSecret, 'utf8');
-    this.ttlSec = Math.max(0, Math.floor(cfg.hashcashChallengeTtlMs / 1000));
-    this.diffMin = cfg.hashcashDifficultyMin;
-    this.diffMax = cfg.hashcashDifficultyMax;
+    this.secret = Buffer.from(cfg.hmacSecret, 'utf8');
+    this.ttlSec = Math.max(0, Math.floor(cfg.challengeTtlMs / 1000));
+    this.diffMin = cfg.difficultyMin;
+    this.diffMax = cfg.difficultyMax;
   }
 
   issueChallenge(userId: string, deviceId: string, score: number): IssuedChallenge {

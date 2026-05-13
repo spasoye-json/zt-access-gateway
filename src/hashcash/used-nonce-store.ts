@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AppConfigService } from '../config/config.service';
+import type { HashcashConfig } from '../config/slices';
 
 /**
  * Phase 5 — bounded in-memory single-use store for solved PoW nonces (D-04).
@@ -15,11 +15,11 @@ export class UsedNonceStore {
   private readonly store = new Map<string, number>(); // nonce → expiresAt (Unix seconds)
   private readonly capacity: number;
 
-  constructor(capacityOrConfig: number | AppConfigService = 10000) {
+  constructor(capacityOrConfig: number | HashcashConfig = 10000) {
     this.capacity =
       typeof capacityOrConfig === 'number'
         ? capacityOrConfig
-        : capacityOrConfig.hashcashUsedNonceCapacity;
+        : capacityOrConfig.usedNonceCapacity;
   }
 
   /**

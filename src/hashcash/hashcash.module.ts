@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigAppModule } from '../config/config.module';
 import { TrustScoreModule } from '../trust-score/trust-score.module';
-import { AppConfigService } from '../config/config.service';
+import { HASHCASH_CONFIG, type HashcashConfig } from '../config/slices';
 import { HashcashService } from './hashcash.service';
 import { HashcashMetrics } from './hashcash-metrics';
 import { UsedNonceStore } from './used-nonce-store';
@@ -13,8 +13,8 @@ import { UsedNonceStore } from './used-nonce-store';
     HashcashMetrics,
     {
       provide: UsedNonceStore,
-      useFactory: (cfg: AppConfigService) => new UsedNonceStore(cfg.hashcashUsedNonceCapacity),
-      inject: [AppConfigService],
+      useFactory: (cfg: HashcashConfig) => new UsedNonceStore(cfg.usedNonceCapacity),
+      inject: [HASHCASH_CONFIG],
     },
   ],
   exports: [HashcashService, HashcashMetrics],
