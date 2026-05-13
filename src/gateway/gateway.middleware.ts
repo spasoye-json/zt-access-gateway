@@ -24,12 +24,13 @@ import { MetricsService, type PipelineStage } from '../metrics/metrics.service';
 import { HASHCASH_CONFIG, type HashcashConfig } from '../config/slices';
 import { extractIp } from '../shared/request-context.util';
 import { sleep } from '../shared/sleep.util';
-import { PUBLIC_PATHS, isAuthOnlyPath } from './public-paths';
+import { PUBLIC_PATHS } from './public-paths';
 import { HONEYPOT_PATHS } from '../honeypot/honeypot.constants';
 import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
 import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
 import { AuthStage } from './pipeline/stages/auth.stage';
 import { RevocationStage } from './pipeline/stages/revocation.stage';
+import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcircuit.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
 import type { TrustContext } from '../trust-score/trust-context';
@@ -68,6 +69,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly honeypotBypass: HoneypotBypassStage,
     private readonly authStage: AuthStage,
     private readonly revocationStage: RevocationStage,
+    private readonly authOnlyStage: AuthOnlyShortCircuitStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -152,24 +154,13 @@ export class GatewayMiddleware implements NestMiddleware {
         return;
       }
 
-      // D-04 — AUTH_ONLY early exit (audit allow, then next())
-      // WR-03: wrap in recordWithTimeout so a hung Postgres insert cannot
-      // block /auth/revoke, /mfa/*, /policy/admin/*, /audit/logs — exactly
-      // the routes hit during a security incident. Best-effort audit is the
-      // documented contract (CLAUDE.md: "Audit logging is best-effort").
-      if (isAuthOnlyPath(reqPath)) {
-        await recordWithTimeout({
-          userId: claims.userId,
-          resource: reqPath,
-          action: req.method,
-          decision: 'allow',
-          ja4hFingerprint: ja4h,
-          ipAddress: extractIp(req),
-          requestId,
-          // trustScore intentionally omitted (Pitfall 2 — no score evaluated)
-        });
-        return next();
-      }
+      // D-04 — AUTH_ONLY early exit (Phase D — extracted to AuthOnlyShortCircuitStage)
+      t0 = Date.now();
+      const authOnlyOutcome = await this.authOnlyStage.run(stageCtx);
+      // 'auth_only' is a NEW stage label introduced in Phase D; Task 15 widens
+      // observeStageDuration to accept string. Cast bridges the union until then.
+      observe('auth_only' as PipelineStage, (Date.now() - t0) / 1000);
+      if (authOnlyOutcome.kind === 'bypass') return next();
 
       // ── Step 7: Trust Score (D-13 — set once) ──────────────────────
       t0 = Date.now();

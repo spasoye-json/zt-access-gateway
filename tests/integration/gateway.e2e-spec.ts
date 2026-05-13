@@ -253,8 +253,18 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
 
       const stages = stageSpy.mock.calls.map((c) => c[0] as string);
 
-      // Order check — strict prefix (mfa is absent on ALLOW, proxy comes last)
-      const expectedPrefix = ['auth', 'revocation', 'trust_score', 'hashcash', 'policy'];
+      // Order check — strict prefix; mfa is absent on ALLOW, proxy comes last.
+      // Phase D adds the `auth_only` stage observation between revocation and
+      // trust_score (the stage runs unconditionally and emits `continue` on
+      // non-auth-only paths; orchestrator records duration regardless).
+      const expectedPrefix = [
+        'auth',
+        'revocation',
+        'auth_only',
+        'trust_score',
+        'hashcash',
+        'policy',
+      ];
       expect(stages.slice(0, expectedPrefix.length)).toEqual(expectedPrefix);
       expect(stages[stages.length - 1]).toBe('proxy');
 

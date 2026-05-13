@@ -15,6 +15,7 @@ import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
 import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
 import { AuthStage } from './pipeline/stages/auth.stage';
 import { RevocationStage } from './pipeline/stages/revocation.stage';
+import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcircuit.stage';
 
 /**
  * Phase 10 — GatewayModule wires the 9 prerequisite modules so that
@@ -51,6 +52,7 @@ import { RevocationStage } from './pipeline/stages/revocation.stage';
     HoneypotBypassStage,
     AuthStage,
     RevocationStage,
+    AuthOnlyShortCircuitStage,
   ],
   exports: [
     GatewayMiddleware,
@@ -58,6 +60,7 @@ import { RevocationStage } from './pipeline/stages/revocation.stage';
     HoneypotBypassStage,
     AuthStage,
     RevocationStage,
+    AuthOnlyShortCircuitStage,
   ],
 })
 export class GatewayModule {}
