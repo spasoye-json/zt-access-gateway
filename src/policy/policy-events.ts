@@ -55,6 +55,10 @@ export interface ThreatSignalPayload {
   reason?: string;
   jti?: string;
   deleted?: boolean;
+  // Gateway-flavored: requestId is attached when AUDIT_SIGNAL is emitted from
+  // GatewayMiddleware so dashboards can correlate the WAL-exhausted signal back
+  // to the failing request trace.
+  requestId?: string;
 }
 
 export type SignalType =

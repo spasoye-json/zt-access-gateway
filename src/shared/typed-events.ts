@@ -61,6 +61,6 @@ export class TypedEvents {
     event: E,
     ...args: EventPayloads[E] extends void ? [] : [EventPayloads[E]]
   ): void {
-    this.bus.emit(event as string, ...args);
+    this.bus.emit(event, ...args);
   }
 }

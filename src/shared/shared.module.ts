@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigAppModule } from '../config/config.module';
 import { CertMonitorService } from './cert-monitor.service';
 import { HealthController } from './health.controller';
@@ -18,7 +19,12 @@ import { TypedEvents } from './typed-events';
  * CertMonitorService is internal: it only calls mtlsService.reload() on file changes.
  */
 @Module({
-  imports: [ConfigAppModule],
+  // EventEmitterModule.forRoot() is registered here so SharedModule is
+  // self-contained: any test that imports a downstream module which itself
+  // imports SharedModule (e.g. ProxyModule) gets EventEmitter2 resolved via DI
+  // without requiring the caller to re-register the bus. AppModule registers
+  // forRoot() at the root too; both registrations target the same global bus.
+  imports: [ConfigAppModule, EventEmitterModule.forRoot()],
   providers: [MtlsService, CertMonitorService, TypedEvents],
   controllers: [HealthController],
   exports: [MtlsService, TypedEvents],

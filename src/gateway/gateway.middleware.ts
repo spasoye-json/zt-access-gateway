@@ -5,8 +5,8 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Request, Response, NextFunction } from 'express';
+import { TypedEvents } from '../shared/typed-events';
 import { randomUUID } from 'node:crypto';
 import { AuthService } from '../auth/auth.service';
 import { TokenRevocationService } from '../auth/token-revocation.service';
@@ -57,7 +57,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly audit: AuditService,
     private readonly metrics: MetricsService,
     private readonly cfg: AppConfigService,
-    private readonly events: EventEmitter2,
+    private readonly events: TypedEvents,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigAppModule } from '../config/config.module';
 import { AuthModule } from '../auth/auth.module';
+import { SharedModule } from '../shared/shared.module';
 import { TrustScoreModule } from '../trust-score/trust-score.module';
 import { HashcashModule } from '../hashcash/hashcash.module';
 import { PolicyModule } from '../policy/policy.module';
@@ -29,6 +30,7 @@ import { GatewayMiddleware } from './gateway.middleware';
 @Module({
   imports: [
     ConfigAppModule,
+    SharedModule,
     AuthModule,
     TrustScoreModule,
     HashcashModule,
