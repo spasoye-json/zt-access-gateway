@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { TrustSignalProvider, SignalAdjustment } from '../trust-signal-provider.interface';
 import type { TrustContext } from '../trust-context';
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
-import { AppConfigService } from '../../config/config.service';
+import { TRUST_CONFIG, type TrustConfig } from '../../config/slices';
 
 /**
  * Applies D-13 decay as a **correction** to favorable device/ip deltas already added
@@ -16,7 +16,7 @@ export class TrustDecayProvider implements TrustSignalProvider {
 
   constructor(
     private readonly repo: TrustTelemetryRepository,
-    private readonly config: AppConfigService,
+    @Inject(TRUST_CONFIG) private readonly config: TrustConfig,
   ) {}
 
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
@@ -27,14 +27,14 @@ export class TrustDecayProvider implements TrustSignalProvider {
 
     const now = ctx.requestTimestamp ?? new Date();
     const idleMs = Math.max(0, now.getTime() - new Date(row.last_seen_at).getTime());
-    const k = Math.exp(-idleMs / this.config.trustDecayHalfLifeMs);
+    const k = Math.exp(-idleMs / this.config.decayHalfLifeMs);
 
     const deviceAllows = await this.repo.countAllowsForUserDeviceIp(
       ctx.userId,
       ctx.deviceId,
       ctx.ip,
     );
-    const thr = this.config.trustKnownThreshold;
+    const thr = this.config.knownThreshold;
     const deviceRaw = deviceAllows >= thr ? -0.15 : 0.15;
 
     const ipSum = await this.repo.sumAllowsForUserIp(ctx.userId, ctx.ip);

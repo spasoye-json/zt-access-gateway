@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { TrustSignalProvider, SignalAdjustment } from '../trust-signal-provider.interface';
 import type { TrustContext } from '../trust-context';
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
-import { AppConfigService } from '../../config/config.service';
+import { TRUST_CONFIG, type TrustConfig } from '../../config/slices';
 
 /**
  * D-14–D-16: hour-of-day histogram + rate EMA/variance; warmup gate; unit-weight |z| sum clamped.
@@ -13,12 +13,12 @@ export class BehaviorAnomalyProvider implements TrustSignalProvider {
 
   constructor(
     private readonly repo: TrustTelemetryRepository,
-    private readonly config: AppConfigService,
+    @Inject(TRUST_CONFIG) private readonly config: TrustConfig,
   ) {}
 
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
     const row = await this.repo.getSignalRow(ctx.userId, ctx.deviceId, ctx.ip);
-    if (!row || row.allow_count < this.config.trustAnomalyWarmupN) {
+    if (!row || row.allow_count < this.config.anomalyWarmupN) {
       return { delta: 0, reason: 'anomaly_warmup' };
     }
 

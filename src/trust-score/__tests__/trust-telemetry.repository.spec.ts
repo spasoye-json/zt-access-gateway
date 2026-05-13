@@ -1,5 +1,5 @@
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
-import { AppConfigService } from '../../config/config.service';
+import type { ServerConfig } from '../../config/slices';
 import { Pool } from 'pg';
 import {
   beginSuiteTransaction,
@@ -24,7 +24,7 @@ describeDb('TrustTelemetryRepository', () => {
   beforeAll(() => {
     const databaseUrl = ztTestUrlFromEnv();
     pool = new Pool({ connectionString: databaseUrl, max: 5 });
-    repository = new TrustTelemetryRepository({ databaseUrl } as unknown as AppConfigService);
+    repository = new TrustTelemetryRepository({ databaseUrl } as unknown as ServerConfig);
   });
 
   afterAll(async () => {

@@ -1,6 +1,6 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
-import { AppConfigService } from '../config/config.service';
+import { SERVER_CONFIG, type ServerConfig } from '../config/slices';
 import type { TrustContext } from './trust-context';
 
 /** Row shape for `trust_signals` (read model for scoring). */
@@ -22,7 +22,7 @@ export interface TrustSignalRow {
 export class TrustTelemetryRepository implements OnModuleDestroy {
   private readonly pool: Pool;
 
-  constructor(private readonly config: AppConfigService) {
+  constructor(@Inject(SERVER_CONFIG) private readonly config: ServerConfig) {
     this.pool = new Pool({
       connectionString: this.config.databaseUrl,
       max: 5,

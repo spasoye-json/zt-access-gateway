@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TypedEvents } from '../../shared/typed-events';
 import { FingerprintStore } from '../../fingerprint/fingerprint.store';
-import { AppConfigService } from '../../config/config.service';
+import type { ServerConfig, TrustConfig } from '../../config/slices';
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
 import { TrustScoreService } from '../trust-score.service';
 import { DeviceReputationProvider } from '../providers/device-reputation.provider';
@@ -20,15 +20,17 @@ function ztTestUrlFromEnv(): string {
   return u.href;
 }
 
-function mockConfig(url: string): AppConfigService {
+interface CombinedConfigMock extends ServerConfig, TrustConfig {}
+
+function mockConfig(url: string): CombinedConfigMock {
   return {
     databaseUrl: url,
-    trustKnownThreshold: 3,
-    trustDecayHalfLifeMs: 604800000,
-    trustAnomalyWarmupN: 20,
-    trustFrequencyWindowMs: 60000,
-    trustFrequencyNormalMax: 30,
-  } as unknown as AppConfigService;
+    knownThreshold: 3,
+    decayHalfLifeMs: 604800000,
+    anomalyWarmupN: 20,
+    frequencyWindowMs: 60000,
+    frequencyNormalMax: 30,
+  } as unknown as CombinedConfigMock;
 }
 
 const describeDb = process.env.DATABASE_URL ? describe : describe.skip;

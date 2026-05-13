@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { TrustSignalProvider, SignalAdjustment } from '../trust-signal-provider.interface';
 import type { TrustContext } from '../trust-context';
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
-import { AppConfigService } from '../../config/config.service';
+import { TRUST_CONFIG, type TrustConfig } from '../../config/slices';
 
 @Injectable()
 export class RequestFrequencyProvider implements TrustSignalProvider {
@@ -10,14 +10,14 @@ export class RequestFrequencyProvider implements TrustSignalProvider {
 
   constructor(
     private readonly repo: TrustTelemetryRepository,
-    private readonly config: AppConfigService,
+    @Inject(TRUST_CONFIG) private readonly config: TrustConfig,
   ) {}
 
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
     const now = ctx.requestTimestamp ?? new Date();
-    const since = new Date(now.getTime() - this.config.trustFrequencyWindowMs);
+    const since = new Date(now.getTime() - this.config.frequencyWindowMs);
     const c = await this.repo.countActivitySince(ctx.userId, since);
-    if (c > this.config.trustFrequencyNormalMax) {
+    if (c > this.config.frequencyNormalMax) {
       return { delta: 0.2, reason: 'frequency_burst' };
     }
     return { delta: -0.1, reason: 'frequency_normal' };
