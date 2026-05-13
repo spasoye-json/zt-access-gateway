@@ -1,7 +1,6 @@
-import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
-import { Pool } from 'pg';
+import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { SERVER_CONFIG, type ServerConfig } from '../../config/slices';
+import { DB, type Db } from '../../db/db.port';
 
 export interface MfaTokenRow {
   jti: string;
@@ -12,16 +11,8 @@ export interface MfaTokenRow {
 }
 
 @Injectable()
-export class MfaTokenRepository implements OnModuleDestroy {
-  private readonly pool: Pool;
-
-  constructor(@Inject(SERVER_CONFIG) private readonly config: ServerConfig) {
-    this.pool = new Pool({ connectionString: this.config.databaseUrl, max: 5 });
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.pool.end();
-  }
+export class MfaTokenRepository {
+  constructor(@Inject(DB) private readonly db: Db) {}
 
   /**
    * Insert MFA token row. Retries once on jti UUID collision (Pitfall 3 — pg error 23505).
@@ -33,7 +24,7 @@ export class MfaTokenRepository implements OnModuleDestroy {
     expiresAt: Date,
   ): Promise<void> {
     const tryInsert = async (id: string): Promise<void> => {
-      await this.pool.query(
+      await this.db.query(
         `INSERT INTO mfa_tokens (jti, user_id, fingerprint_hash, expires_at)
          VALUES ($1, $2, $3, $4)`,
         [id, userId, fingerprintHash, expiresAt],
@@ -52,7 +43,7 @@ export class MfaTokenRepository implements OnModuleDestroy {
   }
 
   async revokeMfaToken(jti: string): Promise<void> {
-    await this.pool.query(`UPDATE mfa_tokens SET revoked_at = NOW() WHERE jti = $1`, [jti]);
+    await this.db.query(`UPDATE mfa_tokens SET revoked_at = NOW() WHERE jti = $1`, [jti]);
   }
 
   /**
@@ -67,7 +58,7 @@ export class MfaTokenRepository implements OnModuleDestroy {
   async getMfaTokenWithStatus(
     jti: string,
   ): Promise<(MfaTokenRow & { isRevoked: boolean; isExpired: boolean }) | null> {
-    const r = await this.pool.query<{
+    const r = await this.db.query<{
       jti: string;
       user_id: string;
       fingerprint_hash: string;

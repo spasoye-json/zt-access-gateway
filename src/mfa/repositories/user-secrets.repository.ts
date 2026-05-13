@@ -1,25 +1,16 @@
-import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
-import { Pool } from 'pg';
-import { SERVER_CONFIG, type ServerConfig } from '../../config/slices';
+import { Inject, Injectable } from '@nestjs/common';
+import { DB, type Db } from '../../db/db.port';
 
 @Injectable()
-export class UserSecretsRepository implements OnModuleDestroy {
-  private readonly pool: Pool;
-
-  constructor(@Inject(SERVER_CONFIG) private readonly config: ServerConfig) {
-    this.pool = new Pool({ connectionString: this.config.databaseUrl, max: 5 });
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.pool.end();
-  }
+export class UserSecretsRepository {
+  constructor(@Inject(DB) private readonly db: Db) {}
 
   /**
    * Returns the AES-256-GCM-encrypted TOTP secret for userId, or null if not provisioned.
    * Caller is responsible for decrypting with aesGcmDecrypt (D-15).
    */
   async getEncryptedSecret(userId: string): Promise<string | null> {
-    const r = await this.pool.query<{ totp_secret_encrypted: string }>(
+    const r = await this.db.query<{ totp_secret_encrypted: string }>(
       `SELECT totp_secret_encrypted FROM user_secrets WHERE user_id = $1`,
       [userId],
     );
@@ -35,7 +26,7 @@ export class UserSecretsRepository implements OnModuleDestroy {
    * created_at is preserved on update; only totp_secret_encrypted changes.
    */
   async save(userId: string, encryptedSecret: string): Promise<void> {
-    await this.pool.query(
+    await this.db.query(
       `INSERT INTO user_secrets (user_id, totp_secret_encrypted)
        VALUES ($1, $2)
        ON CONFLICT (user_id) DO UPDATE SET totp_secret_encrypted = EXCLUDED.totp_secret_encrypted`,
@@ -50,7 +41,7 @@ export class UserSecretsRepository implements OnModuleDestroy {
    * Parameterized SQL (T-11-05) — no injection surface on the userId param.
    */
   async deleteByUserId(userId: string): Promise<boolean> {
-    const r = await this.pool.query(`DELETE FROM user_secrets WHERE user_id = $1`, [userId]);
+    const r = await this.db.query(`DELETE FROM user_secrets WHERE user_id = $1`, [userId]);
     return (r.rowCount ?? 0) > 0;
   }
 }

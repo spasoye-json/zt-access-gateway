@@ -1,6 +1,7 @@
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { MfaTokenRepository } from '../repositories/mfa-token.repository';
+import { DbService } from '../../db/db.service';
 import type { ServerConfig } from '../../config/slices';
 
 const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
@@ -8,19 +9,21 @@ const TEST_UID = 'test-mfa-token-repo-user';
 const TEST_FP = 'abc123fingerprint';
 
 describeDb('MfaTokenRepository', () => {
+  let dbService: DbService;
   let pool: Pool;
   let repo: MfaTokenRepository;
 
   beforeAll(() => {
-    pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
-    repo = new MfaTokenRepository({
+    dbService = new DbService({
       databaseUrl: process.env.DATABASE_URL,
+      dbPoolMax: 2,
     } as unknown as ServerConfig);
+    pool = dbService.unsafePool();
+    repo = new MfaTokenRepository(dbService);
   });
 
   afterAll(async () => {
-    await repo.onModuleDestroy();
-    await pool.end();
+    await dbService.onModuleDestroy();
   });
 
   afterEach(async () => {
