@@ -36,7 +36,7 @@ if (!process.env.PROXY_SERVICE_REGISTRY)
 
 import { Test } from '@nestjs/testing';
 import { Controller, Get, INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../../app.module';
 import { TrustScoreService } from '../../trust-score/trust-score.service';
 import { createHs256Token } from '../../auth/__tests__/test-keys';

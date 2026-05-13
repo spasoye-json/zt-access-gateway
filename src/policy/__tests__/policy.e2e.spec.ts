@@ -51,7 +51,7 @@ process.env.POLICY_MODEL_PATH = path.join(process.cwd(), 'policy/model.conf');
 import { Test } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../../app.module';
 import { TrustScoreService } from '../../trust-score/trust-score.service';
 import { ThreatEscalationService } from '../threat-escalation.service';
