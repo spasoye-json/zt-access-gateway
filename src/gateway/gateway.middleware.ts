@@ -26,6 +26,8 @@ import { extractIp } from '../shared/request-context.util';
 import { sleep } from '../shared/sleep.util';
 import { PUBLIC_PATHS, isAuthOnlyPath } from './public-paths';
 import { HONEYPOT_PATHS } from '../honeypot/honeypot.constants';
+import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
+import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims, AuthenticatedClaims } from '../auth/interfaces/user-claims.interface';
 import type { TrustContext } from '../trust-score/trust-context';
 import type { AuditEntry } from '../audit/audit-entry.interface';
@@ -59,6 +61,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly metrics: MetricsService,
     @Inject(HASHCASH_CONFIG) private readonly cfg: HashcashConfig,
     private readonly events: TypedEvents,
+    private readonly publicBypass: PublicBypassStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -80,6 +83,12 @@ export class GatewayMiddleware implements NestMiddleware {
     // Phase 12 — F-p — CORS preflight bypass.
     // app.enableCors() (main.ts:36) writes the reply; we just must not 401 here.
     if (req.method === 'OPTIONS') return next();
+
+    // Phase D — PUBLIC bypass via PipelineStage (parallel wire; inline kept
+    // as belt-and-braces until Task 14 promotes the orchestrator to sole driver).
+    const stageCtx = buildStageContext(req, res, next);
+    const publicOutcome = await this.publicBypass.run(stageCtx);
+    if (publicOutcome.kind === 'bypass') return next();
 
     // D-03 — PUBLIC bypass (GTWY-08)
     if (PUBLIC_PATHS.has(reqPath)) return next();

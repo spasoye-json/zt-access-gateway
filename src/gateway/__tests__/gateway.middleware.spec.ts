@@ -121,6 +121,11 @@ function makeMocks(overrides: Partial<Mocks> = {}): Mocks {
 }
 
 function build(m: Mocks): GatewayMiddleware {
+  // Phase D — extracted PipelineStage instances are constructed here too;
+  // they are stateless and use only ctx fields. Task 14 will rewrite this
+  // spec to mock the orchestrator instead.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { PublicBypassStage } = require('../pipeline/stages/public-bypass.stage');
   return new GatewayMiddleware(
     m.auth,
     m.revocation,
@@ -134,6 +139,7 @@ function build(m: Mocks): GatewayMiddleware {
     m.metrics,
     m.cfg,
     m.events,
+    new PublicBypassStage(),
   );
 }
 
@@ -757,10 +763,13 @@ describe('GatewayMiddleware', () => {
     it('observeStageDuration is called with seconds (ms / 1000), not ms', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
-      // Date.now sequence: t0=0, then 5000 (5s elapsed), then anything
+      // Date.now sequence: buildStageContext.startedAt=0; then auth t0=0,
+      // auth observe=5000 (5s elapsed), the rest stays at 5000.
+      // Phase D — buildStageContext consumes one Date.now() up front; the
+      // first two zeros are 'startedAt' + 'auth t0', then 5000 elapses.
       const realNow = Date.now;
       let calls = 0;
-      const seq = [0, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000];
+      const seq = [0, 0, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000];
       jest.spyOn(Date, 'now').mockImplementation(() => {
         const v = seq[calls] ?? 5000;
         calls++;

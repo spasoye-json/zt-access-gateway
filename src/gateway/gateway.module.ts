@@ -11,6 +11,7 @@ import { AuditModule } from '../audit/audit.module';
 import { MetricsModule } from '../metrics/metrics.module';
 import { FingerprintModule } from '../fingerprint/fingerprint.module';
 import { GatewayMiddleware } from './gateway.middleware';
+import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
 
 /**
  * Phase 10 — GatewayModule wires the 9 prerequisite modules so that
@@ -41,7 +42,7 @@ import { GatewayMiddleware } from './gateway.middleware';
     MetricsModule,
     FingerprintModule,
   ],
-  providers: [GatewayMiddleware],
-  exports: [GatewayMiddleware],
+  providers: [GatewayMiddleware, PublicBypassStage],
+  exports: [GatewayMiddleware, PublicBypassStage],
 })
 export class GatewayModule {}
