@@ -1,6 +1,7 @@
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
+import { DbService } from '../../db/db.service';
 import type { ServerConfig } from '../../config/slices';
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
 import {
   beginSuiteTransaction,
   rollbackToSavepoint,
@@ -18,18 +19,19 @@ const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 
 describeDb('TrustTelemetryRepository', () => {
   const uidPrefix = 'tt-spec-';
+  let dbService: DbService;
   let pool: Pool;
   let repository: TrustTelemetryRepository;
 
   beforeAll(() => {
     const databaseUrl = ztTestUrlFromEnv();
-    pool = new Pool({ connectionString: databaseUrl, max: 5 });
-    repository = new TrustTelemetryRepository({ databaseUrl } as unknown as ServerConfig);
+    dbService = new DbService({ databaseUrl, dbPoolMax: 5 } as unknown as ServerConfig);
+    pool = dbService.unsafePool();
+    repository = new TrustTelemetryRepository(dbService);
   });
 
   afterAll(async () => {
-    await repository.onModuleDestroy();
-    await pool.end();
+    await dbService.onModuleDestroy();
   });
 
   afterEach(async () => {

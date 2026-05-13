@@ -1,8 +1,9 @@
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TypedEvents } from '../../shared/typed-events';
 import { FingerprintStore } from '../../fingerprint/fingerprint.store';
 import type { ServerConfig, TrustConfig } from '../../config/slices';
+import { DbService } from '../../db/db.service';
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
 import { TrustScoreService } from '../trust-score.service';
 import { DeviceReputationProvider } from '../providers/device-reputation.provider';
@@ -25,6 +26,7 @@ interface CombinedConfigMock extends ServerConfig, TrustConfig {}
 function mockConfig(url: string): CombinedConfigMock {
   return {
     databaseUrl: url,
+    dbPoolMax: 3,
     knownThreshold: 3,
     decayHalfLifeMs: 604800000,
     anomalyWarmupN: 20,
@@ -37,6 +39,7 @@ const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 
 describeDb('TRST-09 trust persistence boundary', () => {
   const uidPrefix = 'tr-record-';
+  let dbService: DbService;
   let pool: Pool;
   let repository: TrustTelemetryRepository;
   let service: TrustScoreService;
@@ -46,7 +49,9 @@ describeDb('TRST-09 trust persistence boundary', () => {
     const url = ztTestUrlFromEnv();
     const config = mockConfig(url);
     fingerprintStore = new FingerprintStore(new TypedEvents(new EventEmitter2()));
-    repository = new TrustTelemetryRepository(config);
+    dbService = new DbService(config);
+    pool = dbService.unsafePool();
+    repository = new TrustTelemetryRepository(dbService);
     service = new TrustScoreService(
       fingerprintStore,
       repository,
@@ -57,12 +62,10 @@ describeDb('TRST-09 trust persistence boundary', () => {
       new TrustDecayProvider(repository, config),
       new BehaviorAnomalyProvider(repository, config),
     );
-    pool = new Pool({ connectionString: url, max: 3 });
   });
 
   afterAll(async () => {
-    await repository.onModuleDestroy();
-    await pool.end();
+    await dbService.onModuleDestroy();
   });
 
   afterEach(async () => {

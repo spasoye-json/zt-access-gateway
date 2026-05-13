@@ -1,6 +1,6 @@
-import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
-import { Pool, type PoolClient } from 'pg';
-import { SERVER_CONFIG, type ServerConfig } from '../config/slices';
+import { Inject, Injectable } from '@nestjs/common';
+import type { PoolClient } from 'pg';
+import { DB, type Db } from '../db/db.port';
 import type { TrustContext } from './trust-context';
 
 /** Row shape for `trust_signals` (read model for scoring). */
@@ -19,22 +19,11 @@ export interface TrustSignalRow {
 }
 
 @Injectable()
-export class TrustTelemetryRepository implements OnModuleDestroy {
-  private readonly pool: Pool;
-
-  constructor(@Inject(SERVER_CONFIG) private readonly config: ServerConfig) {
-    this.pool = new Pool({
-      connectionString: this.config.databaseUrl,
-      max: 5,
-    });
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.pool.end();
-  }
+export class TrustTelemetryRepository {
+  constructor(@Inject(DB) private readonly db: Db) {}
 
   async getSignalRow(userId: string, deviceId: string, ip: string): Promise<TrustSignalRow | null> {
-    const r = await this.pool.query<TrustSignalRow>(
+    const r = await this.db.query<TrustSignalRow>(
       `SELECT user_id, device_id, ip, ja4h, first_seen_at, last_seen_at,
               allow_count, hour_histogram, rate_ema, rate_ema_var, anomaly_observations
        FROM trust_signals
@@ -48,7 +37,7 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
    * Sum of allow_count across devices for this user at this IP (D-12).
    */
   async sumAllowsForUserIp(userId: string, ip: string): Promise<number> {
-    const r = await this.pool.query<{ s: string }>(
+    const r = await this.db.query<{ s: string }>(
       `SELECT COALESCE(SUM(allow_count), 0)::text AS s
        FROM trust_signals
        WHERE user_id = $1 AND ip = $2`,
@@ -61,7 +50,7 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
    * Recent ALLOW events in trust_activity for frequency signal.
    */
   async countActivitySince(userId: string, since: Date): Promise<number> {
-    const r = await this.pool.query<{ c: number }>(
+    const r = await this.db.query<{ c: number }>(
       `SELECT COUNT(*)::int AS c
        FROM trust_activity
        WHERE user_id = $1 AND ts > $2`,
@@ -72,7 +61,7 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
 
   /** Total rows in trust_activity (test / diagnostics). */
   async countAllTrustActivity(): Promise<number> {
-    const r = await this.pool.query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM trust_activity`);
+    const r = await this.db.query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM trust_activity`);
     return r.rows[0]?.c ?? 0;
   }
 
@@ -86,22 +75,18 @@ export class TrustTelemetryRepository implements OnModuleDestroy {
 
   /**
    * Persist post-proxy ALLOW outcome: activity row + signals UPSERT (D-20).
-   * Runs in a single transaction.
+   *
+   * Runs in a single transaction via db.tx — BEGIN/COMMIT/ROLLBACK + release
+   * are handled by DbService. The SELECT … FOR UPDATE inside the upsert must
+   * share the same PoolClient as the subsequent UPDATE (read-modify-write
+   * EMA), which is exactly what the tx callback's `client` provides.
    */
   async recordAllowOutcome(ctx: TrustContext, finalScore: number): Promise<void> {
-    const client = await this.pool.connect();
     const ts = ctx.requestTimestamp ?? new Date();
-    try {
-      await client.query('BEGIN');
+    await this.db.tx(async (client) => {
       await this.insertActivityRow(client, ctx, finalScore);
       await this.upsertSignalRow(client, ctx, ts);
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
+    });
   }
 
   private async insertActivityRow(
