@@ -1,7 +1,7 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { jwtVerify, decodeProtectedHeader, importSPKI, createRemoteJWKSet, errors } from 'jose';
 import type { JWTVerifyResult, JWTPayload } from 'jose';
-import { AppConfigService } from '../config/config.service';
+import { AUTH_CONFIG, type AuthConfig } from '../config/slices';
 import { UserClaims } from './interfaces/user-claims.interface';
 
 /**
@@ -14,7 +14,7 @@ export class AuthService {
   /** Singleton JWKS function -- cached per Pitfall 2 */
   private jwksFunction: ReturnType<typeof createRemoteJWKSet> | null = null;
 
-  constructor(private readonly config: AppConfigService) {}
+  constructor(@Inject(AUTH_CONFIG) private readonly config: AuthConfig) {}
 
   /**
    * Validate a JWT and extract UserClaims.

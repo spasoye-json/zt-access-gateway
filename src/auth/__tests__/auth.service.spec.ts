@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth.service';
-import { AppConfigService } from '../../config/config.service';
+import { AUTH_CONFIG, type AuthConfig } from '../../config/slices';
 import {
   TEST_HS256_SECRET,
   createHs256Token,
@@ -20,7 +20,7 @@ import {
  */
 describe('AuthService', () => {
   let authService: AuthService;
-  let mockConfig: Partial<AppConfigService>;
+  let mockConfig: Partial<AuthConfig>;
 
   beforeEach(async () => {
     mockConfig = {
@@ -32,7 +32,7 @@ describe('AuthService', () => {
     };
 
     const module = await Test.createTestingModule({
-      providers: [AuthService, { provide: AppConfigService, useValue: mockConfig }],
+      providers: [AuthService, { provide: AUTH_CONFIG, useValue: mockConfig }],
     }).compile();
 
     authService = module.get(AuthService);
