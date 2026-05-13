@@ -23,6 +23,7 @@ export class RevocationStage implements PipelineStage {
 
   constructor(private readonly revocation: TokenRevocationService) {}
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async run(ctx: StageContext): Promise<StageOutcome> {
     if (!ctx.claims) {
       throw new Error('RevocationStage: ctx.claims missing (stage ordering bug)');

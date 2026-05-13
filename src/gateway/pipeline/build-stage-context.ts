@@ -12,16 +12,9 @@ import type { StageContext } from './stage-context';
  * `req.originalUrl`, strip any query string, and fall back to `req.path` for
  * bare mock requests in unit tests.
  */
-export function buildStageContext(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): StageContext {
-  const requestId =
-    (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
-  const ja4h = (req as unknown as Record<string, unknown>)['x-ja4h'] as
-    | string
-    | undefined;
+export function buildStageContext(req: Request, res: Response, next: NextFunction): StageContext {
+  const requestId = (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
+  const ja4h = (req as unknown as Record<string, unknown>)['x-ja4h'] as string | undefined;
   const raw = req.originalUrl ?? req.url ?? req.path;
   const q = raw.indexOf('?');
   const reqPath = q >= 0 ? raw.slice(0, q) : raw;

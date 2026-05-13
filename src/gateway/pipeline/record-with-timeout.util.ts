@@ -31,8 +31,6 @@ export async function recordWithTimeoutBestEffort(
   ]);
   if (result === TIMEOUT_SENTINEL) {
     metrics.incrementAuditFailure();
-    logger.warn(
-      `audit_timeout requestId=${entry.requestId ?? '?'} decision=${entry.decision}`,
-    );
+    logger.warn(`audit_timeout requestId=${entry.requestId ?? '?'} decision=${entry.decision}`);
   }
 }

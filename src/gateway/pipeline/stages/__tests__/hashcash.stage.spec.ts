@@ -22,11 +22,7 @@ function build(cfg: Partial<HashcashConfig> = {}): {
   return { stage: new HashcashStage(hc, fullCfg), hc };
 }
 
-function makeCtx(opts: {
-  trustScore: number;
-  nonce?: string;
-  solution?: string;
-}): StageContext {
+function makeCtx(opts: { trustScore: number; nonce?: string; solution?: string }): StageContext {
   const headers: Record<string, string | undefined> = {};
   if (opts.nonce !== undefined) headers['x-hashcash-nonce'] = opts.nonce;
   if (opts.solution !== undefined) headers['x-hashcash-solution'] = opts.solution;
@@ -71,9 +67,7 @@ describe('HashcashStage', () => {
   it('missing solution → proof_of_work_required', async () => {
     const { stage } = build();
     const out = await stage.run(makeCtx({ trustScore: 0.9, nonce: 'N' }));
-    expect((out as { body: { error: string } }).body.error).toBe(
-      'proof_of_work_required',
-    );
+    expect((out as { body: { error: string } }).body.error).toBe('proof_of_work_required');
   });
 
   it('solution length > 256 → proof_of_work_invalid', async () => {
@@ -81,33 +75,25 @@ describe('HashcashStage', () => {
     const out = await stage.run(
       makeCtx({ trustScore: 0.9, nonce: 'N', solution: 's'.repeat(257) }),
     );
-    expect((out as { body: { error: string } }).body.error).toBe(
-      'proof_of_work_invalid',
-    );
+    expect((out as { body: { error: string } }).body.error).toBe('proof_of_work_invalid');
   });
 
   it('verifySolution !ok → proof_of_work_invalid', async () => {
     const { stage, hc } = build();
     hc.verifySolution.mockReturnValue({ ok: false, reason: 'invalid_hmac' });
-    const out = await stage.run(
-      makeCtx({ trustScore: 0.9, nonce: 'N', solution: 'abc' }),
-    );
-    expect((out as { body: { error: string } }).body.error).toBe(
-      'proof_of_work_invalid',
-    );
+    const out = await stage.run(makeCtx({ trustScore: 0.9, nonce: 'N', solution: 'abc' }));
+    expect((out as { body: { error: string } }).body.error).toBe('proof_of_work_invalid');
   });
 
   it('verifySolution ok → continue', async () => {
     const { stage, hc } = build();
     hc.verifySolution.mockReturnValue({ ok: true, iat: 1700000000 });
-    const out = await stage.run(
-      makeCtx({ trustScore: 0.9, nonce: 'N', solution: 'abc' }),
-    );
+    const out = await stage.run(makeCtx({ trustScore: 0.9, nonce: 'N', solution: 'abc' }));
     expect(out).toEqual({ kind: 'continue' });
   });
 
   it('uses default threshold 0.5 when not configured', async () => {
-    const { stage } = build({ triggerThreshold: undefined as unknown as number });
+    const { stage } = build({ triggerThreshold: undefined });
     expect(await stage.run(makeCtx({ trustScore: 0.49 }))).toEqual({ kind: 'continue' });
     const out = await stage.run(makeCtx({ trustScore: 0.6 }));
     expect((out as { status: number }).status).toBe(429);

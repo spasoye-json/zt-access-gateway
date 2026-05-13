@@ -14,10 +14,9 @@ import { HONEYPOT_PATHS } from '../../../honeypot/honeypot.constants';
 export class HoneypotBypassStage implements PipelineStage {
   readonly id = 'honeypot_bypass';
 
-  async run(ctx: StageContext): Promise<StageOutcome> {
-    if (HONEYPOT_PATHS.has(ctx.reqPath)) {
-      return { kind: 'bypass' };
-    }
-    return { kind: 'continue' };
+  run(ctx: StageContext): Promise<StageOutcome> {
+    return Promise.resolve(
+      HONEYPOT_PATHS.has(ctx.reqPath) ? { kind: 'bypass' } : { kind: 'continue' },
+    );
   }
 }

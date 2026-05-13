@@ -16,13 +16,9 @@ export class BoplaStripStage implements PipelineStage {
 
   constructor(private readonly boPla: BoPlaInterceptor) {}
 
-  async run(ctx: StageContext): Promise<StageOutcome> {
+  run(ctx: StageContext): Promise<StageOutcome> {
     if (!ctx.claims) throw new Error('BoplaStripStage: ctx.claims missing');
-    ctx.strippedBody = this.boPla.strip(
-      ctx.upstreamBody,
-      ctx.reqPath,
-      ctx.claims.roles ?? [],
-    );
-    return { kind: 'continue' };
+    ctx.strippedBody = this.boPla.strip(ctx.upstreamBody, ctx.reqPath, ctx.claims.roles ?? []);
+    return Promise.resolve({ kind: 'continue' });
   }
 }

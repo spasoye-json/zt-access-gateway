@@ -33,8 +33,8 @@ class FakeStage implements PipelineStage {
   ) {}
   async run() {
     return this.outcome === 'continue'
-      ? ({ kind: 'continue' as const })
-      : ({ kind: 'short-circuit' as const, status: 401, body: {} });
+      ? { kind: 'continue' as const }
+      : { kind: 'short-circuit' as const, status: 401, body: {} };
   }
 }
 
@@ -47,8 +47,7 @@ class FakeStage implements PipelineStage {
     { provide: 'STAGE_C', useValue: new FakeStage('gamma') },
     {
       provide: PIPELINE_STAGES,
-      useFactory: (a: PipelineStage, b: PipelineStage, c: PipelineStage) =>
-        [a, b, c] as const,
+      useFactory: (a: PipelineStage, b: PipelineStage, c: PipelineStage) => [a, b, c] as const,
       inject: ['STAGE_A', 'STAGE_B', 'STAGE_C'],
     },
   ],

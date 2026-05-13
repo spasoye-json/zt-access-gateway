@@ -35,8 +35,6 @@ export function writeOutcome(
       res.status(outcome.status).json(outcome.body);
       return;
     case 'continue':
-      throw new Error(
-        'orchestrator returned continue; pipeline did not terminate',
-      );
+      throw new Error('orchestrator returned continue; pipeline did not terminate');
   }
 }

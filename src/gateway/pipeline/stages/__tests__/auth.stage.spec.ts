@@ -18,7 +18,11 @@ function makeCtx(headers: Record<string, unknown> = {}): StageContext {
   } as unknown as StageContext;
 }
 
-function build(): { stage: AuthStage; auth: jest.Mocked<AuthService>; events: { emit: jest.Mock } } {
+function build(): {
+  stage: AuthStage;
+  auth: jest.Mocked<AuthService>;
+  events: { emit: jest.Mock };
+} {
   const auth = { validateToken: jest.fn() } as unknown as jest.Mocked<AuthService>;
   const events = { emit: jest.fn() };
   const stage = new AuthStage(auth, events as unknown as TypedEvents);
@@ -81,9 +85,7 @@ describe('AuthStage', () => {
   it('validateToken throws generic Error → rethrow (propagates)', async () => {
     const { stage, auth, events } = build();
     auth.validateToken.mockRejectedValue(new Error('db down'));
-    await expect(stage.run(makeCtx({ authorization: 'Bearer abc' }))).rejects.toThrow(
-      'db down',
-    );
+    await expect(stage.run(makeCtx({ authorization: 'Bearer abc' }))).rejects.toThrow('db down');
     expect(events.emit).not.toHaveBeenCalled();
   });
 

@@ -27,10 +27,7 @@ export class RecordTrustContextStage implements PipelineStage {
       if (!ctx.trustCtx || ctx.trustScore === undefined) {
         throw new Error('RecordTrustContextStage: trust ctx/score missing');
       }
-      await this.trustScore.recordTrustContextAfterAllow(
-        ctx.trustCtx,
-        ctx.trustScore,
-      );
+      await this.trustScore.recordTrustContextAfterAllow(ctx.trustCtx, ctx.trustScore);
     }
     return {
       kind: 'proxied',

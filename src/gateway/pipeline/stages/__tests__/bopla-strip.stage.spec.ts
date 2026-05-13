@@ -7,7 +7,11 @@ function build(): { stage: BoplaStripStage; boPla: jest.Mocked<BoPlaInterceptor>
   return { stage: new BoplaStripStage(boPla), boPla };
 }
 
-function makeCtx(opts: { upstreamBody: unknown; roles?: string[]; reqPath?: string }): StageContext {
+function makeCtx(opts: {
+  upstreamBody: unknown;
+  roles?: string[];
+  reqPath?: string;
+}): StageContext {
   return {
     req: { headers: {} },
     claims: { userId: 'u1', roles: opts.roles ?? ['user'], jti: 'j', exp: 9, deviceId: 'd1' },

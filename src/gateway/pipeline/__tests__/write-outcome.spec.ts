@@ -40,7 +40,7 @@ describe('writeOutcome', () => {
     expect(status).toHaveBeenCalledWith(401);
     expect(json).toHaveBeenCalledWith({ error: 'auth_required' });
     expect(set).not.toHaveBeenCalled();
-    expect((metrics.incrementRequest as jest.Mock)).not.toHaveBeenCalled();
+    expect(metrics.incrementRequest as jest.Mock).not.toHaveBeenCalled();
   });
 
   it('short-circuit with headers → applies each header before status/json', () => {
@@ -66,13 +66,8 @@ describe('writeOutcome', () => {
   it('proxied → increments allow + writes status + body', () => {
     const { res, status, json } = makeRes();
     const next = jest.fn() as unknown as NextFunction;
-    writeOutcome(
-      res,
-      next,
-      { kind: 'proxied', status: 200, body: { id: 'u1' } },
-      metrics,
-    );
-    expect((metrics.incrementRequest as jest.Mock)).toHaveBeenCalledWith('allow');
+    writeOutcome(res, next, { kind: 'proxied', status: 200, body: { id: 'u1' } }, metrics);
+    expect(metrics.incrementRequest as jest.Mock).toHaveBeenCalledWith('allow');
     expect(status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith({ id: 'u1' });
   });
@@ -80,8 +75,8 @@ describe('writeOutcome', () => {
   it('continue → throws (programmer error: pipeline did not terminate)', () => {
     const { res } = makeRes();
     const next = jest.fn() as unknown as NextFunction;
-    expect(() =>
-      writeOutcome(res, next, { kind: 'continue' }, metrics),
-    ).toThrow(/did not terminate/);
+    expect(() => writeOutcome(res, next, { kind: 'continue' }, metrics)).toThrow(
+      /did not terminate/,
+    );
   });
 });

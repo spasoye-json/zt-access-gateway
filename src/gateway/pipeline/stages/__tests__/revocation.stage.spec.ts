@@ -7,7 +7,13 @@ function build(): { stage: RevocationStage; rev: jest.Mocked<TokenRevocationServ
   return { stage: new RevocationStage(rev), rev };
 }
 
-function makeCtx(claims: { jti: string; userId: string; roles?: string[]; exp?: number; deviceId?: string }): StageContext {
+function makeCtx(claims: {
+  jti: string;
+  userId: string;
+  roles?: string[];
+  exp?: number;
+  deviceId?: string;
+}): StageContext {
   return {
     req: { headers: {} } as unknown as StageContext['req'],
     claims: {
@@ -58,8 +64,8 @@ describe('RevocationStage', () => {
 
   it('throws if ctx.claims missing (stage ordering bug)', async () => {
     const { stage } = build();
-    await expect(
-      stage.run({ req: { headers: {} } } as unknown as StageContext),
-    ).rejects.toThrow(/ordering bug/);
+    await expect(stage.run({ req: { headers: {} } } as unknown as StageContext)).rejects.toThrow(
+      /ordering bug/,
+    );
   });
 });

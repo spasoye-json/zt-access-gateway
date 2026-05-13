@@ -14,10 +14,9 @@ import { PUBLIC_PATHS } from '../../public-paths';
 export class PublicBypassStage implements PipelineStage {
   readonly id = 'public_bypass';
 
-  async run(ctx: StageContext): Promise<StageOutcome> {
-    if (PUBLIC_PATHS.has(ctx.reqPath)) {
-      return { kind: 'bypass' };
-    }
-    return { kind: 'continue' };
+  run(ctx: StageContext): Promise<StageOutcome> {
+    return Promise.resolve(
+      PUBLIC_PATHS.has(ctx.reqPath) ? { kind: 'bypass' } : { kind: 'continue' },
+    );
   }
 }

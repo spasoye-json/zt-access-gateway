@@ -9,9 +9,7 @@ function makeStage(id: string, outcome: StageOutcome): PipelineStage & { runMock
 }
 
 function makeMetricsMock(): jest.Mocked<Pick<MetricsService, 'observeStageDuration'>> {
-  return { observeStageDuration: jest.fn() } as unknown as jest.Mocked<
-    Pick<MetricsService, 'observeStageDuration'>
-  >;
+  return { observeStageDuration: jest.fn() };
 }
 
 const emptyCtx = { startedAt: Date.now() } as unknown as StageContext;
@@ -33,10 +31,7 @@ describe('PipelineOrchestrator', () => {
       body: { foo: 'bar' },
     });
     const metrics = makeMetricsMock();
-    const o = new PipelineOrchestrator(
-      [s1, s2, terminal],
-      metrics as unknown as MetricsService,
-    );
+    const o = new PipelineOrchestrator([s1, s2, terminal], metrics as unknown as MetricsService);
     const out = await o.run(emptyCtx);
     expect(out).toEqual({ kind: 'short-circuit', status: 418, body: { foo: 'bar' } });
     expect(s1.runMock).toHaveBeenCalledTimes(1);
@@ -59,10 +54,7 @@ describe('PipelineOrchestrator', () => {
     });
     const s3 = makeStage('s3', { kind: 'continue' });
     const metrics = makeMetricsMock();
-    const o = new PipelineOrchestrator(
-      [s1, s2, s3],
-      metrics as unknown as MetricsService,
-    );
+    const o = new PipelineOrchestrator([s1, s2, s3], metrics as unknown as MetricsService);
     const out = await o.run(emptyCtx);
     expect(out.kind).toBe('short-circuit');
     expect(s1.runMock).toHaveBeenCalledTimes(1);

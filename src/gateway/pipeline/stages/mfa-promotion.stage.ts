@@ -95,18 +95,11 @@ export class MfaPromotionStage implements PipelineStage {
       requestId: ctx.requestId,
     });
     this.metrics.incrementRequest('challenge');
-    const ch = await this.mfa.createChallenge(
-      claims.userId,
-      extractIp(ctx.req),
-      ctx.ja4h,
-    );
+    const ch = await this.mfa.createChallenge(claims.userId, extractIp(ctx.req), ctx.ja4h);
     return this.buildMfaChallengeOutcome(ch, ctx.requestId);
   }
 
-  private buildMfaChallengeOutcome(
-    ch: MfaCreateResult,
-    requestId: string,
-  ): StageOutcome {
+  private buildMfaChallengeOutcome(ch: MfaCreateResult, requestId: string): StageOutcome {
     if (ch.ok === false) {
       const reason = ch.reason;
       const status = reason === 'rate_limited' ? 429 : 503;
@@ -132,5 +125,4 @@ export class MfaPromotionStage implements PipelineStage {
       },
     };
   }
-
 }

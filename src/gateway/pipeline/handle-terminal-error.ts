@@ -1,8 +1,4 @@
-import {
-  Logger,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuditExhaustedException } from '../../audit/audit-exhausted.exception';
 import { AUDIT_SIGNAL } from '../../policy/policy-events';
@@ -48,9 +44,7 @@ export function handleTerminalError(
     return;
   }
   if (e instanceof ServiceUnavailableException) {
-    res
-      .status(502)
-      .json({ error: 'proxy_unavailable', requestId: ctx.requestId });
+    res.status(502).json({ error: 'proxy_unavailable', requestId: ctx.requestId });
     return;
   }
   if (e instanceof UnauthorizedException) {

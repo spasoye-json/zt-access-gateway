@@ -1,7 +1,4 @@
-import {
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { handleTerminalError } from '../handle-terminal-error';
 import type { Response } from 'express';
 import { AuditExhaustedException } from '../../../audit/audit-exhausted.exception';
@@ -28,7 +25,7 @@ function makeCtx(): StageContext {
       socket: { remoteAddress: '10.1.2.3' },
     } as unknown as StageContext['req'],
     res: {} as unknown as StageContext['res'],
-    next: jest.fn() as unknown as StageContext['next'],
+    next: jest.fn(),
     requestId: 'req-abc',
     startedAt: Date.now(),
     reqPath: '/users/u1',

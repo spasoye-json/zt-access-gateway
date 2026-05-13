@@ -8,7 +8,9 @@ function build(): {
   audit: jest.Mocked<AuditService>;
   metrics: jest.Mocked<MetricsService>;
 } {
-  const audit = { log: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<AuditService>;
+  const audit = {
+    log: jest.fn().mockResolvedValue(undefined),
+  } as unknown as jest.Mocked<AuditService>;
   const metrics = {
     incrementAuditFailure: jest.fn(),
   } as unknown as jest.Mocked<MetricsService>;

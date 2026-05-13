@@ -55,9 +55,7 @@ describe('MfaPromotionStage', () => {
 
   it('DENY → audit deny + incrementRequest(deny) + 403 policy_denied', async () => {
     const { stage, audit, metrics } = build();
-    const out = await stage.run(
-      makeCtx({ decision: 'DENY', reason: 'blacklist', score: 0.9 }),
-    );
+    const out = await stage.run(makeCtx({ decision: 'DENY', reason: 'blacklist', score: 0.9 }));
     expect(out).toEqual({
       kind: 'short-circuit',
       status: 403,

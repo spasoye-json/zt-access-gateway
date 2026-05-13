@@ -132,10 +132,7 @@ export class MetricsService {
    */
   observeStageDuration(stage: string, durationSeconds: number): void {
     if (!STAGE_ID_PATTERN.test(stage)) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `metrics: dropped stage_duration sample with invalid label "${stage}"`,
-      );
+      console.warn(`metrics: dropped stage_duration sample with invalid label "${stage}"`);
       return;
     }
     this.stageDuration.observe({ stage }, durationSeconds);

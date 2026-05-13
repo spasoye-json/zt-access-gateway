@@ -32,7 +32,9 @@ function makeRes(): {
   return { res, status, json, set };
 }
 
-function makeReq(opts: { method?: string; headers?: Record<string, string> } = {}): import('express').Request {
+function makeReq(
+  opts: { method?: string; headers?: Record<string, string> } = {},
+): import('express').Request {
   return {
     method: opts.method ?? 'GET',
     headers: opts.headers ?? {},
@@ -54,7 +56,7 @@ function build(outcome?: ReturnType<PipelineOrchestrator['run']> | Error): {
     if (outcome instanceof Error) throw outcome;
     return outcome ?? { kind: 'bypass' };
   });
-  const orchestrator = { run } as { run: jest.Mock };
+  const orchestrator = { run };
   const events = { emit: jest.fn() };
   const metrics = {
     incrementRequest: jest.fn(),
@@ -120,9 +122,7 @@ describe('GatewayMiddleware (Phase D — orchestrator-driven)', () => {
   });
 
   it('orchestrator throws AuditExhaustedException → 503 + Retry-After + AUDIT_SIGNAL emitted', async () => {
-    const { mw, events, metrics } = build(
-      new AuditExhaustedException('wal full'),
-    );
+    const { mw, events, metrics } = build(new AuditExhaustedException('wal full'));
     const next = jest.fn();
     const { res, status, json, set } = makeRes();
     await mw.use(makeReq(), res, next);
@@ -133,8 +133,6 @@ describe('GatewayMiddleware (Phase D — orchestrator-driven)', () => {
     );
     expect(status).toHaveBeenCalledWith(503);
     expect(set).toHaveBeenCalledWith('Retry-After', '5');
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: 'audit_unavailable' }),
-    );
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'audit_unavailable' }));
   });
 });

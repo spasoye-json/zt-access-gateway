@@ -31,6 +31,7 @@ export class HashcashStage implements PipelineStage {
     @Inject(HASHCASH_CONFIG) private readonly cfg: HashcashConfig,
   ) {}
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async run(ctx: StageContext): Promise<StageOutcome> {
     if (!ctx.claims) {
       throw new Error('HashcashStage: ctx.claims missing');
@@ -45,14 +46,10 @@ export class HashcashStage implements PipelineStage {
     }
 
     const claims = ctx.claims;
-    const nonceHeader =
-      (ctx.req.headers['x-hashcash-nonce'] as string | undefined) || '';
-    const solutionHeader =
-      (ctx.req.headers['x-hashcash-solution'] as string | undefined) || '';
+    const nonceHeader = (ctx.req.headers['x-hashcash-nonce'] as string | undefined) || '';
+    const solutionHeader = (ctx.req.headers['x-hashcash-solution'] as string | undefined) || '';
 
-    const issue = (
-      errCode: 'proof_of_work_required' | 'proof_of_work_invalid',
-    ): StageOutcome => {
+    const issue = (errCode: 'proof_of_work_required' | 'proof_of_work_invalid'): StageOutcome => {
       const { nonce, difficulty, expiresAt } = this.hashcash.issueChallenge(
         claims.userId,
         claims.deviceId || '',
