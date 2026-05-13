@@ -18,6 +18,7 @@ import { RevocationStage } from './pipeline/stages/revocation.stage';
 import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcircuit.stage';
 import { TrustScoreStage } from './pipeline/stages/trust-score.stage';
 import { HashcashStage } from './pipeline/stages/hashcash.stage';
+import { PolicyStage } from './pipeline/stages/policy.stage';
 
 /**
  * Phase 10 — GatewayModule wires the 9 prerequisite modules so that
@@ -57,6 +58,7 @@ import { HashcashStage } from './pipeline/stages/hashcash.stage';
     AuthOnlyShortCircuitStage,
     TrustScoreStage,
     HashcashStage,
+    PolicyStage,
   ],
   exports: [
     GatewayMiddleware,
@@ -67,6 +69,7 @@ import { HashcashStage } from './pipeline/stages/hashcash.stage';
     AuthOnlyShortCircuitStage,
     TrustScoreStage,
     HashcashStage,
+    PolicyStage,
   ],
 })
 export class GatewayModule {}

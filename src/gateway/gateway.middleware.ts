@@ -33,6 +33,7 @@ import { RevocationStage } from './pipeline/stages/revocation.stage';
 import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcircuit.stage';
 import { TrustScoreStage } from './pipeline/stages/trust-score.stage';
 import { HashcashStage } from './pipeline/stages/hashcash.stage';
+import { PolicyStage } from './pipeline/stages/policy.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
 import type { AuditEntry } from '../audit/audit-entry.interface';
@@ -73,6 +74,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly authOnlyStage: AuthOnlyShortCircuitStage,
     private readonly trustScoreStage: TrustScoreStage,
     private readonly hashcashStage: HashcashStage,
+    private readonly policyStage: PolicyStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -186,10 +188,11 @@ export class GatewayMiddleware implements NestMiddleware {
         return;
       }
 
-      // ── Step 9: Policy ─────────────────────────────────────────────
+      // ── Step 9: Policy (Phase D — extracted to PolicyStage) ────────
       t0 = Date.now();
-      const decision = await this.policy.evaluate(req);
+      await this.policyStage.run(stageCtx);
       observe('policy', (Date.now() - t0) / 1000);
+      const decision = stageCtx.policyDecision!;
 
       // ── Step 9b: MFA promotion (D-07) ──────────────────────────────
       if (decision.decision === 'CHALLENGE') {
