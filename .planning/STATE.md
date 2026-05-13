@@ -113,6 +113,9 @@ Progress: [██████████] 100%
 | 2026-04-29 | update-stale-planning-docs | Synced PROJECT/REQUIREMENTS/ROADMAP/STATE through Phase 6; promoted decisions, fixed corrupted Phase 7-10 plan lists in ROADMAP, advanced focus to Phase 07 |
 | 2026-05-03 | update-docs-post-phase-7-11 | Phase 7 + 11 UAT verified (all tests pass); ROADMAP + STATE advanced to Phase 8 |
 | 2026-05-04 | complete-phase-8 | Phase 8 UAT 8/8 passed, security review 29/29 threats closed, docs updated; ROADMAP + STATE advanced to Phase 9 |
+| 2026-05-13 | audit-service-collapse-to-single-log-por | A1 of polymorphic-juggling-haven.md — collapsed AuditService dual-mode (writeBlocking/record) into single log() dispatcher; 4 atomic commits; 654 unit tests + 6 e2e green |
+| 2026-05-13 | symbol-to-branded-authenticated-claims | A2 of polymorphic-juggling-haven.md — GATEWAY_VALIDATED Symbol replaced by AuthenticatedClaims branded type; new body-spoof e2e regression; 3 atomic commits; 654 unit + 14 admin-routes + 2 body-spoof e2e green |
+| 2026-05-13 | typed-event-bus-wrapper | A3 of polymorphic-juggling-haven.md — TypedEvents wrapper around EventEmitter2; 18 emit callsites migrated, 14 event names typed; 4 atomic commits; 650 unit + 52 e2e green |
 
 ## Deferred Items
 

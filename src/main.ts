@@ -6,7 +6,7 @@ import { Client } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
 import { AppModule } from './app.module';
-import { AppConfigService } from './config/config.service';
+import { SERVER_CONFIG, type ServerConfig } from './config/slices';
 import { HttpExceptionFilter } from './shared/http-exception.filter';
 
 async function runMigrations(databaseUrl: string): Promise<void> {
@@ -28,7 +28,7 @@ async function runMigrations(databaseUrl: string): Promise<void> {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const config = app.get(AppConfigService);
+  const config = app.get<ServerConfig>(SERVER_CONFIG);
 
   await runMigrations(config.databaseUrl);
 
