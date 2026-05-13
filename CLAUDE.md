@@ -89,7 +89,6 @@ Key env vars (see `.env.example` for full list):
 | `MFA_JWT_SECRET` | Secret for signing MFA challenge tokens |
 | `DATABASE_URL` | Postgres connection string |
 
-<!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
 **Zero-Trust Access Gateway**
@@ -105,9 +104,7 @@ A hardened NestJS zero-trust access gateway with a 10-step fail-fast pipeline. E
 - **Build order**: Layer-by-layer following pipeline dependency chain. Each module fully tested before moving to the next.
 - **Database**: PostgreSQL for all persistent state
 - **Observability**: Prometheus-compatible metrics
-<!-- GSD:project-end -->
 
-<!-- GSD:stack-start source:codebase/STACK.md -->
 ## Technology Stack
 
 ## Languages
@@ -171,9 +168,7 @@ A hardened NestJS zero-trust access gateway with a 10-step fail-fast pipeline. E
 - Entry point: `src/main.ts` → `dist/main.js`
 - Source maps enabled for debugging
 - Test coverage directory: `./coverage/` (configured as `coverageDirectory` in package.json)
-<!-- GSD:stack-end -->
 
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
 ## Naming Patterns
@@ -286,9 +281,7 @@ A hardened NestJS zero-trust access gateway with a 10-step fail-fast pipeline. E
 - Services typically return Promises or Observables based on data source
 - Let exceptions propagate to NestJS exception filters
 - Use try/catch for cleanup or logging, then re-throw
-<!-- GSD:conventions-end -->
 
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
 ## Architecture
 
 ## Pattern Overview
@@ -417,30 +410,18 @@ A hardened NestJS zero-trust access gateway with a 10-step fail-fast pipeline. E
 - x-request-id middleware in bootstrap-app.ts generates/propagates ID
 - Included in all logs and responses
 - Helps trace requests through system
-<!-- GSD:architecture-end -->
 
-<!-- GSD:skills-start source:skills/ -->
-## Project Skills
 
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, or `.github/skills/` with a `SKILL.md` index file.
-<!-- GSD:skills-end -->
+## Agent skills
 
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
+### Issue tracker
 
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
+Issues live as GitHub issues at `spasoye-json/zt-access-gateway`; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
-Use these entry points:
-- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd-debug` for investigation and bug fixing
-- `/gsd-execute-phase` for planned phase work
+### Triage labels
 
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 
-<!-- GSD:profile-start -->
-## Developer Profile
+### Domain docs
 
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
+Single-context: `CONTEXT.md` at repo root, `docs/adr/` tree. Both created lazily by `/grill-with-docs`. See `docs/agents/domain.md`.
