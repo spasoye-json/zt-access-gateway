@@ -1,5 +1,6 @@
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
 import { AuditRepository } from '../audit.repository';
+import { DbService } from '../../db/db.service';
 import type { ServerConfig } from '../../config/slices';
 
 function ztTestUrlFromEnv(): string {
@@ -12,18 +13,19 @@ function ztTestUrlFromEnv(): string {
 const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 
 describeDb('AuditRepository (DB)', () => {
+  let dbService: DbService;
   let pool: Pool;
   let repo: AuditRepository;
 
   beforeAll(() => {
     const databaseUrl = ztTestUrlFromEnv();
-    pool = new Pool({ connectionString: databaseUrl, max: 5 });
-    repo = new AuditRepository({ databaseUrl } as unknown as ServerConfig);
+    dbService = new DbService({ databaseUrl, dbPoolMax: 5 } as unknown as ServerConfig);
+    pool = dbService.unsafePool();
+    repo = new AuditRepository(dbService);
   });
 
   afterAll(async () => {
-    await repo.onModuleDestroy();
-    await pool.end();
+    await dbService.onModuleDestroy();
   });
 
   afterEach(async () => {

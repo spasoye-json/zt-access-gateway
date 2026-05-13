@@ -1,6 +1,5 @@
-import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
-import { Pool } from 'pg';
-import { SERVER_CONFIG, type ServerConfig } from '../config/slices';
+import { Inject, Injectable } from '@nestjs/common';
+import { DB, type Db } from '../db/db.port';
 import type { AuditEntry } from './audit-entry.interface';
 import type { AuditLog, AuditLogRow } from './audit-log.interface';
 
@@ -12,24 +11,18 @@ export interface AuditLogFilters {
 }
 
 /**
- * Phase 9 — raw pg Pool repository for audit_logs (AUDT-01, AUDT-02, AUDT-05).
- * Mirrors TrustTelemetryRepository: Pool({ max: 5 }), parameterized $N, OnModuleDestroy.
- * INSERT-only at the service level; no UPDATE/DELETE methods (append-only audit trail).
+ * Phase 9 — audit_logs repository (AUDT-01, AUDT-02, AUDT-05).
+ *
+ * Phase B2: now consumes the shared `Db` port via the `DB` token instead of
+ * owning its own pg.Pool. INSERT-only at the service level; no UPDATE/DELETE
+ * methods (append-only audit trail).
  */
 @Injectable()
-export class AuditRepository implements OnModuleDestroy {
-  private readonly pool: Pool;
-
-  constructor(@Inject(SERVER_CONFIG) private readonly config: ServerConfig) {
-    this.pool = new Pool({ connectionString: this.config.databaseUrl, max: 5 });
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.pool.end();
-  }
+export class AuditRepository {
+  constructor(@Inject(DB) private readonly db: Db) {}
 
   async insert(entry: AuditEntry): Promise<void> {
-    await this.pool.query(
+    await this.db.query(
       `INSERT INTO audit_logs
          (user_id, resource, action, decision, trust_score, ja4h_fingerprint,
           ip_address, user_agent, request_id, event_type, created_at)
@@ -67,7 +60,7 @@ export class AuditRepository implements OnModuleDestroy {
     const limitIdx = params.length + 1;
     const offsetIdx = params.length + 2;
     const queryParams = [...params, filters.limit, filters.offset];
-    const res = await this.pool.query<AuditLogRow & { total_count: string }>(
+    const res = await this.db.query<AuditLogRow & { total_count: string }>(
       `SELECT id, user_id, resource, action, decision, trust_score, ja4h_fingerprint,
               ip_address, user_agent, request_id, event_type, created_at,
               COUNT(*) OVER() AS total_count
