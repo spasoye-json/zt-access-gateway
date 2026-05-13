@@ -23,7 +23,9 @@ declare global {
        * `@Req() req: any` with `@Req() req: Request` without erasing claim
        * shape downstream.
        */
-      user?: import('../auth/interfaces/user-claims.interface').UserClaims;
+      user?:
+        | import('../auth/interfaces/user-claims.interface').UserClaims
+        | import('../auth/interfaces/user-claims.interface').AuthenticatedClaims;
       /** Optional trust score [0,1] populated by Phase 10 GatewayMiddleware (D-07). */
       trustScore?: number;
       /** MFA token claims populated by GatewayMiddleware step 9b after MfaService.validateMfaToken success. Absent until validation succeeds. */

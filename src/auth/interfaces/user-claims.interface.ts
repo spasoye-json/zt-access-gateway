@@ -19,3 +19,19 @@ export interface UserClaims {
   /** Required -- trust scoring, MFA device binding (Phase 4 D-11) */
   deviceId: string;
 }
+
+/**
+ * Phase A2 — branded variant proving the request was authenticated by
+ * GatewayMiddleware (i.e. validateToken + isRevoked both succeeded). Only
+ * GatewayMiddleware constructs this; JwtAuthGuard reads it to short-circuit
+ * re-validation on AUTH_ONLY routes.
+ *
+ * Spoof-safety: the brand field is unknown to any DTO, so the global
+ * ValidationPipe (whitelist + forbidNonWhitelisted, see src/main.ts) strips it
+ * from request bodies before it could ever land on req.user. Defence-in-depth:
+ * req.user is only ever assigned by middleware/guard code, never deserialized
+ * from the wire.
+ */
+export type AuthenticatedClaims = UserClaims & {
+  readonly __authenticatedByGateway: true;
+};
