@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { AuditRepository } from '../audit.repository';
-import type { AppConfigService } from '../../config/config.service';
+import type { ServerConfig } from '../../config/slices';
 
 function ztTestUrlFromEnv(): string {
   const raw = process.env.DATABASE_URL;
@@ -18,7 +18,7 @@ describeDb('AuditRepository (DB)', () => {
   beforeAll(() => {
     const databaseUrl = ztTestUrlFromEnv();
     pool = new Pool({ connectionString: databaseUrl, max: 5 });
-    repo = new AuditRepository({ databaseUrl } as unknown as AppConfigService);
+    repo = new AuditRepository({ databaseUrl } as unknown as ServerConfig);
   });
 
   afterAll(async () => {

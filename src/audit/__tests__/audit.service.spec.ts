@@ -4,7 +4,7 @@ import { AuditExhaustedException } from '../audit-exhausted.exception';
 import { TypedEvents } from '../../shared/typed-events';
 import { AUDIT_RECORD_FAILED } from '../../metrics/metrics-events';
 import type { AuditRepository } from '../audit.repository';
-import type { AppConfigService } from '../../config/config.service';
+import type { AuditConfig } from '../../config/slices';
 
 jest.mock('../../shared/sleep.util', () => ({
   sleep: jest.fn().mockResolvedValue(undefined),
@@ -19,11 +19,11 @@ function makeRepo(): jest.Mocked<AuditRepository> {
   } as unknown as jest.Mocked<AuditRepository>;
 }
 
-function makeConfig(maxRetries = 3, baseDelay = 50): AppConfigService {
+function makeConfig(maxRetries = 3, baseDelay = 50): AuditConfig {
   return {
-    auditWalMaxRetries: maxRetries,
-    auditWalBaseDelayMs: baseDelay,
-  } as unknown as AppConfigService;
+    walMaxRetries: maxRetries,
+    walBaseDelayMs: baseDelay,
+  } as unknown as AuditConfig;
 }
 
 function makeEmitter(): TypedEvents {

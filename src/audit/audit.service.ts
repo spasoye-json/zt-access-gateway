@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { AppConfigService } from '../config/config.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { AUDIT_CONFIG, type AuditConfig } from '../config/slices';
 import { AuditRepository } from './audit.repository';
 import { AuditExhaustedException } from './audit-exhausted.exception';
 import { sleep } from '../shared/sleep.util';
@@ -32,7 +32,7 @@ import type { AuditLogsQueryDto } from './dto/audit-logs-query.dto';
 @Injectable()
 export class AuditService {
   constructor(
-    private readonly config: AppConfigService,
+    @Inject(AUDIT_CONFIG) private readonly config: AuditConfig,
     private readonly repo: AuditRepository,
     private readonly events: TypedEvents,
   ) {}
@@ -51,8 +51,8 @@ export class AuditService {
 
   /** AUDT-03, AUDT-04 — fail-closed WAL. Throws AuditExhaustedException after maxRetries. */
   private async writeBlocking(entry: AuditEntry): Promise<void> {
-    const maxRetries = this.config.auditWalMaxRetries;
-    const baseDelay = this.config.auditWalBaseDelayMs;
+    const maxRetries = this.config.walMaxRetries;
+    const baseDelay = this.config.walBaseDelayMs;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         await this.repo.insert(entry);
