@@ -374,6 +374,6 @@ Plans:
   4. `.planning/v1.0-MILESTONE-AUDIT.md` re-run shows `nyquist: compliant_phases: 17, partial_phases: 0, missing_phases: 0, overall: compliant`
   5. Each VALIDATION.md change committed atomically (`chore(nyquist): finalize phase {N} validation`) to preserve audit trail
 **Plans:**
-- [ ] 18-01-PLAN.md — Author 15-VALIDATION.md (doc-only phase attestation; mirror Phase 13/14 shape)
+1/3 plans executed
 - [ ] 18-02-PLAN.md — Promote 16-VALIDATION.md draft → finalized + nyquist_compliant: true (D-04 pattern)
 - [ ] 18-03-PLAN.md — Author 17-VALIDATION.md self-attesting Nyquist sweep + re-run milestone audit
