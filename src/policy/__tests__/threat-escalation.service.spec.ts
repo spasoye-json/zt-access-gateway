@@ -1,6 +1,6 @@
 import { ThreatEscalationService, type ClockFn } from '../threat-escalation.service';
 import { PolicyMetrics } from '../policy-metrics';
-import type { AppConfigService } from '../../config/config.service';
+import type { PolicyConfig } from '../../config/slices';
 import {
   POLICY_DENY,
   AUTH_INVALID_TOKEN,
@@ -42,7 +42,7 @@ function fakeConfig(
     chC: number;
     deC: number;
   }> = {},
-): AppConfigService {
+): PolicyConfig {
   return {
     threatWindowMs: over.windowMs ?? 300000,
     threatWindowMaxEvents: over.windowMax ?? 10000,
@@ -55,13 +55,13 @@ function fakeConfig(
     threatCriticalHoneypot: over.crHoney ?? 15,
     threatElevatedMfaRateLimited: over.elMfaRl ?? 5,
     threatCriticalMfaRateLimited: over.crMfaRl ?? 15,
-    policyChallengeThreshold: over.chN ?? 0.5,
-    policyDenyThreshold: over.deN ?? 0.8,
-    policyElevatedChallengeThreshold: over.chE ?? 0.3,
-    policyElevatedDenyThreshold: over.deE ?? 0.6,
-    policyCriticalChallengeThreshold: over.chC ?? 0.2,
-    policyCriticalDenyThreshold: over.deC ?? 0.4,
-  } as unknown as AppConfigService;
+    challengeThreshold: over.chN ?? 0.5,
+    denyThreshold: over.deN ?? 0.8,
+    elevatedChallengeThreshold: over.chE ?? 0.3,
+    elevatedDenyThreshold: over.deE ?? 0.6,
+    criticalChallengeThreshold: over.chC ?? 0.2,
+    criticalDenyThreshold: over.deC ?? 0.4,
+  } as unknown as PolicyConfig;
 }
 
 const payload = (over: Partial<ThreatSignalPayload> = {}): ThreatSignalPayload => ({
@@ -78,7 +78,7 @@ describe('ThreatEscalationService', () => {
     now += ms;
   };
 
-  let cfg: AppConfigService;
+  let cfg: PolicyConfig;
   let metrics: PolicyMetrics;
   let svc: ThreatEscalationService;
 

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { AppConfigService } from '../config/config.service';
+import { POLICY_CONFIG, type PolicyConfig } from '../config/slices';
 import {
   AUDIT_SIGNAL,
   AUTH_INVALID_TOKEN,
@@ -66,7 +66,7 @@ export class ThreatEscalationService {
   private readonly clock: ClockFn;
 
   constructor(
-    private readonly cfg: AppConfigService,
+    @Inject(POLICY_CONFIG) private readonly cfg: PolicyConfig,
     private readonly metrics: PolicyMetrics,
     @Optional() @Inject(THREAT_CLOCK) clock?: ClockFn,
   ) {
@@ -115,11 +115,11 @@ export class ThreatEscalationService {
     this.maybeCooldown();
     switch (this.effectiveLevel()) {
       case 'Critical':
-        return this.cfg.policyCriticalChallengeThreshold;
+        return this.cfg.criticalChallengeThreshold;
       case 'Elevated':
-        return this.cfg.policyElevatedChallengeThreshold;
+        return this.cfg.elevatedChallengeThreshold;
       default:
-        return this.cfg.policyChallengeThreshold;
+        return this.cfg.challengeThreshold;
     }
   }
 
@@ -127,11 +127,11 @@ export class ThreatEscalationService {
     this.maybeCooldown();
     switch (this.effectiveLevel()) {
       case 'Critical':
-        return this.cfg.policyCriticalDenyThreshold;
+        return this.cfg.criticalDenyThreshold;
       case 'Elevated':
-        return this.cfg.policyElevatedDenyThreshold;
+        return this.cfg.elevatedDenyThreshold;
       default:
-        return this.cfg.policyDenyThreshold;
+        return this.cfg.denyThreshold;
     }
   }
 

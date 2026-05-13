@@ -1,9 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { TypedEvents } from '../shared/typed-events';
 import { Enforcer, newEnforcer } from 'casbin';
 import { Mutex } from 'async-mutex';
 import type { Request } from 'express';
-import { AppConfigService } from '../config/config.service';
+import { POLICY_CONFIG, type PolicyConfig } from '../config/slices';
 import { TrustScoreService } from '../trust-score/trust-score.service';
 import type { TrustContext } from '../trust-score/trust-context';
 import { extractIp, extractJa4h } from '../shared/request-context.util';
@@ -36,7 +36,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
   private readonly writerMutex = new Mutex();
 
   constructor(
-    private readonly cfg: AppConfigService,
+    @Inject(POLICY_CONFIG) private readonly cfg: PolicyConfig,
     private readonly threat: ThreatEscalationService,
     private readonly trust: TrustScoreService,
     private readonly metrics: PolicyMetrics,
@@ -49,9 +49,9 @@ export class PolicyEvaluatorService implements OnModuleInit {
    */
   async onModuleInit(): Promise<void> {
     // prettier-ignore
-    this.enforcer = await newEnforcer(this.cfg.policyModelPath, this.cfg.policyCsvPath);
+    this.enforcer = await newEnforcer(this.cfg.modelPath, this.cfg.csvPath);
     this.logger.log(
-      `Casbin enforcer ready (model=${this.cfg.policyModelPath}, csv=${this.cfg.policyCsvPath})`,
+      `Casbin enforcer ready (model=${this.cfg.modelPath}, csv=${this.cfg.csvPath})`,
     );
   }
 

@@ -7,7 +7,7 @@ import { TypedEvents } from '../../shared/typed-events';
 import { PolicyEvaluatorService } from '../policy-evaluator.service';
 import { PolicyMetrics } from '../policy-metrics';
 import { POLICY_DENY } from '../policy-events';
-import type { AppConfigService } from '../../config/config.service';
+import type { PolicyConfig } from '../../config/slices';
 import type { TrustScoreService } from '../../trust-score/trust-score.service';
 import type { ThreatEscalationService } from '../threat-escalation.service';
 import type { UserClaims } from '../../auth/interfaces/user-claims.interface';
@@ -29,11 +29,11 @@ function tmpCsvCopy(): string {
 
 function fakeConfig(
   overrides: Partial<{ csvPath: string; modelPath: string }> = {},
-): AppConfigService {
+): PolicyConfig {
   return {
-    policyModelPath: overrides.modelPath ?? path.join(process.cwd(), 'policy/model.conf'),
-    policyCsvPath: overrides.csvPath ?? tmpCsvCopy(),
-  } as unknown as AppConfigService;
+    modelPath: overrides.modelPath ?? path.join(process.cwd(), 'policy/model.conf'),
+    csvPath: overrides.csvPath ?? tmpCsvCopy(),
+  } as unknown as PolicyConfig;
 }
 
 function fakeThreat(
