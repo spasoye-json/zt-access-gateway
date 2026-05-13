@@ -16,6 +16,7 @@ import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
 import { AuthStage } from './pipeline/stages/auth.stage';
 import { RevocationStage } from './pipeline/stages/revocation.stage';
 import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcircuit.stage';
+import { TrustScoreStage } from './pipeline/stages/trust-score.stage';
 
 /**
  * Phase 10 — GatewayModule wires the 9 prerequisite modules so that
@@ -53,6 +54,7 @@ import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcirc
     AuthStage,
     RevocationStage,
     AuthOnlyShortCircuitStage,
+    TrustScoreStage,
   ],
   exports: [
     GatewayMiddleware,
@@ -61,6 +63,7 @@ import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcirc
     AuthStage,
     RevocationStage,
     AuthOnlyShortCircuitStage,
+    TrustScoreStage,
   ],
 })
 export class GatewayModule {}

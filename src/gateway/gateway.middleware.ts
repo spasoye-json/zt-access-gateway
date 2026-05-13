@@ -14,7 +14,7 @@ import { TokenRevocationService } from '../auth/token-revocation.service';
 import { TrustScoreService } from '../trust-score/trust-score.service';
 import { HashcashService } from '../hashcash/hashcash.service';
 import { PolicyEvaluatorService } from '../policy/policy-evaluator.service';
-import { AUDIT_SIGNAL, AUTH_INVALID_TOKEN } from '../policy/policy-events';
+import { AUDIT_SIGNAL } from '../policy/policy-events';
 import { MfaChallenger, type MfaCreateResult } from '../mfa/mfa-challenger.service';
 import { ProxyService } from '../proxy/proxy.service';
 import { BoPlaInterceptor } from '../proxy/bopla.interceptor';
@@ -31,9 +31,9 @@ import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
 import { AuthStage } from './pipeline/stages/auth.stage';
 import { RevocationStage } from './pipeline/stages/revocation.stage';
 import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcircuit.stage';
+import { TrustScoreStage } from './pipeline/stages/trust-score.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
-import type { TrustContext } from '../trust-score/trust-context';
 import type { AuditEntry } from '../audit/audit-entry.interface';
 
 /**
@@ -70,6 +70,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly authStage: AuthStage,
     private readonly revocationStage: RevocationStage,
     private readonly authOnlyStage: AuthOnlyShortCircuitStage,
+    private readonly trustScoreStage: TrustScoreStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -162,17 +163,12 @@ export class GatewayMiddleware implements NestMiddleware {
       observe('auth_only' as PipelineStage, (Date.now() - t0) / 1000);
       if (authOnlyOutcome.kind === 'bypass') return next();
 
-      // ── Step 7: Trust Score (D-13 — set once) ──────────────────────
+      // ── Step 7: Trust Score (Phase D — extracted to TrustScoreStage) ─
       t0 = Date.now();
-      const ctx: TrustContext = {
-        userId: claims.userId,
-        deviceId: claims.deviceId || '',
-        ip: extractIp(req),
-        ja4h: ja4h ?? '',
-      };
-      trustScoreValue = await this.trustScore.evaluateScore(ctx);
-      (req as Request & { trustScore?: number }).trustScore = trustScoreValue;
+      await this.trustScoreStage.run(stageCtx);
       observe('trust_score', (Date.now() - t0) / 1000);
+      trustScoreValue = stageCtx.trustScore!;
+      const ctx = stageCtx.trustCtx!;
 
       // ── Step 8: Hashcash (D-08; threshold from HashcashConfig) ───
       t0 = Date.now();
