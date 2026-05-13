@@ -20,11 +20,7 @@ import {
   type MfaCreateResult,
   type MfaVerifyResult,
 } from './mfa-challenger.service';
-import {
-  MfaEnroller,
-  type MfaEnrollResult,
-  type MfaConfirmResult,
-} from './mfa-enroller.service';
+import { MfaEnroller, type MfaEnrollResult, type MfaConfirmResult } from './mfa-enroller.service';
 import { InitiateMfaDto } from './dto/initiate-mfa.dto';
 import { VerifyMfaDto } from './dto/verify-mfa.dto';
 import { EnrollConfirmDto } from './dto/enroll-confirm.dto';

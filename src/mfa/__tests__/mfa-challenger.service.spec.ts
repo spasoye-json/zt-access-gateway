@@ -456,12 +456,7 @@ describe('MfaChallenger', () => {
     it('Test 13: returns { ok: false, reason: fingerprint_mismatch } for token from different IP (MFA-05, D-06)', async () => {
       const token = await mintMfaJwt({ jti: 'jti-test-1' });
 
-      const result = await service.validateMfaToken(
-        token,
-        TEST_USER,
-        TEST_DEVICE,
-        '192.168.99.99',
-      );
+      const result = await service.validateMfaToken(token, TEST_USER, TEST_DEVICE, '192.168.99.99');
 
       expect(result.ok).toBe(false);
       assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(result);

@@ -8,11 +8,7 @@ import { MfaChallengeRepository } from './repositories/mfa-challenge.repository'
 import { MfaTokenRepository } from './repositories/mfa-token.repository';
 import { UserSecretsRepository } from './repositories/user-secrets.repository';
 import { aesGcmDecrypt } from '../shared/aes-gcm.util';
-import {
-  MFA_FAILED,
-  MFA_RATE_LIMITED,
-  MFA_SECRET_DECRYPT_FAILED,
-} from '../policy/policy-events';
+import { MFA_FAILED, MFA_RATE_LIMITED, MFA_SECRET_DECRYPT_FAILED } from '../policy/policy-events';
 import { MfaErrorRecorder } from './mfa-error-recorder.util';
 import type { MfaTokenClaims } from './interfaces/mfa-token-claims.interface';
 

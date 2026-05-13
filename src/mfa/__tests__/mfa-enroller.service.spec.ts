@@ -19,11 +19,7 @@ import {
 import { UserSecretsRepository } from '../repositories/user-secrets.repository';
 import { MFA_CONFIG, type MfaConfig } from '../../config/slices';
 import { aesGcmEncrypt, aesGcmDecrypt } from '../../shared/aes-gcm.util';
-import {
-  MFA_FAILED,
-  MFA_INFRA_ERROR,
-  MFA_RATE_LIMITED,
-} from '../../policy/policy-events';
+import { MFA_FAILED, MFA_INFRA_ERROR, MFA_RATE_LIMITED } from '../../policy/policy-events';
 import { PendingEnrollmentStore } from '../enrollment.store';
 import { MfaErrorRecorder } from '../mfa-error-recorder.util';
 
@@ -46,14 +42,10 @@ function buildMockConfig(): Partial<MfaConfig> {
   };
 }
 
-function assertOkTrue<T extends { ok: true }>(
-  result: { ok: boolean },
-): asserts result is T {
+function assertOkTrue<T extends { ok: true }>(result: { ok: boolean }): asserts result is T {
   if (!result.ok) throw new Error('Expected ok:true');
 }
-function assertOkFalse<T extends { ok: false }>(
-  result: { ok: boolean },
-): asserts result is T {
+function assertOkFalse<T extends { ok: false }>(result: { ok: boolean }): asserts result is T {
   if (result.ok) throw new Error('Expected ok:false');
 }
 
@@ -227,8 +219,8 @@ describe('MfaEnroller', () => {
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const failed = calls.find((c) => c.name === MFA_FAILED);
       expect(failed).toBeDefined();
-      expect((failed!.p as { reason: string }).reason).toBe('invalid_totp_enrollment');
-      expect((failed!.p as { userId: string }).userId).toBe(TEST_USER);
+      expect((failed.p as { reason: string }).reason).toBe('invalid_totp_enrollment');
+      expect((failed.p as { userId: string }).userId).toBe(TEST_USER);
     });
 
     it('BL-02: increments the per-enrollmentId attempt counter on each failure', async () => {
@@ -261,8 +253,8 @@ describe('MfaEnroller', () => {
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const failed = calls.find((c) => c.name === MFA_FAILED);
       expect(failed).toBeDefined();
-      expect((failed!.p as { ip: string }).ip).toBe(TEST_IP);
-      expect((failed!.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-1');
+      expect((failed.p as { ip: string }).ip).toBe(TEST_IP);
+      expect((failed.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-1');
     });
 
     it('IN-04: MFA_RATE_LIMITED on attempts exhausted carries ip + ja4h', async () => {
@@ -271,8 +263,8 @@ describe('MfaEnroller', () => {
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const rateLimited = calls.find((c) => c.name === MFA_RATE_LIMITED);
       expect(rateLimited).toBeDefined();
-      expect((rateLimited!.p as { ip: string }).ip).toBe(TEST_IP);
-      expect((rateLimited!.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-2');
+      expect((rateLimited.p as { ip: string }).ip).toBe(TEST_IP);
+      expect((rateLimited.p as { ja4h?: string }).ja4h).toBe('ja4h-enroll-2');
     });
 
     it('IN-04: omits ja4h key when caller does not supply it', async () => {
@@ -281,8 +273,8 @@ describe('MfaEnroller', () => {
       const calls = emitter.emit.mock.calls.map(([name, p]) => ({ name, p }));
       const failed = calls.find((c) => c.name === MFA_FAILED);
       expect(failed).toBeDefined();
-      expect((failed!.p as { ip: string }).ip).toBe(TEST_IP);
-      expect((failed!.p as { ja4h?: string }).ja4h).toBeUndefined();
+      expect((failed.p as { ip: string }).ip).toBe(TEST_IP);
+      expect((failed.p as { ja4h?: string }).ja4h).toBeUndefined();
     });
 
     it('ENROLL-06b: returns expired_enrollment when pending entry missing/expired', async () => {

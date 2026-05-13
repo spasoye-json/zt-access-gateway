@@ -84,10 +84,7 @@ describe('MfaErrorRecorder', () => {
   it('emits MFA_INFRA_ERROR even when userId is undefined', () => {
     recorder.record('MfaEnroller', 'deleteEnrollment', undefined, new Error('x'));
     expect(emitter.emit).toHaveBeenCalledTimes(1);
-    const [, payload] = emitter.emit.mock.calls[0] as unknown as [
-      string,
-      Record<string, unknown>,
-    ];
+    const [, payload] = emitter.emit.mock.calls[0] as unknown as [string, Record<string, unknown>];
     expect(payload.userId).toBeUndefined();
   });
 
