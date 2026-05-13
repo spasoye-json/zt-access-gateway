@@ -82,13 +82,18 @@ export class ProxyService implements OnModuleInit {
    * Caller (GatewayMiddleware) is responsible for BOPLA stripping and writing trust signals.
    */
   async forward(req: Request, claims: UserClaims, trustScore: number): Promise<AxiosResponse> {
-    const serviceName = this.registry.extractServiceName(req.path);
+    // NestJS `forRoutes('*')` on Express 5 collapses `req.path` / `req.url` to '/'.
+    // The real path lives in `req.originalUrl` — same derivation used by
+    // build-stage-context.ts and the policy evaluator.
+    const rawUrl = req.originalUrl ?? req.url ?? req.path;
+    const rawPath = rawUrl.split('?')[0];
+    const serviceName = this.registry.extractServiceName(rawPath);
     if (!serviceName) {
       throw new NotFoundException('Cannot extract service name from path');
     }
     const baseUrl = this.registry.resolve(serviceName); // throws NotFoundException for unknown services
-    // Use req.url (pathname + query string) to preserve query params; strip only the path prefix.
-    const parsed = new URL(req.url, 'http://placeholder');
+    // Preserve query params; strip only the service-name prefix.
+    const parsed = new URL(rawUrl, 'http://placeholder');
     const strippedPathname = this.registry.stripPrefix(parsed.pathname);
     const forwardedPath = strippedPathname + parsed.search;
 

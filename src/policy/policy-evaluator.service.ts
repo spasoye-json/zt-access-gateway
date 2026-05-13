@@ -84,8 +84,12 @@ export class PolicyEvaluatorService implements OnModuleInit {
     }
 
     // 2) Subject + obj + act (D-04, D-06, D-07).
+    // Use originalUrl: with NestJS `consumer.apply(...).forRoutes('*')` under
+    // Express 5, `req.path` collapses to '/' (matched-route becomes the mount
+    // point and `req.baseUrl` carries the rest). Same derivation as
+    // build-stage-context.ts.
     const subjects = buildSubjects(user);
-    const obj = normalizeResource(req.path);
+    const obj = normalizeResource(req.originalUrl ?? req.path);
     const act = normalizeAction(req.method);
 
     // 3) Casbin (fail-closed runtime per D-03 / RESEARCH Pitfall 2).
