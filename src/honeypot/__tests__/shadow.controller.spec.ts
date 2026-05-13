@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../../shared/typed-events';
 import { ShadowController } from '../shadow.controller';
 import { FingerprintStore } from '../../fingerprint/fingerprint.store';
 import { SecurityMetricsService } from '../security-metrics.service';
@@ -43,7 +44,7 @@ describe('ShadowController', () => {
   let store: jest.Mocked<FingerprintStore>;
   let metrics: jest.Mocked<SecurityMetricsService>;
   let config: jest.Mocked<AppConfigService>;
-  let events: EventEmitter2;
+  let events: TypedEvents;
   let emitSpy: jest.SpyInstance;
   let warnSpy: jest.SpyInstance;
 
@@ -65,7 +66,7 @@ describe('ShadowController', () => {
       blacklistTtlMs: 3600000,
     } as any;
 
-    events = new EventEmitter2();
+    events = new TypedEvents(new EventEmitter2());
     emitSpy = jest.spyOn(events, 'emit');
 
     controller = new ShadowController(store, metrics, config, events);

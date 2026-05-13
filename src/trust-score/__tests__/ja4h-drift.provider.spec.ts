@@ -2,6 +2,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Ja4hDriftProvider } from '../providers/ja4h-drift.provider';
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
 import { FINGERPRINT_DRIFT_DETECTED } from '../../metrics/metrics-events';
+import { TypedEvents } from '../../shared/typed-events';
 
 describe('Ja4hDriftProvider (Phase 14 Plan 01 — drift event, D-02)', () => {
   const baseCtx = {
@@ -15,8 +16,8 @@ describe('Ja4hDriftProvider (Phase 14 Plan 01 — drift event, D-02)', () => {
     const repo = {
       getSignalRow: jest.fn().mockResolvedValue(row),
     } as unknown as TrustTelemetryRepository;
-    const events = new EventEmitter2();
-    return { provider: new Ja4hDriftProvider(repo, events), events };
+    const bus = new EventEmitter2();
+    return { provider: new Ja4hDriftProvider(repo, new TypedEvents(bus)), events: bus };
   }
 
   it('emits FINGERPRINT_DRIFT_DETECTED when row.ja4h differs from ctx.ja4h', async () => {

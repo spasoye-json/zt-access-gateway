@@ -1,6 +1,6 @@
 import { Controller, Get, OnModuleInit, Req, Res } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Request, Response } from 'express';
+import { TypedEvents } from '../shared/typed-events';
 import { FingerprintStore } from '../fingerprint/fingerprint.store';
 import { SecurityMetricsService } from './security-metrics.service';
 import { AppConfigService } from '../config/config.service';
@@ -36,7 +36,7 @@ export class ShadowController implements OnModuleInit {
     private readonly store: FingerprintStore,
     private readonly metrics: SecurityMetricsService,
     private readonly config: AppConfigService,
-    private readonly events: EventEmitter2,
+    private readonly events: TypedEvents,
   ) {}
 
   onModuleInit(): void {

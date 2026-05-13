@@ -1,4 +1,5 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../../shared/typed-events';
 import { FingerprintStore } from '../fingerprint.store';
 import { Ja4hMiddleware } from '../ja4h.middleware';
 import { computeJa4h } from '../ja4h.util';
@@ -32,7 +33,7 @@ describe('Ja4hMiddleware', () => {
   let next: jest.Mock;
 
   beforeEach(() => {
-    store = new FingerprintStore(new EventEmitter2());
+    store = new FingerprintStore(new TypedEvents(new EventEmitter2()));
     middleware = new Ja4hMiddleware(store);
     next = jest.fn();
     (sleepUtil.sleep as jest.Mock).mockClear();

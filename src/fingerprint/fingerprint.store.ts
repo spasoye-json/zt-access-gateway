@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../shared/typed-events';
 import { FINGERPRINT_BLACKLIST_SIZE_CHANGED } from '../metrics/metrics-events';
 
 interface BlacklistEntry {
@@ -21,7 +21,7 @@ interface BlacklistEntry {
 export class FingerprintStore {
   private readonly blacklist = new Map<string, BlacklistEntry>();
 
-  constructor(private readonly events: EventEmitter2) {}
+  constructor(private readonly events: TypedEvents) {}
 
   /**
    * Add a fingerprint to the blacklist.

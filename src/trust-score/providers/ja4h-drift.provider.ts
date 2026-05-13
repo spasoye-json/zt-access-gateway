@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../../shared/typed-events';
 import type { TrustSignalProvider, SignalAdjustment } from '../trust-signal-provider.interface';
 import type { TrustContext } from '../trust-context';
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
@@ -11,7 +11,7 @@ export class Ja4hDriftProvider implements TrustSignalProvider {
 
   constructor(
     private readonly repo: TrustTelemetryRepository,
-    private readonly events: EventEmitter2,
+    private readonly events: TypedEvents,
   ) {}
 
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {

@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../shared/typed-events';
 import { IS_PUBLIC_KEY } from '../shared/public.decorator';
 import { AuthService } from './auth.service';
 import { TokenRevocationService } from './token-revocation.service';
@@ -32,7 +32,7 @@ export class JwtAuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly authService: AuthService,
     private readonly revocationService: TokenRevocationService,
-    private readonly events: EventEmitter2,
+    private readonly events: TypedEvents,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigAppModule } from '../config/config.module';
+import { SharedModule } from '../shared/shared.module';
 import { AuthService } from './auth.service';
 import { TokenRevocationService } from './token-revocation.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -23,7 +24,7 @@ import { AuthController } from './auth.controller';
  * registration that lands in AppModule (Plan 06).
  */
 @Module({
-  imports: [ConfigAppModule, EventEmitterModule.forRoot()],
+  imports: [ConfigAppModule, EventEmitterModule.forRoot(), SharedModule],
   providers: [
     AuthService,
     TokenRevocationService,

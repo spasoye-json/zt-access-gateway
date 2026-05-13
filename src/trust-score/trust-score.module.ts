@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigAppModule } from '../config/config.module';
 import { FingerprintModule } from '../fingerprint/fingerprint.module';
+import { SharedModule } from '../shared/shared.module';
 import { TrustTelemetryRepository } from './trust-telemetry.repository';
 import { TrustScoreService } from './trust-score.service';
 import { DeviceReputationProvider } from './providers/device-reputation.provider';
@@ -11,7 +12,7 @@ import { TrustDecayProvider } from './providers/trust-decay.provider';
 import { BehaviorAnomalyProvider } from './providers/behavior-anomaly.provider';
 
 @Module({
-  imports: [ConfigAppModule, FingerprintModule],
+  imports: [ConfigAppModule, FingerprintModule, SharedModule],
   providers: [
     TrustTelemetryRepository,
     DeviceReputationProvider,

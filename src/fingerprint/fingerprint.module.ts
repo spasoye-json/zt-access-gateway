@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SharedModule } from '../shared/shared.module';
 import { FingerprintStore } from './fingerprint.store';
 import { Ja4hMiddleware } from './ja4h.middleware';
 
@@ -12,6 +13,7 @@ import { Ja4hMiddleware } from './ja4h.middleware';
  * with full NestJS DI support (required for FingerprintStore injection).
  */
 @Module({
+  imports: [SharedModule],
   providers: [FingerprintStore, Ja4hMiddleware],
   exports: [FingerprintStore, Ja4hMiddleware],
 })

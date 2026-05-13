@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { FingerprintModule } from '../fingerprint/fingerprint.module';
 import { ConfigAppModule } from '../config/config.module';
+import { SharedModule } from '../shared/shared.module';
 import { ShadowController } from './shadow.controller';
 import { SecurityMetricsService } from './security-metrics.service';
 
@@ -16,7 +17,7 @@ import { SecurityMetricsService } from './security-metrics.service';
  * the global root that lands in AppModule (Plan 06).
  */
 @Module({
-  imports: [FingerprintModule, ConfigAppModule, EventEmitterModule.forRoot()],
+  imports: [FingerprintModule, ConfigAppModule, EventEmitterModule.forRoot(), SharedModule],
   controllers: [ShadowController],
   providers: [SecurityMetricsService],
   exports: [SecurityMetricsService],

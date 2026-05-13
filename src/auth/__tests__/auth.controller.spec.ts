@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter';
+import { TypedEvents } from '../../shared/typed-events';
 import type { Request } from 'express';
 import { AuthController } from '../auth.controller';
 import { TokenRevocationService } from '../token-revocation.service';
@@ -44,6 +45,7 @@ describe('AuthController', () => {
           provide: TokenRevocationService,
           useValue: revocationService,
         },
+        TypedEvents,
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -127,9 +129,10 @@ describe('AuthController', () => {
         revoke: jest.fn(),
         getEntry: jest.fn(),
       } as unknown as TokenRevocationService;
-      const events = new EventEmitter2();
+      const bus = new EventEmitter2();
+      const events = new TypedEvents(bus);
       const listener = jest.fn();
-      events.on(AUTH_TOKEN_REVOKED, listener);
+      bus.on(AUTH_TOKEN_REVOKED, listener);
       const localController = new AuthController(localRevocationService, events);
 
       const result = localController.revoke(
@@ -146,9 +149,10 @@ describe('AuthController', () => {
         revoke: jest.fn(),
         getEntry: jest.fn().mockReturnValue({ userId: 'someone-else' }),
       } as unknown as TokenRevocationService;
-      const events = new EventEmitter2();
+      const bus = new EventEmitter2();
+      const events = new TypedEvents(bus);
       const listener = jest.fn();
-      events.on(AUTH_TOKEN_REVOKED, listener);
+      bus.on(AUTH_TOKEN_REVOKED, listener);
       const localController = new AuthController(localRevocationService, events);
 
       expect(() =>

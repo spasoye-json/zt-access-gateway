@@ -9,13 +9,13 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Request } from 'express';
 import { TokenRevocationService } from './token-revocation.service';
 import { RevokeTokenDto } from './dto/revoke-token.dto';
 import { UserClaims } from './interfaces/user-claims.interface';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AUTH_TOKEN_REVOKED } from '../metrics/metrics-events';
+import { TypedEvents } from '../shared/typed-events';
 
 /**
  * Auth controller -- POST /auth/revoke endpoint (TREV-03).
@@ -41,7 +41,7 @@ import { AUTH_TOKEN_REVOKED } from '../metrics/metrics-events';
 export class AuthController {
   constructor(
     private readonly revocationService: TokenRevocationService,
-    private readonly events: EventEmitter2,
+    private readonly events: TypedEvents,
   ) {}
 
   /**

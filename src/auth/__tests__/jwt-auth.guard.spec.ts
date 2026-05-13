@@ -1,6 +1,7 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../../shared/typed-events';
 import { JwtAuthGuard } from '../jwt-auth.guard';
 import { AuthService } from '../auth.service';
 import { TokenRevocationService } from '../token-revocation.service';
@@ -18,7 +19,7 @@ describe('JwtAuthGuard', () => {
   let reflector: Reflector;
   let authService: Partial<AuthService>;
   let revocationService: Partial<TokenRevocationService>;
-  let events: EventEmitter2;
+  let events: TypedEvents;
 
   function createMockExecutionContext(overrides?: {
     authorization?: string;
@@ -94,7 +95,7 @@ describe('JwtAuthGuard', () => {
     revocationService = {
       isRevoked: jest.fn().mockReturnValue(false),
     };
-    events = new EventEmitter2();
+    events = new TypedEvents(new EventEmitter2());
 
     guard = new JwtAuthGuard(
       reflector,
