@@ -14,19 +14,18 @@ import {
 /** Buckets for both stage_duration_seconds and audit_wal_duration_seconds (D-09, D-10). */
 const DURATION_BUCKETS = [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1] as const;
 
-/** Pipeline stage labels for stage_duration_seconds histogram (D-09). */
-export const STAGE_LABELS = [
-  'ja4h',
-  'blacklist',
-  'auth',
-  'revocation',
-  'trust_score',
-  'hashcash',
-  'policy',
-  'mfa', // Phase 10 D-08 — MFA promotion stage between policy and proxy
-  'proxy',
-] as const;
-export type PipelineStage = (typeof STAGE_LABELS)[number];
+/**
+ * Phase D — pipeline stage labels are no longer a TS union. They are owned
+ * by each PipelineStage's `id` field (src/gateway/pipeline/stages/*.stage.ts).
+ * Authoritative current set (13 stages):
+ *   public_bypass, honeypot_bypass, auth, revocation, auth_only,
+ *   trust_score, hashcash, policy, mfa_promotion, audit_allow, proxy,
+ *   bopla_strip, record_trust_context
+ *
+ * `observeStageDuration` runtime-guards the label with /^[a-z_]+$/ so a typo
+ * in a future stage.id cannot pollute the histogram with camelCase labels.
+ */
+const STAGE_ID_PATTERN = /^[a-z_]+$/;
 
 /**
  * Phase 9 — MetricsService (MTRC-01..05, D-01..D-03, D-09, D-10).
@@ -125,7 +124,20 @@ export class MetricsService {
     this.requestsTotal.inc({ decision });
   }
 
-  observeStageDuration(stage: PipelineStage, durationSeconds: number): void {
+  /**
+   * Records a pipeline stage duration. `stage` is the PipelineStage.id from
+   * the registered stage adapter. Labels that don't match /^[a-z_]+$/ are
+   * dropped + logged once, so a typo cannot pollute the histogram with
+   * unbounded high-cardinality labels.
+   */
+  observeStageDuration(stage: string, durationSeconds: number): void {
+    if (!STAGE_ID_PATTERN.test(stage)) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `metrics: dropped stage_duration sample with invalid label "${stage}"`,
+      );
+      return;
+    }
     this.stageDuration.observe({ stage }, durationSeconds);
   }
 

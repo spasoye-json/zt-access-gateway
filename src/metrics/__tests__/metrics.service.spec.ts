@@ -1,4 +1,4 @@
-import { MetricsService, STAGE_LABELS } from '../metrics.service';
+import { MetricsService } from '../metrics.service';
 import { SecurityMetricsService } from '../../honeypot/security-metrics.service';
 import { HashcashMetrics } from '../../hashcash/hashcash-metrics';
 import { PolicyMetrics } from '../../policy/policy-metrics';
@@ -23,18 +23,17 @@ describe('MetricsService', () => {
       expect(text).toContain('zt_gateway_requests_total{decision="deny"} 1');
     });
 
-    it('zt_gateway_stage_duration_seconds histogram has 9 stage labels (MTRC-02 + Phase 10 D-08)', () => {
-      expect(STAGE_LABELS).toEqual([
-        'ja4h',
-        'blacklist',
-        'auth',
-        'revocation',
-        'trust_score',
-        'hashcash',
-        'policy',
-        'mfa',
-        'proxy',
-      ]);
+    it('zt_gateway_stage_duration_seconds histogram accepts arbitrary stage strings (Phase D — STAGE_LABELS union removed)', async () => {
+      const m = makeService();
+      // Stage ids now live on each PipelineStage adapter (src/gateway/pipeline/stages/*.stage.ts).
+      // The metrics service no longer pins a TS union; instead it validates the
+      // label shape with a regex (lowercase + underscore only).
+      for (const id of ['public_bypass', 'mfa_promotion', 'audit_allow', 'record_trust_context']) {
+        expect(() => m.observeStageDuration(id, 0.001)).not.toThrow();
+      }
+      const text = await m.getAggregatedMetrics();
+      expect(text).toContain('stage="public_bypass"');
+      expect(text).toContain('stage="mfa_promotion"');
     });
 
     it('stage_duration_seconds buckets are [0.001..1] per D-09', async () => {
@@ -158,34 +157,17 @@ describe('MetricsService', () => {
     });
   });
 
-  describe('Phase 10 — D-08 mfa stage + promotions counter', () => {
-    it('Test A: STAGE_LABELS has length 9 with mfa at index 7', () => {
-      expect(STAGE_LABELS.length).toBe(9);
-      expect(STAGE_LABELS[7]).toBe('mfa');
-    });
-
-    it('Test B: STAGE_LABELS deep-equals canonical 9-stage list with mfa between policy and proxy', () => {
-      expect(STAGE_LABELS).toEqual([
-        'ja4h',
-        'blacklist',
-        'auth',
-        'revocation',
-        'trust_score',
-        'hashcash',
-        'policy',
-        'mfa',
-        'proxy',
-      ]);
-    });
-
-    it("Test C: observeStageDuration('mfa', 0.005) does not throw and records the bucket", async () => {
+  describe('Phase D — observeStageDuration regex guard + label widening', () => {
+    it('mfa_promotions counter lives on the same private registry as zt_gateway_requests_total', async () => {
       const m = makeService();
-      expect(() => m.observeStageDuration('mfa', 0.005)).not.toThrow();
+      m.incrementRequest('allow');
+      m.incrementMfaPromotion('allow');
       const text = await m.getAggregatedMetrics();
-      expect(text).toMatch(/zt_gateway_stage_duration_seconds_count\{stage="mfa"\} 1/);
+      expect(text).toContain('zt_gateway_requests_total{decision="allow"} 1');
+      expect(text).toContain('zt_gateway_mfa_promotions_total{result="allow"} 1');
     });
 
-    it("Test D: incrementMfaPromotion('allow') and ('reject') exposes correct labelled counters", async () => {
+    it("incrementMfaPromotion('allow') and ('reject') exposes correct labelled counters", async () => {
       const m = makeService();
       m.incrementMfaPromotion('allow');
       m.incrementMfaPromotion('reject');
@@ -195,30 +177,49 @@ describe('MetricsService', () => {
       expect(text).toMatch(/zt_gateway_mfa_promotions_total\{result="reject"\} 2/);
     });
 
-    it('Test E: mfa_promotions counter lives on the same private registry as zt_gateway_requests_total', async () => {
+    it('observeStageDuration accepts all 13 Phase D stage ids', async () => {
       const m = makeService();
-      m.incrementRequest('allow');
-      m.incrementMfaPromotion('allow');
-      const text = await m.getAggregatedMetrics();
-      // Both must appear in the SAME merged blob — confirms shared private registry.
-      expect(text).toContain('zt_gateway_requests_total{decision="allow"} 1');
-      expect(text).toContain('zt_gateway_mfa_promotions_total{result="allow"} 1');
-    });
-
-    it('Test F: observeStageDuration accepts each of the 9 STAGE_LABELS values (regression guard)', async () => {
-      const m = makeService();
-      for (const stage of STAGE_LABELS) {
-        m.observeStageDuration(stage, 0.001);
+      const ids = [
+        'public_bypass',
+        'honeypot_bypass',
+        'auth',
+        'revocation',
+        'auth_only',
+        'trust_score',
+        'hashcash',
+        'policy',
+        'mfa_promotion',
+        'audit_allow',
+        'proxy',
+        'bopla_strip',
+        'record_trust_context',
+      ];
+      for (const id of ids) {
+        m.observeStageDuration(id, 0.001);
       }
       const text = await m.getAggregatedMetrics();
-      const countLines =
-        text.match(/zt_gateway_stage_duration_seconds_count\{stage="[^"]+"\} \d+/g) ?? [];
-      expect(countLines.length).toBe(9);
-      // Each canonical label must produce its own _count line.
-      for (const stage of STAGE_LABELS) {
+      for (const id of ids) {
         expect(text).toMatch(
-          new RegExp(`zt_gateway_stage_duration_seconds_count\\{stage="${stage}"\\} 1`),
+          new RegExp(`zt_gateway_stage_duration_seconds_count\\{stage="${id}"\\} 1`),
         );
+      }
+    });
+
+    it('observeStageDuration drops labels that do not match /^[a-z_]+$/', async () => {
+      const m = makeService();
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      try {
+        m.observeStageDuration('camelCase', 0.001);
+        m.observeStageDuration('with-dash', 0.001);
+        m.observeStageDuration('UPPER', 0.001);
+        m.observeStageDuration('with space', 0.001);
+        const text = await m.getAggregatedMetrics();
+        expect(text).not.toContain('stage="camelCase"');
+        expect(text).not.toContain('stage="with-dash"');
+        expect(text).not.toContain('stage="UPPER"');
+        expect(warn).toHaveBeenCalled();
+      } finally {
+        warn.mockRestore();
       }
     });
   });
