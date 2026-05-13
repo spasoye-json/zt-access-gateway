@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./",
+    "noEmit": false,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["microservices/**/*.ts"],
+  "exclude": ["**/*.spec.ts", "**/__tests__/**", "node_modules", "dist"]
+}
