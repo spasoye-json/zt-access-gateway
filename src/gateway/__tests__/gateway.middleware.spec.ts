@@ -140,6 +140,8 @@ function build(m: Mocks): GatewayMiddleware {
   const { HashcashStage } = require('../pipeline/stages/hashcash.stage');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { PolicyStage } = require('../pipeline/stages/policy.stage');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { MfaPromotionStage } = require('../pipeline/stages/mfa-promotion.stage');
   return new GatewayMiddleware(
     m.auth,
     m.revocation,
@@ -161,6 +163,7 @@ function build(m: Mocks): GatewayMiddleware {
     new TrustScoreStage(m.trustScore),
     new HashcashStage(m.hashcash, m.cfg),
     new PolicyStage(m.policy),
+    new MfaPromotionStage(m.mfa, m.audit, m.metrics),
   );
 }
 

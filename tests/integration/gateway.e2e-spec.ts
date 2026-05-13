@@ -272,8 +272,11 @@ describe('Phase 10 — Gateway Integration e2e (GTWY-01..09)', () => {
       expect(stages.filter((s) => s === 'trust_score')).toHaveLength(1);
       // auth observed exactly once on success
       expect(stages.filter((s) => s === 'auth')).toHaveLength(1);
-      // mfa absent on direct ALLOW
-      expect(stages).not.toContain('mfa');
+      // Phase D: the consolidated MfaPromotionStage records its duration on
+      // every invocation (including ALLOW where it just returns continue).
+      // The orchestrator-uniform timing rule replaces the inline conditional
+      // observe('mfa') that only fired on CHALLENGE.
+      expect(stages.filter((s) => s === 'mfa')).toHaveLength(1);
     });
 
     it('audit-before-proxy invocation order (D-09 / GTWY-07)', async () => {

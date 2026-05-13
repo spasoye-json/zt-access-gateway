@@ -15,7 +15,7 @@ import { TrustScoreService } from '../trust-score/trust-score.service';
 import { HashcashService } from '../hashcash/hashcash.service';
 import { PolicyEvaluatorService } from '../policy/policy-evaluator.service';
 import { AUDIT_SIGNAL } from '../policy/policy-events';
-import { MfaChallenger, type MfaCreateResult } from '../mfa/mfa-challenger.service';
+import { MfaChallenger } from '../mfa/mfa-challenger.service';
 import { ProxyService } from '../proxy/proxy.service';
 import { BoPlaInterceptor } from '../proxy/bopla.interceptor';
 import { AuditService } from '../audit/audit.service';
@@ -23,7 +23,6 @@ import { AuditExhaustedException } from '../audit/audit-exhausted.exception';
 import { MetricsService, type PipelineStage } from '../metrics/metrics.service';
 import { HASHCASH_CONFIG, type HashcashConfig } from '../config/slices';
 import { extractIp } from '../shared/request-context.util';
-import { sleep } from '../shared/sleep.util';
 import { PUBLIC_PATHS } from './public-paths';
 import { HONEYPOT_PATHS } from '../honeypot/honeypot.constants';
 import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
@@ -34,6 +33,7 @@ import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcirc
 import { TrustScoreStage } from './pipeline/stages/trust-score.stage';
 import { HashcashStage } from './pipeline/stages/hashcash.stage';
 import { PolicyStage } from './pipeline/stages/policy.stage';
+import { MfaPromotionStage } from './pipeline/stages/mfa-promotion.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
 import type { AuditEntry } from '../audit/audit-entry.interface';
@@ -75,6 +75,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly trustScoreStage: TrustScoreStage,
     private readonly hashcashStage: HashcashStage,
     private readonly policyStage: PolicyStage,
+    private readonly mfaPromotionStage: MfaPromotionStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -120,21 +121,6 @@ export class GatewayMiddleware implements NestMiddleware {
     // in the body of `use()` where it is locally auditable.
     const observe = (stage: PipelineStage, seconds: number): void =>
       this.metrics.observeStageDuration(stage, seconds);
-
-    // D-11 — best-effort audit with 200ms cap; on timeout: incrementAuditFailure + warn log
-    const TIMEOUT = Symbol('audit_timeout');
-    const recordWithTimeout = async (entry: AuditEntry): Promise<void> => {
-      const result = await Promise.race<typeof TIMEOUT | 'OK'>([
-        this.audit.log(entry).then(() => 'OK' as const),
-        sleep(200).then(() => TIMEOUT),
-      ]);
-      if (result === TIMEOUT) {
-        this.metrics.incrementAuditFailure();
-        this.logger.warn(
-          `audit_timeout requestId=${entry.requestId ?? '?'} decision=${entry.decision}`,
-        );
-      }
-    };
 
     let claims: UserClaims | undefined;
     let trustScoreValue: number | undefined;
@@ -192,62 +178,18 @@ export class GatewayMiddleware implements NestMiddleware {
       t0 = Date.now();
       await this.policyStage.run(stageCtx);
       observe('policy', (Date.now() - t0) / 1000);
-      const decision = stageCtx.policyDecision!;
 
-      // ── Step 9b: MFA promotion (D-07) ──────────────────────────────
-      if (decision.decision === 'CHALLENGE') {
-        t0 = Date.now();
-        const mfaToken = req.headers['x-mfa-token'] as string | undefined;
-        let promoted = false;
-        if (mfaToken) {
-          const r = await this.mfa.validateMfaToken(
-            mfaToken,
-            claims.userId,
-            claims.deviceId || '',
-            extractIp(req),
-            ja4h,
-          );
-          if (r.ok) {
-            this.metrics.incrementMfaPromotion('allow');
-            observe('mfa', (Date.now() - t0) / 1000);
-            promoted = true;
+      // ── Step 9b: MFA promotion (Phase D — extracted to MfaPromotionStage) ──
+      t0 = Date.now();
+      const mfaOutcome = await this.mfaPromotionStage.run(stageCtx);
+      observe('mfa', (Date.now() - t0) / 1000);
+      if (mfaOutcome.kind === 'short-circuit') {
+        if (mfaOutcome.headers) {
+          for (const [k, v] of Object.entries(mfaOutcome.headers)) {
+            res.set(k, v);
           }
         }
-        if (!promoted) {
-          this.metrics.incrementMfaPromotion('reject');
-          observe('mfa', (Date.now() - t0) / 1000);
-          await recordWithTimeout({
-            userId: claims.userId,
-            resource: reqPath,
-            action: req.method,
-            decision: 'challenge',
-            trustScore: trustScoreValue,
-            ja4hFingerprint: ja4h,
-            ipAddress: extractIp(req),
-            requestId,
-          });
-          this.metrics.incrementRequest('challenge');
-          const ch = await this.mfa.createChallenge(claims.userId, extractIp(req), ja4h);
-          this.buildMfaChallengeResponse(res, ch, requestId);
-          return;
-        }
-      } else if (decision.decision === 'DENY') {
-        await recordWithTimeout({
-          userId: claims.userId,
-          resource: reqPath,
-          action: req.method,
-          decision: 'deny',
-          trustScore: trustScoreValue,
-          ja4hFingerprint: ja4h,
-          ipAddress: extractIp(req),
-          requestId,
-        });
-        this.metrics.incrementRequest('deny');
-        res.status(403).json({
-          error: 'policy_denied',
-          reason: decision.reason,
-          requestId,
-        });
+        res.status(mfaOutcome.status).json(mfaOutcome.body);
         return;
       }
 
@@ -310,23 +252,4 @@ export class GatewayMiddleware implements NestMiddleware {
     }
   }
 
-  private buildMfaChallengeResponse(res: Response, ch: MfaCreateResult, requestId: string): void {
-    if (ch.ok === false) {
-      const reason = ch.reason;
-      const status = reason === 'rate_limited' ? 429 : 503;
-      res.status(status).json({ error: `mfa_${reason}`, requestId });
-      return;
-    }
-    res
-      .status(401)
-      .set('WWW-Authenticate', `MFA realm="gateway", challengeId="${ch.challengeId}"`)
-      .set('X-MFA-Challenge', ch.challengeId)
-      .json({
-        error: 'mfa_required',
-        challengeId: ch.challengeId,
-        verifyEndpoint: '/mfa/verify',
-        expiresAt: new Date(ch.expiresAt).toISOString(),
-        requestId,
-      });
-  }
 }
