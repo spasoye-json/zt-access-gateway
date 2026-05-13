@@ -1,28 +1,19 @@
-import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
-import { Pool } from 'pg';
-import { SERVER_CONFIG, type ServerConfig } from '../../config/slices';
+import { Inject, Injectable } from '@nestjs/common';
+import { DB, type Db } from '../../db/db.port';
 
 @Injectable()
-export class MfaChallengeRepository implements OnModuleDestroy {
-  private readonly pool: Pool;
-
-  constructor(@Inject(SERVER_CONFIG) private readonly config: ServerConfig) {
-    this.pool = new Pool({ connectionString: this.config.databaseUrl, max: 5 });
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.pool.end();
-  }
+export class MfaChallengeRepository {
+  constructor(@Inject(DB) private readonly db: Db) {}
 
   async insertChallenge(challengeId: string, userId: string, expiresAt: Date): Promise<void> {
-    await this.pool.query(
+    await this.db.query(
       `INSERT INTO mfa_challenges (challenge_id, user_id, expires_at) VALUES ($1, $2, $3)`,
       [challengeId, userId, expiresAt],
     );
   }
 
   async getChallenge(challengeId: string): Promise<{ userId: string; expiresAt: Date } | null> {
-    const r = await this.pool.query<{ user_id: string; expires_at: Date }>(
+    const r = await this.db.query<{ user_id: string; expires_at: Date }>(
       `SELECT user_id, expires_at FROM mfa_challenges WHERE challenge_id = $1`,
       [challengeId],
     );
@@ -51,6 +42,9 @@ export class MfaChallengeRepository implements OnModuleDestroy {
    * transaction-scoped advisory lock keyed on hashtext(userId). This
    * serialises concurrent callers operating on the SAME userId without
    * blocking unrelated users, and releases automatically on COMMIT/ROLLBACK.
+   *
+   * Phase B2: BEGIN/COMMIT/ROLLBACK + release are now owned by `db.tx` —
+   * the lock + conditional INSERT still execute on the same PoolClient.
    */
   async insertChallengeIfUnderLimit(
     challengeId: string,
@@ -59,9 +53,7 @@ export class MfaChallengeRepository implements OnModuleDestroy {
     windowMs: number,
     maxCount: number,
   ): Promise<boolean> {
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
+    return this.db.tx(async (client) => {
       // hashtext(text) -> int4 — perfect for pg_advisory_xact_lock(int) and
       // partitioning concurrency by userId only.
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [userId]);
@@ -76,13 +68,7 @@ export class MfaChallengeRepository implements OnModuleDestroy {
          ) < $5`,
         [challengeId, userId, expiresAt, windowMs, maxCount],
       );
-      await client.query('COMMIT');
       return (r.rowCount ?? 0) > 0;
-    } catch (e) {
-      await client.query('ROLLBACK').catch(() => {});
-      throw e;
-    } finally {
-      client.release();
-    }
+    });
   }
 }

@@ -1,24 +1,31 @@
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
 import { MfaChallengeRepository } from '../repositories/mfa-challenge.repository';
+import { DbService } from '../../db/db.service';
 import type { ServerConfig } from '../../config/slices';
 
 const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 const TEST_UID = 'test-mfa-challenge-repo-user';
 
+function buildDbService(max = 5): DbService {
+  return new DbService({
+    databaseUrl: process.env.DATABASE_URL,
+    dbPoolMax: max,
+  } as unknown as ServerConfig);
+}
+
 describeDb('MfaChallengeRepository', () => {
+  let dbService: DbService;
   let pool: Pool;
   let repo: MfaChallengeRepository;
 
   beforeAll(() => {
-    pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
-    repo = new MfaChallengeRepository({
-      databaseUrl: process.env.DATABASE_URL,
-    } as unknown as ServerConfig);
+    dbService = buildDbService(5);
+    pool = dbService.unsafePool();
+    repo = new MfaChallengeRepository(dbService);
   });
 
   afterAll(async () => {
-    await repo.onModuleDestroy();
-    await pool.end();
+    await dbService.onModuleDestroy();
   });
 
   afterEach(async () => {
@@ -104,25 +111,24 @@ describeDb('MfaChallengeRepository', () => {
   });
 
   // WR-NEW-02 (phase 14, iter2): the prior race spec routed every worker
-  // through a single shared pg.Pool (max:5). Driver-level connection multiplexing
-  // can serialise the INSERTs enough that the racy SQL passes coincidentally.
-  // This spec gives each worker its OWN MfaChallengeRepository (hence its own
-  // pool / connection) so concurrent INSERTs actually run on independent
-  // Postgres backends. Without pg_advisory_xact_lock the count + insert TOCTOU
-  // reopens and successes overshoot maxCount.
+  // through a single shared pg.Pool (max:5). Driver-level connection
+  // multiplexing can serialise the INSERTs enough that the racy SQL passes
+  // coincidentally. This spec gives each worker its OWN DbService (hence its
+  // own pool / connection) so concurrent INSERTs actually run on independent
+  // Postgres backends. Without pg_advisory_xact_lock the count + insert
+  // TOCTOU reopens and successes overshoot maxCount.
   it('WR-NEW-02: concurrent inserts from INDEPENDENT connections still cap at maxCount', async () => {
     const TEST_UID_RACE = 'test-mfa-race-independent';
     await pool.query(`DELETE FROM mfa_challenges WHERE user_id = $1`, [TEST_UID_RACE]);
 
     const WORKERS = 12;
     const MAX = 3;
+    const workerDbs: DbService[] = [];
     const workerRepos: MfaChallengeRepository[] = [];
     for (let i = 0; i < WORKERS; i++) {
-      workerRepos.push(
-        new MfaChallengeRepository({
-          databaseUrl: process.env.DATABASE_URL,
-        } as unknown as ServerConfig),
-      );
+      const wdb = buildDbService(1);
+      workerDbs.push(wdb);
+      workerRepos.push(new MfaChallengeRepository(wdb));
     }
 
     try {
@@ -148,7 +154,7 @@ describeDb('MfaChallengeRepository', () => {
       );
       expect(r.rows[0]?.c).toBe(MAX);
     } finally {
-      await Promise.all(workerRepos.map((r) => r.onModuleDestroy()));
+      await Promise.all(workerDbs.map((d) => d.onModuleDestroy()));
       await pool.query(`DELETE FROM mfa_challenges WHERE user_id = $1`, [TEST_UID_RACE]);
     }
   });
