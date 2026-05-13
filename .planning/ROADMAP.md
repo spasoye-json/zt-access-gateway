@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 15: v1.0 Docs & Traceability Closure** - Backfill 03-VERIFICATION.md and reconcile REQUIREMENTS.md trace table + upper checklist drift (52 stale Pending entries; ROADMAP previously said 41) (completed 2026-05-12)
 - [x] **Phase 16: v1.0 Legacy Harness & Lint Repairs** - Restore `npm run lint` (typescript-eslint meta-package) and align legacy `test/jest-e2e.json` bootstrap.e2e-spec.ts unknown-route assertion with current 401 behaviour (completed 2026-05-12)
 - [x] **Phase 17: v1.0 Nyquist Sign-Off Sweep** - Promote 7 partial + 1 missing VALIDATION.md to nyquist_compliant=true via `/gsd-validate-phase` per phase (1, 7, 8, 10, 11, 12, 13) + promote phase 9 draft → finalized (completed 2026-05-12)
-- [ ] **Phase 18: v1.0 Nyquist Process Closure** - Close 3 net-new Nyquist process gaps from v1.0 re-audit (2026-05-12T21:09:45Z): author 15-VALIDATION.md (doc-only phase), promote 16-VALIDATION.md draft → finalized, author 17-VALIDATION.md self-attesting the Nyquist sweep phase
+- [x] **Phase 18: v1.0 Nyquist Process Closure** - Close 3 net-new Nyquist process gaps from v1.0 re-audit (2026-05-12T21:09:45Z): author 15-VALIDATION.md (doc-only phase), promote 16-VALIDATION.md draft → finalized, author 17-VALIDATION.md self-attesting the Nyquist sweep phase (completed 2026-05-13; v1.0-MILESTONE-AUDIT.md overall: compliant 17/17)
 
 ## Phase Details
 
@@ -374,6 +374,6 @@ Plans:
   4. `.planning/v1.0-MILESTONE-AUDIT.md` re-run shows `nyquist: compliant_phases: 17, partial_phases: 0, missing_phases: 0, overall: compliant`
   5. Each VALIDATION.md change committed atomically (`chore(nyquist): finalize phase {N} validation`) to preserve audit trail
 **Plans:**
-1/3 plans executed
-- [ ] 18-02-PLAN.md — Promote 16-VALIDATION.md draft → finalized + nyquist_compliant: true (D-04 pattern)
-- [ ] 18-03-PLAN.md — Author 17-VALIDATION.md self-attesting Nyquist sweep + re-run milestone audit
+3/3 plans executed
+- [x] 18-02-PLAN.md — Promote 16-VALIDATION.md draft → finalized + nyquist_compliant: true (D-04 pattern)
+- [x] 18-03-PLAN.md — Author 17-VALIDATION.md self-attesting Nyquist sweep + re-run milestone audit
