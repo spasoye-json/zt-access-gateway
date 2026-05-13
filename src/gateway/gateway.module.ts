@@ -20,6 +20,7 @@ import { TrustScoreStage } from './pipeline/stages/trust-score.stage';
 import { HashcashStage } from './pipeline/stages/hashcash.stage';
 import { PolicyStage } from './pipeline/stages/policy.stage';
 import { MfaPromotionStage } from './pipeline/stages/mfa-promotion.stage';
+import { AuditAllowStage } from './pipeline/stages/audit-allow.stage';
 
 /**
  * Phase 10 — GatewayModule wires the 9 prerequisite modules so that
@@ -61,6 +62,7 @@ import { MfaPromotionStage } from './pipeline/stages/mfa-promotion.stage';
     HashcashStage,
     PolicyStage,
     MfaPromotionStage,
+    AuditAllowStage,
   ],
   exports: [
     GatewayMiddleware,
@@ -73,6 +75,7 @@ import { MfaPromotionStage } from './pipeline/stages/mfa-promotion.stage';
     HashcashStage,
     PolicyStage,
     MfaPromotionStage,
+    AuditAllowStage,
   ],
 })
 export class GatewayModule {}

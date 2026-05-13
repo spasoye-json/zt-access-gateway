@@ -5,8 +5,7 @@ import { MfaChallenger, type MfaCreateResult } from '../../../mfa/mfa-challenger
 import { AuditService } from '../../../audit/audit.service';
 import { MetricsService } from '../../../metrics/metrics.service';
 import { extractIp } from '../../../shared/request-context.util';
-import { sleep } from '../../../shared/sleep.util';
-import type { AuditEntry } from '../../../audit/audit-entry.interface';
+import { recordWithTimeoutBestEffort } from '../record-with-timeout.util';
 
 /**
  * Phase D Stage 9 — MFA promotion / policy DENY response (D-07).
@@ -26,7 +25,6 @@ import type { AuditEntry } from '../../../audit/audit-entry.interface';
 export class MfaPromotionStage implements PipelineStage {
   readonly id = 'mfa_promotion';
   private readonly logger = new Logger(MfaPromotionStage.name);
-  private readonly TIMEOUT = Symbol('audit_timeout');
 
   constructor(
     private readonly mfa: MfaChallenger,
@@ -48,7 +46,7 @@ export class MfaPromotionStage implements PipelineStage {
     }
 
     if (decision.decision === 'DENY') {
-      await this.recordWithTimeout({
+      await recordWithTimeoutBestEffort(this.audit, this.metrics, this.logger, {
         userId: claims.userId,
         resource: ctx.reqPath,
         action: ctx.req.method,
@@ -86,7 +84,7 @@ export class MfaPromotionStage implements PipelineStage {
       }
     }
     this.metrics.incrementMfaPromotion('reject');
-    await this.recordWithTimeout({
+    await recordWithTimeoutBestEffort(this.audit, this.metrics, this.logger, {
       userId: claims.userId,
       resource: ctx.reqPath,
       action: ctx.req.method,
@@ -135,16 +133,4 @@ export class MfaPromotionStage implements PipelineStage {
     };
   }
 
-  private async recordWithTimeout(entry: AuditEntry): Promise<void> {
-    const result = await Promise.race<typeof this.TIMEOUT | 'OK'>([
-      this.audit.log(entry).then(() => 'OK' as const),
-      sleep(200).then(() => this.TIMEOUT),
-    ]);
-    if (result === this.TIMEOUT) {
-      this.metrics.incrementAuditFailure();
-      this.logger.warn(
-        `audit_timeout requestId=${entry.requestId ?? '?'} decision=${entry.decision}`,
-      );
-    }
-  }
 }

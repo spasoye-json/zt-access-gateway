@@ -34,9 +34,9 @@ import { TrustScoreStage } from './pipeline/stages/trust-score.stage';
 import { HashcashStage } from './pipeline/stages/hashcash.stage';
 import { PolicyStage } from './pipeline/stages/policy.stage';
 import { MfaPromotionStage } from './pipeline/stages/mfa-promotion.stage';
+import { AuditAllowStage } from './pipeline/stages/audit-allow.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
-import type { AuditEntry } from '../audit/audit-entry.interface';
 
 /**
  * Phase 10 — GatewayMiddleware (D-01..D-16, GTWY-01..09).
@@ -76,6 +76,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly hashcashStage: HashcashStage,
     private readonly policyStage: PolicyStage,
     private readonly mfaPromotionStage: MfaPromotionStage,
+    private readonly auditAllowStage: AuditAllowStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -193,20 +194,10 @@ export class GatewayMiddleware implements NestMiddleware {
         return;
       }
 
-      // ── Step 10: ALLOW path (D-09 audit BEFORE proxy) ──────────────
-      const allowEntry: AuditEntry = {
-        userId: claims.userId,
-        resource: reqPath,
-        action: req.method,
-        decision: 'allow',
-        trustScore: trustScoreValue,
-        ja4hFingerprint: ja4h,
-        ipAddress: extractIp(req),
-        requestId,
-      };
-      const walT0 = Date.now();
-      await this.audit.log(allowEntry); // throws AuditExhaustedException on ALLOW
-      this.metrics.observeAuditWalDuration((Date.now() - walT0) / 1000);
+      // ── Step 10: ALLOW path (Phase D — extracted to AuditAllowStage) ──
+      t0 = Date.now();
+      await this.auditAllowStage.run(stageCtx); // throws AuditExhaustedException on WAL exhaustion
+      observe('audit_allow' as PipelineStage, (Date.now() - t0) / 1000);
 
       t0 = Date.now();
       const upstreamRes = await this.proxy.forward(req, claims, trustScoreValue);
