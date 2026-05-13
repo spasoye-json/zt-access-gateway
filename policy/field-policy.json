@@ -5,7 +5,7 @@
   },
   "/orders/**": {
     "admin": ["*"],
-    "user": ["id", "status", "total"]
+    "user": ["id", "status", "total", "amount", "currency"]
   },
   "/billing/**": {
     "admin": ["*"]
