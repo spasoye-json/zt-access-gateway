@@ -1,5 +1,5 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
-import { AppConfigService } from '../config/config.service';
+import { Inject, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { PROXY_CONFIG, type ProxyConfig } from '../config/slices';
 
 @Injectable()
 export class ServiceRegistryService implements OnModuleInit {
@@ -12,11 +12,11 @@ export class ServiceRegistryService implements OnModuleInit {
    */
   private registry: Map<string, string> = new Map();
 
-  constructor(private readonly cfg: AppConfigService) {
+  constructor(@Inject(PROXY_CONFIG) private readonly cfg: ProxyConfig) {
     // Best-effort parse in constructor — validation with user-facing errors in onModuleInit.
     // This ensures the Map is always initialized before any hook reads it.
     try {
-      const parsed = JSON.parse(this.cfg.proxyServiceRegistry) as Record<string, string>;
+      const parsed = JSON.parse(this.cfg.serviceRegistry) as Record<string, string>;
       if (parsed && typeof parsed === 'object') {
         this.registry = new Map(Object.entries(parsed));
       }
@@ -31,7 +31,7 @@ export class ServiceRegistryService implements OnModuleInit {
     // require-await; spec contract is unchanged — callers still `await onModuleInit()`.
     let parsed: Record<string, string>;
     try {
-      parsed = JSON.parse(this.cfg.proxyServiceRegistry) as Record<string, string>;
+      parsed = JSON.parse(this.cfg.serviceRegistry) as Record<string, string>;
     } catch (err) {
       return Promise.reject(
         new Error(`PROXY_SERVICE_REGISTRY is not valid JSON: ${(err as Error).message}`),

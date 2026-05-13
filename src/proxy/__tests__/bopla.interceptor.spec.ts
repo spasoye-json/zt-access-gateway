@@ -12,7 +12,7 @@ const fs = require('node:fs') as { promises: { readFile: jest.Mock } };
 
 // Import after mocking
 import { BoPlaInterceptor } from '../bopla.interceptor';
-import { AppConfigService } from '../../config/config.service';
+import type { ProxyConfig } from '../../config/slices';
 import type { FieldPolicy } from '../interfaces/field-policy.interface';
 
 /** Starter policy matching policy/field-policy.json from plan 08-00. */
@@ -25,7 +25,7 @@ const STARTER_POLICY: FieldPolicy = {
 function makeInterceptor(policy: FieldPolicy = STARTER_POLICY): BoPlaInterceptor {
   const cfg = {
     boplaPolicyPath: 'policy/field-policy.json',
-  } as unknown as AppConfigService;
+  } as unknown as ProxyConfig;
   const interceptor = new BoPlaInterceptor(cfg);
   // Inject policy directly to bypass file I/O for strip() tests
   (interceptor as unknown as Record<string, unknown>)['fieldPolicy'] = policy;
@@ -35,7 +35,7 @@ function makeInterceptor(policy: FieldPolicy = STARTER_POLICY): BoPlaInterceptor
 describe('BoPlaInterceptor', () => {
   describe('onModuleInit (BOPL-02)', () => {
     it('reads field-policy.json from boplaPolicyPath at init', async () => {
-      const cfg = { boplaPolicyPath: 'policy/field-policy.json' } as unknown as AppConfigService;
+      const cfg = { boplaPolicyPath: 'policy/field-policy.json' } as unknown as ProxyConfig;
       const interceptor = new BoPlaInterceptor(cfg);
       fs.promises.readFile.mockResolvedValueOnce(JSON.stringify(STARTER_POLICY));
       await interceptor.onModuleInit();
@@ -43,7 +43,7 @@ describe('BoPlaInterceptor', () => {
     });
 
     it('parses JSON into typed FieldPolicy structure', async () => {
-      const cfg = { boplaPolicyPath: 'policy/field-policy.json' } as unknown as AppConfigService;
+      const cfg = { boplaPolicyPath: 'policy/field-policy.json' } as unknown as ProxyConfig;
       const interceptor = new BoPlaInterceptor(cfg);
       fs.promises.readFile.mockResolvedValueOnce(JSON.stringify(STARTER_POLICY));
       await interceptor.onModuleInit();
@@ -55,7 +55,7 @@ describe('BoPlaInterceptor', () => {
     });
 
     it('throws on missing file (fail-fast at startup)', async () => {
-      const cfg = { boplaPolicyPath: 'policy/field-policy.json' } as unknown as AppConfigService;
+      const cfg = { boplaPolicyPath: 'policy/field-policy.json' } as unknown as ProxyConfig;
       const interceptor = new BoPlaInterceptor(cfg);
       const enoent = Object.assign(new Error('ENOENT: no such file'), { code: 'ENOENT' });
       fs.promises.readFile.mockRejectedValueOnce(enoent);
@@ -63,7 +63,7 @@ describe('BoPlaInterceptor', () => {
     });
 
     it('throws on malformed JSON', async () => {
-      const cfg = { boplaPolicyPath: 'policy/field-policy.json' } as unknown as AppConfigService;
+      const cfg = { boplaPolicyPath: 'policy/field-policy.json' } as unknown as ProxyConfig;
       const interceptor = new BoPlaInterceptor(cfg);
       fs.promises.readFile.mockResolvedValueOnce('{not valid json}');
       await expect(interceptor.onModuleInit()).rejects.toThrow(/JSON/i);

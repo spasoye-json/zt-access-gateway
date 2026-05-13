@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -14,7 +15,7 @@ import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import CircuitBreaker = require('opossum');
 import type { Request } from 'express';
-import { AppConfigService } from '../config/config.service';
+import { PROXY_CONFIG, type ProxyConfig } from '../config/slices';
 import { MtlsService } from '../shared/mtls.service';
 import { sleep } from '../shared/sleep.util';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
@@ -47,7 +48,7 @@ export class ProxyService implements OnModuleInit {
   >();
 
   constructor(
-    private readonly cfg: AppConfigService,
+    @Inject(PROXY_CONFIG) private readonly cfg: ProxyConfig,
     private readonly registry: ServiceRegistryService,
     private readonly dnsGuard: DnsRebindingGuard,
     private readonly mtls: MtlsService,
@@ -59,9 +60,9 @@ export class ProxyService implements OnModuleInit {
       const breaker = new CircuitBreaker(
         (config: AxiosRequestConfig) => this.executeWithRetry(config),
         {
-          volumeThreshold: this.cfg.proxyCbVolumeThreshold,
-          errorThresholdPercentage: this.cfg.proxyCbErrorThreshold,
-          resetTimeout: this.cfg.proxyCbResetTimeout,
+          volumeThreshold: this.cfg.cbVolumeThreshold,
+          errorThresholdPercentage: this.cfg.cbErrorThreshold,
+          resetTimeout: this.cfg.cbResetTimeout,
           name: serviceName,
         },
       );
@@ -135,7 +136,7 @@ export class ProxyService implements OnModuleInit {
    * retry would prematurely trip the breaker.
    */
   private async executeWithRetry(config: AxiosRequestConfig): Promise<AxiosResponse> {
-    const maxRetries = this.cfg.proxyMaxRetries; // default 3
+    const maxRetries = this.cfg.maxRetries; // default 3
     let lastErr: unknown;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {

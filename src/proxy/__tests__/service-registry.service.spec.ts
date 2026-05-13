@@ -3,13 +3,13 @@
  * Covers: PRXY-03 (registry allowlist), PRXY-06 (unknown service rejected before I/O), D-04 (path-prefix routing).
  */
 import { NotFoundException } from '@nestjs/common';
-import { AppConfigService } from '../../config/config.service';
+import type { ProxyConfig } from '../../config/slices';
 import { ServiceRegistryService } from '../service-registry.service';
 
 function makeService(registryJson: string): ServiceRegistryService {
   const cfg = {
-    proxyServiceRegistry: registryJson,
-  } as unknown as AppConfigService;
+    serviceRegistry: registryJson,
+  } as unknown as ProxyConfig;
   return new ServiceRegistryService(cfg);
 }
 

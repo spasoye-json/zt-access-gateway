@@ -1,7 +1,7 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as fs from 'node:fs';
 import * as micromatch from 'micromatch';
-import { AppConfigService } from '../config/config.service';
+import { PROXY_CONFIG, type ProxyConfig } from '../config/slices';
 import type { FieldPolicy } from './interfaces/field-policy.interface';
 
 /** Wildcard role token meaning "all fields pass through". (D-06) */
@@ -12,7 +12,7 @@ export class BoPlaInterceptor implements OnModuleInit {
   private readonly logger = new Logger(BoPlaInterceptor.name);
   private fieldPolicy!: FieldPolicy;
 
-  constructor(private readonly cfg: AppConfigService) {}
+  constructor(@Inject(PROXY_CONFIG) private readonly cfg: ProxyConfig) {}
 
   async onModuleInit(): Promise<void> {
     const path = this.cfg.boplaPolicyPath;

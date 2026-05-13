@@ -22,7 +22,7 @@ import { ProxyService } from '../proxy.service';
 import { ServiceRegistryService } from '../service-registry.service';
 import { DnsRebindingGuard } from '../dns-rebinding.guard';
 import type { UserClaims } from '../../auth/interfaces/user-claims.interface';
-import type { AppConfigService } from '../../config/config.service';
+import type { ProxyConfig } from '../../config/slices';
 import type { MtlsService } from '../../shared/mtls.service';
 
 const axiosMock = axios as unknown as jest.Mock;
@@ -66,15 +66,15 @@ function makeMtlsMock(): jest.Mocked<MtlsService> {
   } as unknown as jest.Mocked<MtlsService>;
 }
 
-function makeCfgMock(overrides?: Partial<AppConfigService>): jest.Mocked<AppConfigService> {
+function makeCfgMock(overrides?: Partial<ProxyConfig>): jest.Mocked<ProxyConfig> {
   return {
-    proxyServiceRegistry: '{"users":"https://users.internal","orders":"https://orders.internal"}',
-    proxyCbVolumeThreshold: 10,
-    proxyCbErrorThreshold: 50,
-    proxyCbResetTimeout: 10000,
-    proxyMaxRetries: 3,
+    serviceRegistry: '{"users":"https://users.internal","orders":"https://orders.internal"}',
+    cbVolumeThreshold: 10,
+    cbErrorThreshold: 50,
+    cbResetTimeout: 10000,
+    maxRetries: 3,
     ...overrides,
-  } as unknown as jest.Mocked<AppConfigService>;
+  } as unknown as jest.Mocked<ProxyConfig>;
 }
 
 function makeClaims(overrides?: Partial<UserClaims>): UserClaims {
@@ -122,7 +122,7 @@ describe('ProxyService', () => {
   let registry: jest.Mocked<ServiceRegistryService>;
   let dnsGuard: jest.Mocked<DnsRebindingGuard>;
   let mtls: jest.Mocked<MtlsService>;
-  let cfg: jest.Mocked<AppConfigService>;
+  let cfg: jest.Mocked<ProxyConfig>;
   let service: ProxyService;
 
   beforeEach(async () => {
@@ -339,10 +339,10 @@ describe('ProxyService', () => {
     it('OPEN state → throws ServiceUnavailableException without calling axios', async () => {
       // Use a fast-tripping breaker: low thresholds
       const fastCfg = makeCfgMock({
-        proxyCbVolumeThreshold: 1,
-        proxyCbErrorThreshold: 1,
-        proxyCbResetTimeout: 5000,
-        proxyMaxRetries: 0,
+        cbVolumeThreshold: 1,
+        cbErrorThreshold: 1,
+        cbResetTimeout: 5000,
+        maxRetries: 0,
       });
       const svc = new ProxyService(fastCfg, registry, dnsGuard, mtls);
       await svc.onModuleInit();
@@ -362,10 +362,10 @@ describe('ProxyService', () => {
 
     it('per-service breakers are isolated — service-A failure does not trip service-B', async () => {
       const fastCfg = makeCfgMock({
-        proxyCbVolumeThreshold: 1,
-        proxyCbErrorThreshold: 1,
-        proxyCbResetTimeout: 5000,
-        proxyMaxRetries: 0,
+        cbVolumeThreshold: 1,
+        cbErrorThreshold: 1,
+        cbResetTimeout: 5000,
+        maxRetries: 0,
       });
       const localRegistry = makeRegistryMock(['svcA', 'svcB']);
       const svc = new ProxyService(fastCfg, localRegistry, dnsGuard, mtls);
