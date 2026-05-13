@@ -1,9 +1,15 @@
+import chalk from 'chalk';
+import { Logger } from '@nestjs/common';
 import { GatewayMiddleware } from '../gateway.middleware';
 import { AuditExhaustedException } from '../../audit/audit-exhausted.exception';
 import { AUDIT_SIGNAL } from '../../policy/policy-events';
 import type { PipelineOrchestrator } from '../pipeline/orchestrator';
 import type { TypedEvents } from '../../shared/typed-events';
 import type { MetricsService } from '../../metrics/metrics.service';
+
+beforeAll(() => {
+  chalk.level = 1;
+});
 
 /**
  * Phase D — GatewayMiddleware unit spec rewritten around the orchestrator.
@@ -26,9 +32,14 @@ function makeRes(): {
 } {
   const json = jest.fn();
   const set = jest.fn();
-  const status = jest.fn().mockImplementation(() => ({ json, set }));
+  const obj: { statusCode?: number } = {};
+  const status = jest.fn().mockImplementation((code: number) => {
+    obj.statusCode = code;
+    return { json, set };
+  });
   set.mockImplementation(() => ({ status, json }));
-  const res = { status, json, set } as unknown as import('express').Response;
+  Object.assign(obj, { status, json, set });
+  const res = obj as unknown as import('express').Response;
   return { res, status, json, set };
 }
 
@@ -119,6 +130,46 @@ describe('GatewayMiddleware (Phase D — orchestrator-driven)', () => {
     expect(metrics.incrementRequest).toHaveBeenCalledWith('allow');
     expect(status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith({ id: 'u1' });
+  });
+
+  it('emits an opening lifecycle frame before the orchestrator runs', async () => {
+    const logs: string[] = [];
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation((m) => {
+      logs.push(String(m));
+    });
+    const { mw } = build({ kind: 'bypass' } as never);
+    const next = jest.fn();
+    const { res } = makeRes();
+    await mw.use(
+      makeReq({ headers: { 'user-agent': 'curl/8.0', 'x-request-id': 'abcdef0123' } }),
+      res,
+      next,
+    );
+    const opening = logs.find((l) => l.includes('──▶'));
+    expect(opening).toBeDefined();
+    expect(opening).toContain('GET');
+    expect(opening).toContain('/users/1');
+    expect(opening).toContain('ip=1.2.3.4');
+    expect(opening).toContain('ua=curl/8.0');
+    expect(opening).toContain('abcdef01'); // short id (8 hex chars)
+    logSpy.mockRestore();
+  });
+
+  it('emits a closing lifecycle frame after the outcome is written', async () => {
+    const logs: string[] = [];
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation((m) => {
+      logs.push(String(m));
+    });
+    const { mw } = build({ kind: 'proxied', status: 200, body: {} } as never);
+    const next = jest.fn();
+    const { res } = makeRes();
+    await mw.use(makeReq({ headers: { 'x-request-id': 'abcdef0123' } }), res, next);
+    const closing = logs.find((l) => l.includes('◀──'));
+    expect(closing).toBeDefined();
+    expect(closing).toContain('200');
+    expect(closing).toMatch(/total=\d+ms/);
+    expect(closing).toContain('abcdef01');
+    logSpy.mockRestore();
   });
 
   it('orchestrator throws AuditExhaustedException → 503 + Retry-After + AUDIT_SIGNAL emitted', async () => {
