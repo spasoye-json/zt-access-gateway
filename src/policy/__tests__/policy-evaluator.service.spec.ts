@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Request } from 'express';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../../shared/typed-events';
 import { PolicyEvaluatorService } from '../policy-evaluator.service';
 import { PolicyMetrics } from '../policy-metrics';
 import { POLICY_DENY } from '../policy-events';
@@ -76,7 +77,7 @@ describe('PolicyEvaluatorService', () => {
   let svc: PolicyEvaluatorService;
   let metrics: PolicyMetrics;
   let trust: jest.Mocked<TrustScoreService>;
-  let events: EventEmitter2;
+  let events: TypedEvents;
   let emitSpy: jest.SpyInstance;
 
   beforeEach(async () => {
@@ -84,7 +85,7 @@ describe('PolicyEvaluatorService', () => {
     trust = {
       evaluateScore: jest.fn().mockResolvedValue(0.5),
     } as unknown as jest.Mocked<TrustScoreService>;
-    events = new EventEmitter2();
+    events = new TypedEvents(new EventEmitter2());
     emitSpy = jest.spyOn(events, 'emit');
     svc = new PolicyEvaluatorService(fakeConfig(), fakeThreat(), trust, metrics, events);
     await svc.onModuleInit();

@@ -31,15 +31,30 @@ export const AUDIT_SIGNAL = 'audit.signal';
 /**
  * D-15: common payload schema. `type` echoes the event name for routing convenience.
  * Forensic fields (resource, action) are optional and only attached by emitters that have them.
+ *
+ * Phase A3 (TypedEvents wrapper, 260513-kwm): `type` and `ip` are optional because
+ * the in-process emitters at MFA_INFRA_ERROR / MFA_SECRET_DECRYPT_FAILED /
+ * MFA_ENROLLMENT_CONFIRMED / MFA_ENROLLMENT_RESET historically omit them
+ * (userId-bound operational events) and the on-disk wire shape must be preserved
+ * byte-identically. The extra optional MFA-flavored fields (`op`, `deviceId`,
+ * `reason`, `jti`, `deleted`) reflect the same legacy emitters; listeners
+ * (ThreatEscalationService etc.) only consume the core ip/userId/ja4h/ts fields,
+ * so widening the interface here is non-breaking.
  */
 export interface ThreatSignalPayload {
-  type: string;
-  ip: string;
+  type?: string;
+  ip?: string;
   userId?: string;
   ja4h?: string;
   ts: number;
   resource?: string;
   action?: string;
+  // MFA-flavored optional context (see comment above).
+  op?: string;
+  deviceId?: string;
+  reason?: string;
+  jti?: string;
+  deleted?: boolean;
 }
 
 export type SignalType =

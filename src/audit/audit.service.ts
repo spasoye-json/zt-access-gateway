@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppConfigService } from '../config/config.service';
 import { AuditRepository } from './audit.repository';
 import { AuditExhaustedException } from './audit-exhausted.exception';
 import { sleep } from '../shared/sleep.util';
+import { TypedEvents } from '../shared/typed-events';
+import { AUDIT_RECORD_FAILED } from '../metrics/metrics-events';
 import type { AuditEntry } from './audit-entry.interface';
 import type { AuditLog } from './audit-log.interface';
 import type { AuditLogsQueryDto } from './dto/audit-logs-query.dto';
@@ -33,7 +34,7 @@ export class AuditService {
   constructor(
     private readonly config: AppConfigService,
     private readonly repo: AuditRepository,
-    private readonly events: EventEmitter2,
+    private readonly events: TypedEvents,
   ) {}
 
   /**
@@ -75,7 +76,7 @@ export class AuditService {
       // D-05 — MetricsService @OnEvent('audit.record_failed') increments the counter.
       // EventEmitter2 avoids circular module dep (D-03): both modules import
       // EventEmitterModule, not each other.
-      this.events.emit('audit.record_failed');
+      this.events.emit(AUDIT_RECORD_FAILED);
     }
   }
 

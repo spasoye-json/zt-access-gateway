@@ -8,7 +8,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { totp as authenticator } from '../../shared/totp.util';
 import { Test } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../../shared/typed-events';
 
 import { MfaService, MfaCreateResult, MfaVerifyResult, MfaValidateResult } from '../mfa.service';
 import type { MfaEnrollResult, MfaConfirmResult, MfaDeleteEnrollmentResult } from '../mfa.service';
@@ -106,7 +106,7 @@ describe('MfaService', () => {
   let challengeRepo: jest.Mocked<MfaChallengeRepository>;
   let tokenRepo: jest.Mocked<MfaTokenRepository>;
   let secretsRepo: jest.Mocked<UserSecretsRepository>;
-  let emitter: jest.Mocked<EventEmitter2>;
+  let emitter: jest.Mocked<TypedEvents>;
   let pendingStore: {
     set: jest.Mock;
     get: jest.Mock;
@@ -156,7 +156,7 @@ describe('MfaService', () => {
 
     emitter = {
       emit: jest.fn(),
-    } as unknown as jest.Mocked<EventEmitter2>;
+    } as unknown as jest.Mocked<TypedEvents>;
 
     pendingStore = {
       set: jest.fn(),
@@ -175,7 +175,7 @@ describe('MfaService', () => {
         { provide: MfaChallengeRepository, useValue: challengeRepo },
         { provide: MfaTokenRepository, useValue: tokenRepo },
         { provide: UserSecretsRepository, useValue: secretsRepo },
-        { provide: EventEmitter2, useValue: emitter },
+        { provide: TypedEvents, useValue: emitter },
         { provide: PendingEnrollmentStore as never, useValue: pendingStore },
       ],
     }).compile();
@@ -436,7 +436,10 @@ describe('MfaService', () => {
       expect(result.ok).toBe(false);
 
       expect(emitter.emit).toHaveBeenCalledTimes(1);
-      const [eventName, payload] = emitter.emit.mock.calls[0] as [string, Record<string, unknown>];
+      const [eventName, payload] = emitter.emit.mock.calls[0] as unknown as [
+        string,
+        Record<string, unknown>,
+      ];
       expect(eventName).toBe(MFA_FAILED);
       expect(payload.userId).toBe(TEST_USER);
       expect(payload.ip).toBe(TEST_IP);

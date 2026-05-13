@@ -1,6 +1,8 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AuditService } from '../audit.service';
 import { AuditExhaustedException } from '../audit-exhausted.exception';
+import { TypedEvents } from '../../shared/typed-events';
+import { AUDIT_RECORD_FAILED } from '../../metrics/metrics-events';
 import type { AuditRepository } from '../audit.repository';
 import type { AppConfigService } from '../../config/config.service';
 
@@ -24,10 +26,11 @@ function makeConfig(maxRetries = 3, baseDelay = 50): AppConfigService {
   } as unknown as AppConfigService;
 }
 
-function makeEmitter(): EventEmitter2 {
-  const e = new EventEmitter2();
-  jest.spyOn(e, 'emit');
-  return e;
+function makeEmitter(): TypedEvents {
+  const bus = new EventEmitter2();
+  const wrapped = new TypedEvents(bus);
+  jest.spyOn(wrapped, 'emit');
+  return wrapped;
 }
 
 describe('AuditService', () => {
@@ -118,7 +121,7 @@ describe('AuditService', () => {
         await expect(
           svc.log({ userId: 'u', resource: '/x', action: 'GET', decision: 'challenge' }),
         ).resolves.toBeUndefined();
-        expect(events.emit).not.toHaveBeenCalledWith('audit.record_failed');
+        expect(events.emit).not.toHaveBeenCalledWith(AUDIT_RECORD_FAILED);
       });
     });
 
@@ -133,7 +136,7 @@ describe('AuditService', () => {
           svc.log({ userId: 'u', resource: '/x', action: 'GET', decision: 'deny' }),
         ).resolves.toBeUndefined();
         expect(warnSpy).toHaveBeenCalled();
-        expect(events.emit).toHaveBeenCalledWith('audit.record_failed');
+        expect(events.emit).toHaveBeenCalledWith(AUDIT_RECORD_FAILED);
       });
     });
 
@@ -162,7 +165,7 @@ describe('AuditService', () => {
             eventType: 'HONEYPOT_TRIGGERED',
           }),
         );
-        expect(events.emit).toHaveBeenCalledWith('audit.record_failed');
+        expect(events.emit).toHaveBeenCalledWith(AUDIT_RECORD_FAILED);
       });
 
       it('on success, records HONEYPOT_TRIGGERED without emitting failure event', async () => {
@@ -181,7 +184,7 @@ describe('AuditService', () => {
         expect(repo.insert).toHaveBeenCalledWith(
           expect.objectContaining({ eventType: 'HONEYPOT_TRIGGERED' }),
         );
-        expect(events.emit).not.toHaveBeenCalledWith('audit.record_failed');
+        expect(events.emit).not.toHaveBeenCalledWith(AUDIT_RECORD_FAILED);
       });
     });
   });

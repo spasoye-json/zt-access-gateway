@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../shared/typed-events';
 import { Enforcer, newEnforcer } from 'casbin';
 import { Mutex } from 'async-mutex';
 import type { Request } from 'express';
@@ -40,7 +40,7 @@ export class PolicyEvaluatorService implements OnModuleInit {
     private readonly threat: ThreatEscalationService,
     private readonly trust: TrustScoreService,
     private readonly metrics: PolicyMetrics,
-    private readonly events: EventEmitter2,
+    private readonly events: TypedEvents,
   ) {}
 
   /**

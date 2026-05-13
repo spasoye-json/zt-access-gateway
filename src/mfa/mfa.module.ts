@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigAppModule } from '../config/config.module';
 import { AuthModule } from '../auth/auth.module';
+import { SharedModule } from '../shared/shared.module';
 import { MfaController } from './mfa.controller';
 import { MfaService } from './mfa.service';
 import { MfaChallengeRepository } from './repositories/mfa-challenge.repository';
@@ -18,7 +19,7 @@ import { PendingEnrollmentStore } from './enrollment.store';
  * GatewayMiddleware step 9b calls MfaService.validateMfaToken inline.
  */
 @Module({
-  imports: [ConfigAppModule, AuthModule],
+  imports: [ConfigAppModule, AuthModule, SharedModule],
   controllers: [MfaController],
   providers: [
     MfaService,

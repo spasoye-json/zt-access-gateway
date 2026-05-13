@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigAppModule } from '../config/config.module';
 import { AuthModule } from '../auth/auth.module';
+import { SharedModule } from '../shared/shared.module';
 import { AuditController } from './audit.controller';
 import { AuditService } from './audit.service';
 import { AuditRepository } from './audit.repository';
@@ -16,7 +17,7 @@ import { AuditRepository } from './audit.repository';
  * (Phase 6 D-13); declaring it here is idempotent and makes the local dependency explicit.
  */
 @Module({
-  imports: [ConfigAppModule, AuthModule, EventEmitterModule.forRoot()],
+  imports: [ConfigAppModule, AuthModule, EventEmitterModule.forRoot(), SharedModule],
   controllers: [AuditController],
   providers: [AuditService, AuditRepository],
   exports: [AuditService],

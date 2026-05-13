@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigAppModule } from '../config/config.module';
 import { AuthModule } from '../auth/auth.module';
+import { SharedModule } from '../shared/shared.module';
 import { TrustScoreModule } from '../trust-score/trust-score.module';
 import { PolicyEvaluatorService } from './policy-evaluator.service';
 import { ThreatEscalationService } from './threat-escalation.service';
@@ -32,7 +33,7 @@ import { PolicyMetrics } from './policy-metrics';
  * (deferred — leaves the seam).
  */
 @Module({
-  imports: [ConfigAppModule, AuthModule, TrustScoreModule],
+  imports: [ConfigAppModule, AuthModule, TrustScoreModule, SharedModule],
   controllers: [PolicyAdminController],
   providers: [PolicyEvaluatorService, ThreatEscalationService, PolicyMetrics],
   exports: [PolicyEvaluatorService, ThreatEscalationService, PolicyMetrics],

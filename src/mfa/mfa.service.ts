@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TypedEvents } from '../shared/typed-events';
 import { totp as authenticator } from '../shared/totp.util';
 import { AppConfigService } from '../config/config.service';
 import { MfaChallengeRepository } from './repositories/mfa-challenge.repository';
@@ -15,6 +15,7 @@ import {
   MFA_INFRA_ERROR,
   MFA_RATE_LIMITED,
   MFA_SECRET_DECRYPT_FAILED,
+  type ThreatSignalPayload,
 } from '../policy/policy-events';
 import { PendingEnrollmentStore } from './enrollment.store';
 import type { MfaTokenClaims } from './interfaces/mfa-token-claims.interface';
@@ -97,7 +98,7 @@ export class MfaService {
     private readonly challengeRepo: MfaChallengeRepository,
     private readonly tokenRepo: MfaTokenRepository,
     private readonly secretsRepo: UserSecretsRepository,
-    private readonly events: EventEmitter2,
+    private readonly events: TypedEvents,
     private readonly pendingStore: PendingEnrollmentStore,
   ) {
     this.jwtSecretBytes = new TextEncoder().encode(cfg.mfaJwtSecret);
@@ -445,7 +446,7 @@ export class MfaService {
         // IN-04 (phase 14, iter3): propagate ip + ja4h so the threat ladder
         // can correlate enrollment brute-force to a network identity (parity
         // with verifyTotp / createChallenge).
-        const failPayload: Record<string, unknown> = {
+        const failPayload: ThreatSignalPayload = {
           type: MFA_FAILED,
           userId,
           reason: 'invalid_totp_enrollment',
@@ -460,7 +461,7 @@ export class MfaService {
           // ThreatEscalationService.onMfaRateLimited (phase 14 plan 03) counts
           // the brute-force attempt against the threat ladder.
           this.pendingStore.delete(enrollmentId);
-          const rlPayload: Record<string, unknown> = {
+          const rlPayload: ThreatSignalPayload = {
             type: MFA_RATE_LIMITED,
             userId,
             reason: 'enrollment_attempts_exhausted',
