@@ -21,6 +21,12 @@ export interface ServerConfig {
    * Empty array if unset or unparseable. Hardcoded defaults in HoneypotModule always apply.
    */
   readonly honeypotRoutes: readonly string[];
+  /**
+   * Max connections for the shared pg.Pool owned by DbService.
+   * Optional — DbService falls back to 25 when unset (covers the prior aggregate
+   * of 5 repos × 5 connections each).
+   */
+  readonly dbPoolMax?: number;
 }
 
 export const SERVER_CONFIG = Symbol('SERVER_CONFIG');
@@ -48,5 +54,6 @@ export function buildServerConfig(env: ConfigService): ServerConfig {
     databaseUrl: env.get<string>('DATABASE_URL'),
     blacklistTtlMs: env.get<number>('BLACKLIST_TTL_MS'),
     honeypotRoutes: parseHoneypotRoutes(env.get<string>('HONEYPOT_ROUTES')),
+    dbPoolMax: env.get<number>('DB_POOL_MAX'),
   });
 }

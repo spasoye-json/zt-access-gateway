@@ -35,6 +35,8 @@ export const validationSchema = Joi.object({
   CORS_ORIGIN: Joi.string().default('*'),
   RATE_LIMIT_WINDOW_MS: Joi.number().default(60000),
   RATE_LIMIT_MAX: Joi.number().default(100),
+  // Phase B2: shared DB pool (DbModule). Optional — DbService falls back to 25.
+  DB_POOL_MAX: Joi.number().integer().min(1).max(200).optional(),
   // mTLS paths are required — fail-fast on startup (CONF-01, D-03)
   MTLS_CA_CERT_PATH: Joi.string().required(),
   MTLS_CLIENT_CERT_PATH: Joi.string().required(),
