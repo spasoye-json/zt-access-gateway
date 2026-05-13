@@ -10,6 +10,12 @@
 export const FINGERPRINT_BLACKLIST_SIZE_CHANGED = 'fingerprint.blacklist_size_changed';
 export const FINGERPRINT_DRIFT_DETECTED = 'fingerprint.drift_detected';
 export const AUTH_TOKEN_REVOKED = 'auth.token_revoked';
+/**
+ * Phase A3 (TypedEvents wrapper): promoted from inlined magic string at
+ * audit.service.ts:78 and metrics.service.ts:169 so the typed-events registry
+ * can declare its payload shape (void — emitted with no payload arg).
+ */
+export const AUDIT_RECORD_FAILED = 'audit.record_failed';
 
 export interface FingerprintBlacklistSizeChangedPayload {
   size: number;
