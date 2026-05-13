@@ -1,7 +1,26 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as Joi from 'joi';
-import { AppConfigService } from './config.service';
+import {
+  AUTH_CONFIG,
+  buildAuthConfig,
+  MTLS_CONFIG,
+  buildMtlsConfig,
+  HASHCASH_CONFIG,
+  buildHashcashConfig,
+  TRUST_CONFIG,
+  buildTrustConfig,
+  POLICY_CONFIG,
+  buildPolicyConfig,
+  MFA_CONFIG,
+  buildMfaConfig,
+  PROXY_CONFIG,
+  buildProxyConfig,
+  AUDIT_CONFIG,
+  buildAuditConfig,
+  SERVER_CONFIG,
+  buildServerConfig,
+} from './slices';
 
 /**
  * Production Joi validation schema with Phase 6 D-23 cross-field validator.
@@ -134,6 +153,18 @@ export const validationSchema = Joi.object({
   return cfg;
 });
 
+const sliceProviders = [
+  { provide: AUTH_CONFIG, useFactory: buildAuthConfig, inject: [ConfigService] },
+  { provide: MTLS_CONFIG, useFactory: buildMtlsConfig, inject: [ConfigService] },
+  { provide: HASHCASH_CONFIG, useFactory: buildHashcashConfig, inject: [ConfigService] },
+  { provide: TRUST_CONFIG, useFactory: buildTrustConfig, inject: [ConfigService] },
+  { provide: POLICY_CONFIG, useFactory: buildPolicyConfig, inject: [ConfigService] },
+  { provide: MFA_CONFIG, useFactory: buildMfaConfig, inject: [ConfigService] },
+  { provide: PROXY_CONFIG, useFactory: buildProxyConfig, inject: [ConfigService] },
+  { provide: AUDIT_CONFIG, useFactory: buildAuditConfig, inject: [ConfigService] },
+  { provide: SERVER_CONFIG, useFactory: buildServerConfig, inject: [ConfigService] },
+];
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -143,7 +174,17 @@ export const validationSchema = Joi.object({
       validationOptions: { abortEarly: false },
     }),
   ],
-  providers: [AppConfigService],
-  exports: [AppConfigService],
+  providers: sliceProviders,
+  exports: [
+    AUTH_CONFIG,
+    MTLS_CONFIG,
+    HASHCASH_CONFIG,
+    TRUST_CONFIG,
+    POLICY_CONFIG,
+    MFA_CONFIG,
+    PROXY_CONFIG,
+    AUDIT_CONFIG,
+    SERVER_CONFIG,
+  ],
 })
 export class ConfigAppModule {}
