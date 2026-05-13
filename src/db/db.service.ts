@@ -6,7 +6,7 @@ import type { Db } from './db.port';
 /**
  * Phase B2 — shared pg.Pool owner.
  *
- * Replaces 5 separate `new Pool({ max: 5 })` instantiations (25 connections per
+ * Replaces 5 separate pg.Pool({ max: 5 }) instantiations (25 connections per
  * gateway instance) with a single pool. Repositories receive this via DI under
  * the `DB` token and lose all pool-management code (no more onModuleDestroy in
  * repos). Lifecycle is owned here: NestJS calls onModuleDestroy() on shutdown.

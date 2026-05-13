@@ -10,6 +10,9 @@ import { SERVER_CONFIG, type ServerConfig } from './config/slices';
 import { HttpExceptionFilter } from './shared/http-exception.filter';
 
 async function runMigrations(databaseUrl: string): Promise<void> {
+  // Dedicated pg.Client for boot-time isolation — must not borrow from the
+  // shared DbService pool (the Nest container is still composing when this
+  // runs, so the shared Db port may not be resolvable yet).
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
