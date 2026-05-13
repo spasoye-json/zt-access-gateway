@@ -27,10 +27,7 @@ export class DbService implements Db, OnModuleDestroy {
     });
   }
 
-  query<R = unknown>(
-    sql: string,
-    params?: ReadonlyArray<unknown>,
-  ): Promise<QueryResult<R>> {
+  query<R = unknown>(sql: string, params?: ReadonlyArray<unknown>): Promise<QueryResult<R>> {
     // pg typings expect a mutable array; the readonly contract is for callers.
     return this.pool.query<R>(sql, params as unknown[] | undefined);
   }

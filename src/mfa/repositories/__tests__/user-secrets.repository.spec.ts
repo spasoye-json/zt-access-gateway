@@ -11,7 +11,7 @@ function buildMockDb(queryResult: { rows: unknown[]; rowCount: number | null }):
   return {
     query: jest.fn().mockResolvedValue(queryResult),
     tx: jest.fn(),
-  } as unknown as jest.Mocked<Db>;
+  };
 }
 
 describe('UserSecretsRepository — write surface', () => {

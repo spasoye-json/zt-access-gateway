@@ -8,10 +8,7 @@ import type { PoolClient, QueryResult } from 'pg';
  * transaction; ROLLBACK + rethrow happens automatically on throw.
  */
 export interface Db {
-  query<R = unknown>(
-    sql: string,
-    params?: ReadonlyArray<unknown>,
-  ): Promise<QueryResult<R>>;
+  query<R = unknown>(sql: string, params?: ReadonlyArray<unknown>): Promise<QueryResult<R>>;
   tx<R>(fn: (client: PoolClient) => Promise<R>): Promise<R>;
 }
 
