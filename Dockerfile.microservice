@@ -1,29 +1,25 @@
+# Demo upstream microservice image (used by docker-compose.demo.yml).
+# Slice A produces only orders-service; users-service follows in a later slice.
+# Override `command:` in compose to pick the specific service entrypoint.
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Install build dependencies
 RUN apk add --no-cache python3 make g++
 
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci
 
-# Copy source code
-COPY src ./src
+# Microservices ship as a separate compilation unit so they don't depend on
+# the NestJS build graph in src/.
 COPY microservices ./microservices
-COPY nest-cli.json tsconfig.json ./
+COPY tsconfig.json tsconfig.microservices.json ./
 
-# Build the application
-RUN npm run build
+RUN node_modules/.bin/tsc -p tsconfig.microservices.json
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nestjs -u 1001
+RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001 -G nodejs
 USER nestjs
 
-EXPOSE 3001 3002 3003
+EXPOSE 8443
 
-CMD ["sh", "-c", "node dist/microservices/users-service/main-https.js & node dist/microservices/orders-service/main-https.js & node dist/microservices/permissions-service/main-https.js & wait"]
+CMD ["node", "dist/microservices/orders-service/main-https.js"]

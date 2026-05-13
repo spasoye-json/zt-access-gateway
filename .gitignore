@@ -23,6 +23,7 @@ Thumbs.db
 *.code-workspace
 .env.*
 !.env.example
+!.env.demo
 node_modules/
 .next/
 dist/
@@ -37,3 +38,4 @@ vendor/
 coverage/
 .cache/
 tmp/
+.planning/STATE.md
