@@ -1,7 +1,7 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
-import { AppConfigService } from '../../config/config.service';
+import { SERVER_CONFIG, type ServerConfig } from '../../config/slices';
 
 export interface MfaTokenRow {
   jti: string;
@@ -15,7 +15,7 @@ export interface MfaTokenRow {
 export class MfaTokenRepository implements OnModuleDestroy {
   private readonly pool: Pool;
 
-  constructor(private readonly config: AppConfigService) {
+  constructor(@Inject(SERVER_CONFIG) private readonly config: ServerConfig) {
     this.pool = new Pool({ connectionString: this.config.databaseUrl, max: 5 });
   }
 

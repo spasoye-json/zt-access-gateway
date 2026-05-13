@@ -15,7 +15,7 @@ import type { MfaEnrollResult, MfaConfirmResult, MfaDeleteEnrollmentResult } fro
 import { MfaChallengeRepository } from '../repositories/mfa-challenge.repository';
 import { MfaTokenRepository } from '../repositories/mfa-token.repository';
 import { UserSecretsRepository } from '../repositories/user-secrets.repository';
-import { AppConfigService } from '../../config/config.service';
+import { MFA_CONFIG, type MfaConfig } from '../../config/slices';
 import { aesGcmEncrypt, aesGcmDecrypt } from '../../shared/aes-gcm.util';
 import {
   MFA_FAILED,
@@ -43,17 +43,17 @@ function expectedFingerprint(userId: string, deviceId: string, ip: string): stri
   return createHash('sha256').update(`${userId}|${deviceId}|${ip}`, 'utf8').digest('hex');
 }
 
-function buildMockConfig(): Partial<AppConfigService> {
+function buildMockConfig(): Partial<MfaConfig> {
   return {
-    mfaJwtSecret: TEST_JWT_SECRET,
-    mfaTotpEncryptionKey: TEST_ENC_KEY,
-    mfaChallengeTtlMs: 300_000,
-    mfaTokenTtlMs: 600_000,
-    mfaRateLimitMax: 5,
-    mfaRateLimitWindowMs: 60_000,
+    jwtSecret: TEST_JWT_SECRET,
+    totpEncryptionKey: TEST_ENC_KEY,
+    challengeTtlMs: 300_000,
+    tokenTtlMs: 600_000,
+    rateLimitMax: 5,
+    rateLimitWindowMs: 60_000,
     // Phase 11
-    mfaIssuerName: 'Test-Issuer',
-    mfaEnrollPendingTtlMs: 600_000,
+    issuerName: 'Test-Issuer',
+    enrollPendingTtlMs: 600_000,
   };
 }
 
@@ -171,7 +171,7 @@ describe('MfaService', () => {
     const module = await Test.createTestingModule({
       providers: [
         MfaService,
-        { provide: AppConfigService, useValue: buildMockConfig() },
+        { provide: MFA_CONFIG, useValue: buildMockConfig() },
         { provide: MfaChallengeRepository, useValue: challengeRepo },
         { provide: MfaTokenRepository, useValue: tokenRepo },
         { provide: UserSecretsRepository, useValue: secretsRepo },

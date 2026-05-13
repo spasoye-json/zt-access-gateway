@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { MfaTokenRepository } from '../repositories/mfa-token.repository';
-import { AppConfigService } from '../../config/config.service';
+import type { ServerConfig } from '../../config/slices';
 
 const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 const TEST_UID = 'test-mfa-token-repo-user';
@@ -15,7 +15,7 @@ describeDb('MfaTokenRepository', () => {
     pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
     repo = new MfaTokenRepository({
       databaseUrl: process.env.DATABASE_URL,
-    } as unknown as AppConfigService);
+    } as unknown as ServerConfig);
   });
 
   afterAll(async () => {

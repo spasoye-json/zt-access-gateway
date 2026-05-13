@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { TypedEvents } from '../shared/typed-events';
 import { totp as authenticator } from '../shared/totp.util';
-import { AppConfigService } from '../config/config.service';
+import { MFA_CONFIG, type MfaConfig } from '../config/slices';
 import { MfaChallengeRepository } from './repositories/mfa-challenge.repository';
 import { MfaTokenRepository } from './repositories/mfa-token.repository';
 import { UserSecretsRepository } from './repositories/user-secrets.repository';
@@ -94,20 +94,20 @@ export class MfaService {
   private readonly issuerName: string;
 
   constructor(
-    cfg: AppConfigService,
+    @Inject(MFA_CONFIG) cfg: MfaConfig,
     private readonly challengeRepo: MfaChallengeRepository,
     private readonly tokenRepo: MfaTokenRepository,
     private readonly secretsRepo: UserSecretsRepository,
     private readonly events: TypedEvents,
     private readonly pendingStore: PendingEnrollmentStore,
   ) {
-    this.jwtSecretBytes = new TextEncoder().encode(cfg.mfaJwtSecret);
-    this.encryptionKey = cfg.mfaTotpEncryptionKey;
-    this.challengeTtlMs = cfg.mfaChallengeTtlMs;
-    this.tokenTtlMs = cfg.mfaTokenTtlMs;
-    this.rateLimitMax = cfg.mfaRateLimitMax;
-    this.rateLimitWindowMs = cfg.mfaRateLimitWindowMs;
-    this.issuerName = cfg.mfaIssuerName;
+    this.jwtSecretBytes = new TextEncoder().encode(cfg.jwtSecret);
+    this.encryptionKey = cfg.totpEncryptionKey;
+    this.challengeTtlMs = cfg.challengeTtlMs;
+    this.tokenTtlMs = cfg.tokenTtlMs;
+    this.rateLimitMax = cfg.rateLimitMax;
+    this.rateLimitWindowMs = cfg.rateLimitWindowMs;
+    this.issuerName = cfg.issuerName;
   }
 
   /**

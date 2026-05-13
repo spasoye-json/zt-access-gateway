@@ -2,7 +2,7 @@
  * Phase 11 Wave 0 — PendingEnrollmentStore (RED).
  * Tests fail until enrollment.store.ts is implemented in Plan 11-01.
  */
-import type { AppConfigService } from '../../config/config.service';
+import type { MfaConfig } from '../../config/slices';
 // NOTE: import is type-only here so the spec compiles even before enrollment.store.ts exists.
 // The implementation tasks in Plan 11-01 will add the value-level import via dynamic require.
 
@@ -10,8 +10,8 @@ const loadStore = async (): Promise<typeof import('../enrollment.store')> => {
   return await import('../enrollment.store');
 };
 
-function buildCfg(ttlMs: number): AppConfigService {
-  return { mfaEnrollPendingTtlMs: ttlMs } as unknown as AppConfigService;
+function buildCfg(ttlMs: number): MfaConfig {
+  return { enrollPendingTtlMs: ttlMs } as unknown as MfaConfig;
 }
 
 describe('PendingEnrollmentStore', () => {

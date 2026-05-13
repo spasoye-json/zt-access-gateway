@@ -4,15 +4,15 @@
  */
 
 import { UserSecretsRepository } from '../user-secrets.repository';
-import { AppConfigService } from '../../../config/config.service';
+import type { ServerConfig } from '../../../config/slices';
 
 // Minimal mock pool that captures query calls
 function buildMockPool(queryResult: { rows: unknown[]; rowCount: number }) {
   return { query: jest.fn().mockResolvedValue(queryResult), end: jest.fn() };
 }
 
-function buildConfig(): AppConfigService {
-  return { databaseUrl: 'postgresql://localhost/test' } as unknown as AppConfigService;
+function buildConfig(): ServerConfig {
+  return { databaseUrl: 'postgresql://localhost/test' } as unknown as ServerConfig;
 }
 
 describe('UserSecretsRepository — write surface', () => {

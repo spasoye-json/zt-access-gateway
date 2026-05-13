@@ -1,12 +1,12 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool } from 'pg';
-import { AppConfigService } from '../../config/config.service';
+import { SERVER_CONFIG, type ServerConfig } from '../../config/slices';
 
 @Injectable()
 export class UserSecretsRepository implements OnModuleDestroy {
   private readonly pool: Pool;
 
-  constructor(private readonly config: AppConfigService) {
+  constructor(@Inject(SERVER_CONFIG) private readonly config: ServerConfig) {
     this.pool = new Pool({ connectionString: this.config.databaseUrl, max: 5 });
   }
 

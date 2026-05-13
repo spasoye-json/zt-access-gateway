@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { AppConfigService } from '../config/config.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { MFA_CONFIG, type MfaConfig } from '../config/slices';
 
 /**
  * Phase 11 — Pending TOTP enrollment entry (D-02).
@@ -32,8 +32,8 @@ export class PendingEnrollmentStore {
   private readonly store = new Map<string, PendingEnrollment>();
   private readonly ttlMs: number;
 
-  constructor(cfg: AppConfigService) {
-    this.ttlMs = cfg.mfaEnrollPendingTtlMs;
+  constructor(@Inject(MFA_CONFIG) cfg: MfaConfig) {
+    this.ttlMs = cfg.enrollPendingTtlMs;
   }
 
   /**

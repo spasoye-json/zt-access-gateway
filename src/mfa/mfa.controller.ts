@@ -9,11 +9,12 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Inject,
   InternalServerErrorException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { AppConfigService } from '../config/config.service';
+import { MFA_CONFIG, type MfaConfig } from '../config/slices';
 import {
   MfaService,
   type MfaCreateResult,
@@ -43,7 +44,7 @@ import { Roles } from '../auth/roles.decorator';
 export class MfaController {
   constructor(
     private readonly mfaService: MfaService,
-    private readonly config: AppConfigService,
+    @Inject(MFA_CONFIG) private readonly config: MfaConfig,
   ) {}
 
   @Post('initiate')
@@ -63,7 +64,7 @@ export class MfaController {
       const failResult = result as Extract<MfaCreateResult, { ok: false }>;
       if (failResult.reason === 'rate_limited') {
         // D-17: Retry-After from config, not hardcoded
-        const windowSec = Math.ceil(this.config.mfaRateLimitWindowMs / 1000);
+        const windowSec = Math.ceil(this.config.rateLimitWindowMs / 1000);
         res
           .status(429)
           .header('Retry-After', String(windowSec))

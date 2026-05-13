@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { MfaChallengeRepository } from '../repositories/mfa-challenge.repository';
-import { AppConfigService } from '../../config/config.service';
+import type { ServerConfig } from '../../config/slices';
 
 const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 const TEST_UID = 'test-mfa-challenge-repo-user';
@@ -13,7 +13,7 @@ describeDb('MfaChallengeRepository', () => {
     pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
     repo = new MfaChallengeRepository({
       databaseUrl: process.env.DATABASE_URL,
-    } as unknown as AppConfigService);
+    } as unknown as ServerConfig);
   });
 
   afterAll(async () => {
@@ -121,7 +121,7 @@ describeDb('MfaChallengeRepository', () => {
       workerRepos.push(
         new MfaChallengeRepository({
           databaseUrl: process.env.DATABASE_URL,
-        } as unknown as AppConfigService),
+        } as unknown as ServerConfig),
       );
     }
 
