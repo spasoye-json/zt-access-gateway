@@ -4,7 +4,7 @@ import { TypedEvents } from '../../shared/typed-events';
 import { ShadowController } from '../shadow.controller';
 import { FingerprintStore } from '../../fingerprint/fingerprint.store';
 import { SecurityMetricsService } from '../security-metrics.service';
-import { AppConfigService } from '../../config/config.service';
+import type { ServerConfig } from '../../config/slices';
 import { HONEYPOT_KEY } from '../honeypot.decorator';
 import { HONEYPOT_TRIGGER } from '../../policy/policy-events';
 
@@ -43,7 +43,7 @@ describe('ShadowController', () => {
   let controller: ShadowController;
   let store: jest.Mocked<FingerprintStore>;
   let metrics: jest.Mocked<SecurityMetricsService>;
-  let config: jest.Mocked<AppConfigService>;
+  let config: jest.Mocked<ServerConfig>;
   let events: TypedEvents;
   let emitSpy: jest.SpyInstance;
   let warnSpy: jest.SpyInstance;

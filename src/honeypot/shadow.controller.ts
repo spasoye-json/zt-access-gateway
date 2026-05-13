@@ -1,9 +1,9 @@
-import { Controller, Get, OnModuleInit, Req, Res } from '@nestjs/common';
+import { Controller, Get, Inject, OnModuleInit, Req, Res } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { TypedEvents } from '../shared/typed-events';
 import { FingerprintStore } from '../fingerprint/fingerprint.store';
 import { SecurityMetricsService } from './security-metrics.service';
-import { AppConfigService } from '../config/config.service';
+import { SERVER_CONFIG, type ServerConfig } from '../config/slices';
 import { Honeypot } from './honeypot.decorator';
 import { getFakeResponse } from './honeypot-responses';
 import { HONEYPOT_PATHS } from './honeypot.constants';
@@ -35,7 +35,7 @@ export class ShadowController implements OnModuleInit {
   constructor(
     private readonly store: FingerprintStore,
     private readonly metrics: SecurityMetricsService,
-    private readonly config: AppConfigService,
+    @Inject(SERVER_CONFIG) private readonly config: ServerConfig,
     private readonly events: TypedEvents,
   ) {}
 

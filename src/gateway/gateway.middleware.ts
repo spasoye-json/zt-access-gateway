@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   Logger,
   NestMiddleware,
@@ -20,7 +21,7 @@ import { BoPlaInterceptor } from '../proxy/bopla.interceptor';
 import { AuditService } from '../audit/audit.service';
 import { AuditExhaustedException } from '../audit/audit-exhausted.exception';
 import { MetricsService, type PipelineStage } from '../metrics/metrics.service';
-import { AppConfigService } from '../config/config.service';
+import { HASHCASH_CONFIG, type HashcashConfig } from '../config/slices';
 import { extractIp } from '../shared/request-context.util';
 import { sleep } from '../shared/sleep.util';
 import { PUBLIC_PATHS, isAuthOnlyPath } from './public-paths';
@@ -56,7 +57,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly boPla: BoPlaInterceptor,
     private readonly audit: AuditService,
     private readonly metrics: MetricsService,
-    private readonly cfg: AppConfigService,
+    @Inject(HASHCASH_CONFIG) private readonly cfg: HashcashConfig,
     private readonly events: TypedEvents,
   ) {}
 
@@ -210,9 +211,9 @@ export class GatewayMiddleware implements NestMiddleware {
       (req as Request & { trustScore?: number }).trustScore = trustScoreValue;
       observe('trust_score', (Date.now() - t0) / 1000);
 
-      // ── Step 8: Hashcash (D-08; threshold from AppConfigService) ───
+      // ── Step 8: Hashcash (D-08; threshold from HashcashConfig) ───
       t0 = Date.now();
-      const hcThreshold = this.cfg.hashcashTriggerThreshold ?? 0.5;
+      const hcThreshold = this.cfg.triggerThreshold ?? 0.5;
       if (trustScoreValue > hcThreshold) {
         const nonceHeader = (req.headers['x-hashcash-nonce'] as string | undefined) || '';
         const solutionHeader = (req.headers['x-hashcash-solution'] as string | undefined) || '';

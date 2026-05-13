@@ -8,9 +8,10 @@ import { TypedEvents } from './typed-events';
 
 /**
  * SharedModule provides cross-cutting infrastructure consumed by the full pipeline.
- * Imports ConfigAppModule explicitly so AppConfigService is resolvable via DI
- * in both production and TestingModule contexts (isGlobal only covers @nestjs/config
- * ConfigService, not the AppConfigService wrapper).
+ * Imports ConfigAppModule explicitly so MTLS_CONFIG (and the other domain slice
+ * tokens) are resolvable via DI in both production and TestingModule contexts
+ * (isGlobal only covers @nestjs/config ConfigService, not the slice useFactory
+ * providers registered in ConfigAppModule).
  *
  * Exports MtlsService (ProxyService consumer) and TypedEvents (every emit site
  * across mfa/policy/audit/auth/honeypot/fingerprint/trust-score/gateway).

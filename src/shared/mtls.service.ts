@@ -1,8 +1,8 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as https from 'https';
-import { Injectable } from '@nestjs/common';
-import { AppConfigService } from '../config/config.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { MTLS_CONFIG, type MtlsConfig } from '../config/slices';
 
 interface CertCache {
   ca: Buffer;
@@ -23,16 +23,16 @@ export class MtlsService {
   // Serializes concurrent callers so only one reload runs at a time (TOCTOU guard)
   private reloadPromise: Promise<void> | null = null;
 
-  constructor(private readonly config: AppConfigService) {}
+  constructor(@Inject(MTLS_CONFIG) private readonly config: MtlsConfig) {}
 
   /**
    * Read all three cert files from configured paths and store their contents
    * and mtimes in the cache. Uses fs.promises — never blocking readFileSync.
    */
   async loadCertificates(): Promise<void> {
-    const caPath = this.config.mtlsCaCertPath;
-    const certPath = this.config.mtlsClientCertPath;
-    const keyPath = this.config.mtlsClientKeyPath;
+    const caPath = this.config.caCertPath;
+    const certPath = this.config.clientCertPath;
+    const keyPath = this.config.clientKeyPath;
 
     const [ca, cert, key] = await Promise.all([
       fs.promises.readFile(caPath),
@@ -60,9 +60,9 @@ export class MtlsService {
    * Always uses async fs.promises — never blocking readFileSync.
    */
   async getHttpsAgent(): Promise<https.Agent> {
-    const caPath = this.config.mtlsCaCertPath;
-    const certPath = this.config.mtlsClientCertPath;
-    const keyPath = this.config.mtlsClientKeyPath;
+    const caPath = this.config.caCertPath;
+    const certPath = this.config.clientCertPath;
+    const keyPath = this.config.clientKeyPath;
 
     const [caStat, certStat, keyStat] = await Promise.all([
       fs.promises.stat(caPath),
@@ -121,7 +121,7 @@ export class MtlsService {
         return false;
       }
       const cn = match[1].trim();
-      return this.config.mtlsAllowedSubjects.includes(cn);
+      return this.config.allowedSubjects.includes(cn);
     } catch {
       return false;
     }

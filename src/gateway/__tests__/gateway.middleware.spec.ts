@@ -114,7 +114,7 @@ function makeMocks(overrides: Partial<Mocks> = {}): Mocks {
       incrementRequest: jest.fn(),
       incrementMfaPromotion: jest.fn(),
     },
-    cfg: { hashcashTriggerThreshold: 0.5 },
+    cfg: { triggerThreshold: 0.5 },
     events: { emit: jest.fn() },
     ...overrides,
   };
@@ -365,11 +365,11 @@ describe('GatewayMiddleware', () => {
 
   // ── Hashcash (HCSH / GTWY-03) ──────────────────────────────────────
   describe('Hashcash', () => {
-    it('reads threshold via cfg.hashcashTriggerThreshold and passes through when score below threshold', async () => {
+    it('reads threshold via cfg.triggerThreshold and passes through when score below threshold', async () => {
       const m = makeMocks();
       const getterSpy = jest.fn(() => 0.5);
       m.cfg = {};
-      Object.defineProperty(m.cfg, 'hashcashTriggerThreshold', {
+      Object.defineProperty(m.cfg, 'triggerThreshold', {
         get: getterSpy,
         configurable: true,
       });

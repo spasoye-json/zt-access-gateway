@@ -1,6 +1,6 @@
 import * as fs from 'fs';
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { AppConfigService } from '../config/config.service';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { MTLS_CONFIG, type MtlsConfig } from '../config/slices';
 import { MtlsService } from './mtls.service';
 
 const POLL_INTERVAL_MS = 30_000;
@@ -21,7 +21,7 @@ export class CertMonitorService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly mtlsService: MtlsService,
-    private readonly config: AppConfigService,
+    @Inject(MTLS_CONFIG) private readonly config: MtlsConfig,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -80,9 +80,9 @@ export class CertMonitorService implements OnModuleInit, OnModuleDestroy {
 
   private certPaths(): string[] {
     return [
-      this.config.mtlsCaCertPath,
-      this.config.mtlsClientCertPath,
-      this.config.mtlsClientKeyPath,
+      this.config.caCertPath,
+      this.config.clientCertPath,
+      this.config.clientKeyPath,
     ];
   }
 }

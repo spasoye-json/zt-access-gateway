@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { CertMonitorService } from '../cert-monitor.service';
 import { MtlsService } from '../mtls.service';
-import { AppConfigService } from '../../config/config.service';
+import type { MtlsConfig } from '../../config/slices';
 
 async function createTempCertFiles(): Promise<{
   dir: string;
@@ -28,7 +28,7 @@ describe('CertMonitorService', () => {
   let caPath: string;
   let certPath: string;
   let keyPath: string;
-  let mockConfig: Partial<AppConfigService>;
+  let mockConfig: Partial<MtlsConfig>;
   let mockMtlsService: { reload: jest.Mock };
 
   beforeEach(async () => {
@@ -40,9 +40,9 @@ describe('CertMonitorService', () => {
     keyPath = files.keyPath;
 
     mockConfig = {
-      mtlsCaCertPath: caPath,
-      mtlsClientCertPath: certPath,
-      mtlsClientKeyPath: keyPath,
+      caCertPath: caPath,
+      clientCertPath: certPath,
+      clientKeyPath: keyPath,
     };
 
     mockMtlsService = { reload: jest.fn().mockResolvedValue(undefined) };
@@ -56,7 +56,7 @@ describe('CertMonitorService', () => {
   it('starts polling on module init and does NOT call reload when files unchanged', async () => {
     const service = new CertMonitorService(
       mockMtlsService as unknown as MtlsService,
-      mockConfig as AppConfigService,
+      mockConfig as MtlsConfig,
     );
     await service.onModuleInit();
 
@@ -73,7 +73,7 @@ describe('CertMonitorService', () => {
 
     const service = new CertMonitorService(
       mockMtlsService as unknown as MtlsService,
-      mockConfig as AppConfigService,
+      mockConfig as MtlsConfig,
     );
     await service.onModuleInit();
 
@@ -92,7 +92,7 @@ describe('CertMonitorService', () => {
   it('stops polling on module destroy', async () => {
     const service = new CertMonitorService(
       mockMtlsService as unknown as MtlsService,
-      mockConfig as AppConfigService,
+      mockConfig as MtlsConfig,
     );
     await service.onModuleInit();
     await service.onModuleDestroy();
@@ -107,7 +107,7 @@ describe('CertMonitorService', () => {
   it('does not call reload when files unchanged across multiple intervals', async () => {
     const service = new CertMonitorService(
       mockMtlsService as unknown as MtlsService,
-      mockConfig as AppConfigService,
+      mockConfig as MtlsConfig,
     );
     await service.onModuleInit();
 

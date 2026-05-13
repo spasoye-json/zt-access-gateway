@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as https from 'https';
 import { execSync } from 'child_process';
 import { MtlsService } from '../mtls.service';
-import { AppConfigService } from '../../config/config.service';
+import type { MtlsConfig } from '../../config/slices';
 
 /**
  * Generate a minimal self-signed certificate PEM string for testing.
@@ -51,7 +51,7 @@ describe('MtlsService', () => {
   let caPath: string;
   let certPath: string;
   let keyPath: string;
-  let mockConfig: Partial<AppConfigService>;
+  let mockConfig: Partial<MtlsConfig>;
 
   beforeEach(async () => {
     const files = await createTempCertFiles();
@@ -61,10 +61,10 @@ describe('MtlsService', () => {
     keyPath = files.keyPath;
 
     mockConfig = {
-      mtlsCaCertPath: caPath,
-      mtlsClientCertPath: certPath,
-      mtlsClientKeyPath: keyPath,
-      mtlsAllowedSubjects: ['test-cn'],
+      caCertPath: caPath,
+      clientCertPath: certPath,
+      clientKeyPath: keyPath,
+      allowedSubjects: ['test-cn'],
     };
   });
 
@@ -73,7 +73,7 @@ describe('MtlsService', () => {
   });
 
   it('loadCertificates reads all three cert files from configured paths', async () => {
-    const service = new MtlsService(mockConfig as AppConfigService);
+    const service = new MtlsService(mockConfig as MtlsConfig);
     await service.loadCertificates();
     const certs = service.getCertificates();
     expect(certs.ca).toEqual(Buffer.from('ca-content'));
@@ -82,14 +82,14 @@ describe('MtlsService', () => {
   });
 
   it('getHttpsAgent returns an https.Agent instance', async () => {
-    const service = new MtlsService(mockConfig as AppConfigService);
+    const service = new MtlsService(mockConfig as MtlsConfig);
     await service.loadCertificates();
     const agent = await service.getHttpsAgent();
     expect(agent).toBeInstanceOf(https.Agent);
   });
 
   it('getHttpsAgent caches agent on second call (same mtime)', async () => {
-    const service = new MtlsService(mockConfig as AppConfigService);
+    const service = new MtlsService(mockConfig as MtlsConfig);
     await service.loadCertificates();
     const agent1 = await service.getHttpsAgent();
     const agent2 = await service.getHttpsAgent();
@@ -97,7 +97,7 @@ describe('MtlsService', () => {
   });
 
   it('getHttpsAgent reloads when file mtime changes', async () => {
-    const service = new MtlsService(mockConfig as AppConfigService);
+    const service = new MtlsService(mockConfig as MtlsConfig);
     await service.loadCertificates();
     const agent1 = await service.getHttpsAgent();
 
@@ -110,7 +110,7 @@ describe('MtlsService', () => {
   });
 
   it('reload() forces fresh read regardless of mtime', async () => {
-    const service = new MtlsService(mockConfig as AppConfigService);
+    const service = new MtlsService(mockConfig as MtlsConfig);
     await service.loadCertificates();
     const agent1 = await service.getHttpsAgent();
     await service.reload();
@@ -121,13 +121,13 @@ describe('MtlsService', () => {
   describe('validateServerCertCN', () => {
     it('returns true for CN in allowlist', () => {
       const pemWithTestCn = generateSelfSignedCert('test-cn');
-      const service = new MtlsService(mockConfig as AppConfigService);
+      const service = new MtlsService(mockConfig as MtlsConfig);
       expect(service.validateServerCertCN(pemWithTestCn)).toBe(true);
     });
 
     it('returns false for CN not in allowlist', () => {
       const pemWithOtherCn = generateSelfSignedCert('unknown-cn');
-      const service = new MtlsService(mockConfig as AppConfigService);
+      const service = new MtlsService(mockConfig as MtlsConfig);
       expect(service.validateServerCertCN(pemWithOtherCn)).toBe(false);
     });
   });
