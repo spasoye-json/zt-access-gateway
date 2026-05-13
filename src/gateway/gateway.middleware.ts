@@ -99,7 +99,7 @@ export class GatewayMiddleware implements NestMiddleware {
     const TIMEOUT = Symbol('audit_timeout');
     const recordWithTimeout = async (entry: AuditEntry): Promise<void> => {
       const result = await Promise.race<typeof TIMEOUT | 'OK'>([
-        this.audit.record(entry).then(() => 'OK' as const),
+        this.audit.log(entry).then(() => 'OK' as const),
         sleep(200).then(() => TIMEOUT),
       ]);
       if (result === TIMEOUT) {
@@ -326,7 +326,7 @@ export class GatewayMiddleware implements NestMiddleware {
         requestId,
       };
       const walT0 = Date.now();
-      await this.audit.writeBlocking(allowEntry); // throws AuditExhaustedException
+      await this.audit.log(allowEntry); // throws AuditExhaustedException on ALLOW
       this.metrics.observeAuditWalDuration((Date.now() - walT0) / 1000);
 
       t0 = Date.now();

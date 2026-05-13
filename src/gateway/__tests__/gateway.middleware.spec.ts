@@ -105,8 +105,7 @@ function makeMocks(overrides: Partial<Mocks> = {}): Mocks {
     },
     boPla: { strip: jest.fn().mockImplementation((d) => d) },
     audit: {
-      writeBlocking: jest.fn().mockResolvedValue(undefined),
-      record: jest.fn().mockResolvedValue(undefined),
+      log: jest.fn().mockResolvedValue(undefined),
     },
     metrics: {
       observeStageDuration: jest.fn(),
@@ -286,7 +285,7 @@ describe('GatewayMiddleware', () => {
 
   // ── AUTH_ONLY path (D-04) ──────────────────────────────────────────
   describe('AUTH_ONLY path', () => {
-    it('on /auth/revoke calls audit.record with decision:"allow" then next() — skips trust/hashcash/policy/proxy', async () => {
+    it('on /auth/revoke calls audit.log with decision:"allow" then next() — skips trust/hashcash/policy/proxy', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
       const req = mockReq({
@@ -296,7 +295,7 @@ describe('GatewayMiddleware', () => {
       });
       const res = mockRes();
       await build(m).use(req, res, next);
-      expect(m.audit.record).toHaveBeenCalledWith(
+      expect(m.audit.log).toHaveBeenCalledWith(
         expect.objectContaining({ decision: 'allow', resource: '/auth/revoke', action: 'POST' }),
       );
       expect(next).toHaveBeenCalledTimes(1);
@@ -314,7 +313,9 @@ describe('GatewayMiddleware', () => {
       });
       const res = mockRes();
       await build(m).use(req, res, next);
-      expect(m.audit.record).toHaveBeenCalled();
+      expect(m.audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({ decision: 'allow' }),
+      );
       expect(next).toHaveBeenCalledTimes(1);
       expect(m.policy.evaluate).not.toHaveBeenCalled();
     });
@@ -329,8 +330,9 @@ describe('GatewayMiddleware', () => {
       });
       const res = mockRes();
       await build(m).use(req, res, next);
-      const entry = m.audit.record.mock.calls[0][0];
+      const entry = m.audit.log.mock.calls[0][0];
       expect(entry.trustScore).toBeUndefined();
+      expect(entry.decision).toBe('allow');
     });
   });
 
@@ -455,25 +457,25 @@ describe('GatewayMiddleware', () => {
       expect(m.proxy.forward).not.toHaveBeenCalled();
     });
 
-    it('calls audit.record before responding 403 (D-11 happy path; no incrementAuditFailure)', async () => {
+    it('calls audit.log with decision:"deny" before responding 403 (D-11 happy path; no incrementAuditFailure)', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
       m.policy.evaluate.mockResolvedValue({ decision: 'DENY', reason: 'no', score: 0.1 });
       const req = mockReq({ headers: { authorization: BEARER } });
       const res = mockRes();
       await build(m).use(req, res, next);
-      expect(m.audit.record).toHaveBeenCalledWith(expect.objectContaining({ decision: 'deny' }));
+      expect(m.audit.log).toHaveBeenCalledWith(expect.objectContaining({ decision: 'deny' }));
       expect(m.metrics.incrementAuditFailure).not.toHaveBeenCalled();
     });
 
-    it('on DENY when audit.record never resolves (timeout): incrementAuditFailure + audit_timeout warn-log fire (D-11 timeout)', async () => {
+    it('on DENY when audit.log never resolves (timeout): incrementAuditFailure + audit_timeout warn-log fire (D-11 timeout)', async () => {
       jest.useFakeTimers();
       const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
       try {
         const m = makeMocks();
         m.auth.validateToken.mockResolvedValue(defaultClaims());
         m.policy.evaluate.mockResolvedValue({ decision: 'DENY', reason: 'x', score: 0.1 });
-        m.audit.record.mockImplementation(() => new Promise(() => undefined));
+        m.audit.log.mockImplementation(() => new Promise(() => undefined));
         const req = mockReq({ headers: { authorization: BEARER } });
         const res = mockRes();
         const p = build(m).use(req, res, next);
@@ -538,14 +540,14 @@ describe('GatewayMiddleware', () => {
       );
     });
 
-    it('on CHALLENGE when audit.record never resolves (timeout): incrementAuditFailure + warn fire', async () => {
+    it('on CHALLENGE when audit.log never resolves (timeout): incrementAuditFailure + warn fire', async () => {
       jest.useFakeTimers();
       const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
       try {
         const m = makeMocks();
         m.auth.validateToken.mockResolvedValue(defaultClaims());
         m.policy.evaluate.mockResolvedValue({ decision: 'CHALLENGE', reason: 'r', score: 0.6 });
-        m.audit.record.mockImplementation(() => new Promise(() => undefined));
+        m.audit.log.mockImplementation(() => new Promise(() => undefined));
         const req = mockReq({ headers: { authorization: BEARER } });
         const res = mockRes();
         const p = build(m).use(req, res, next);
@@ -622,15 +624,23 @@ describe('GatewayMiddleware', () => {
 
   // ── Audit-before-allow (D-09, D-10) ────────────────────────────────
   describe('Audit-before-allow + AUDIT_SIGNAL', () => {
-    it('on ALLOW: audit.writeBlocking is called BEFORE proxy.forward', async () => {
+    it('on ALLOW: audit.log({decision:"allow"}) is called BEFORE proxy.forward', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
       const req = mockReq({ headers: { authorization: BEARER } });
       const res = mockRes();
       await build(m).use(req, res, next);
-      expect(m.audit.writeBlocking).toHaveBeenCalledTimes(1);
+      // The ALLOW-path log() call (the one with decision:'allow') must
+      // precede proxy.forward — D-09 audit-before-allow invariant.
+      const allowCallIdx = m.audit.log.mock.calls.findIndex(
+        (c: any[]) => c[0]?.decision === 'allow',
+      );
+      expect(allowCallIdx).toBeGreaterThanOrEqual(0);
+      expect(m.audit.log.mock.calls[allowCallIdx][0]).toEqual(
+        expect.objectContaining({ decision: 'allow' }),
+      );
       expect(m.proxy.forward).toHaveBeenCalledTimes(1);
-      const wOrder = m.audit.writeBlocking.mock.invocationCallOrder[0];
+      const wOrder = m.audit.log.mock.invocationCallOrder[allowCallIdx];
       const pOrder = m.proxy.forward.mock.invocationCallOrder[0];
       expect(wOrder).toBeLessThan(pOrder);
     });
@@ -638,7 +648,7 @@ describe('GatewayMiddleware', () => {
     it('returns 503 + Retry-After: 5 + {error:"audit_unavailable"} when writeBlocking throws AuditExhaustedException', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
-      m.audit.writeBlocking.mockRejectedValue(new AuditExhaustedException('exhausted'));
+      m.audit.log.mockRejectedValue(new AuditExhaustedException('exhausted'));
       const req = mockReq({ headers: { authorization: BEARER } });
       const res = mockRes();
       await build(m).use(req, res, next);
@@ -655,7 +665,7 @@ describe('GatewayMiddleware', () => {
     it('calls metrics.incrementAuditFailure on AuditExhaustedException', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
-      m.audit.writeBlocking.mockRejectedValue(new AuditExhaustedException('x'));
+      m.audit.log.mockRejectedValue(new AuditExhaustedException('x'));
       const req = mockReq({ headers: { authorization: BEARER } });
       const res = mockRes();
       await build(m).use(req, res, next);
@@ -665,7 +675,7 @@ describe('GatewayMiddleware', () => {
     it('emits AUDIT_SIGNAL event exactly once on AuditExhaustedException (D-10)', async () => {
       const m = makeMocks();
       m.auth.validateToken.mockResolvedValue(defaultClaims());
-      m.audit.writeBlocking.mockRejectedValue(new AuditExhaustedException('x'));
+      m.audit.log.mockRejectedValue(new AuditExhaustedException('x'));
       const req = mockReq({ headers: { authorization: BEARER } });
       const res = mockRes();
       await build(m).use(req, res, next);
