@@ -13,6 +13,7 @@ import { FingerprintModule } from '../fingerprint/fingerprint.module';
 import { GatewayMiddleware } from './gateway.middleware';
 import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
 import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
+import { AuthStage } from './pipeline/stages/auth.stage';
 
 /**
  * Phase 10 — GatewayModule wires the 9 prerequisite modules so that
@@ -43,7 +44,7 @@ import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
     MetricsModule,
     FingerprintModule,
   ],
-  providers: [GatewayMiddleware, PublicBypassStage, HoneypotBypassStage],
-  exports: [GatewayMiddleware, PublicBypassStage, HoneypotBypassStage],
+  providers: [GatewayMiddleware, PublicBypassStage, HoneypotBypassStage, AuthStage],
+  exports: [GatewayMiddleware, PublicBypassStage, HoneypotBypassStage, AuthStage],
 })
 export class GatewayModule {}

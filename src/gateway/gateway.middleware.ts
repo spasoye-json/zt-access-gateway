@@ -28,6 +28,7 @@ import { PUBLIC_PATHS, isAuthOnlyPath } from './public-paths';
 import { HONEYPOT_PATHS } from '../honeypot/honeypot.constants';
 import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
 import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
+import { AuthStage } from './pipeline/stages/auth.stage';
 import { buildStageContext } from './pipeline/build-stage-context';
 import type { UserClaims, AuthenticatedClaims } from '../auth/interfaces/user-claims.interface';
 import type { TrustContext } from '../trust-score/trust-context';
@@ -64,6 +65,7 @@ export class GatewayMiddleware implements NestMiddleware {
     private readonly events: TypedEvents,
     private readonly publicBypass: PublicBypassStage,
     private readonly honeypotBypass: HoneypotBypassStage,
+    private readonly authStage: AuthStage,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -128,53 +130,16 @@ export class GatewayMiddleware implements NestMiddleware {
     let claims: UserClaims | undefined;
     let trustScoreValue: number | undefined;
 
-    // WR-01: D-14 contract — every auth failure must publish AUTH_INVALID_TOKEN
-    // so ThreatEscalationService aggregates consistently regardless of whether
-    // the route is gateway-mounted or hits JwtAuthGuard directly. Mirror the
-    // payload shape used by JwtAuthGuard.emitInvalid.
-    const emitAuthInvalid = (): void => {
-      this.events.emit(AUTH_INVALID_TOKEN, {
-        type: AUTH_INVALID_TOKEN,
-        ip: extractIp(req),
-        userId: claims?.userId,
-        ja4h,
-        ts: Date.now(),
-      });
-    };
-
     try {
-      // ── Step 5: Auth ───────────────────────────────────────────────
+      // ── Step 5: Auth (Phase D — extracted to AuthStage) ──────────
       let t0 = Date.now();
-      const authHeader = req.headers['authorization'];
-      if (!authHeader || typeof authHeader !== 'string') {
-        observe('auth', (Date.now() - t0) / 1000);
-        emitAuthInvalid();
-        res.status(401).json({ error: 'auth_required', requestId });
-        return;
-      }
-      const [scheme, token] = authHeader.split(' ');
-      if (scheme !== 'Bearer' || !token) {
-        observe('auth', (Date.now() - t0) / 1000);
-        emitAuthInvalid();
-        res.status(401).json({ error: 'auth_required', requestId });
-        return;
-      }
-      try {
-        claims = await this.auth.validateToken(token);
-      } catch (e) {
-        observe('auth', (Date.now() - t0) / 1000);
-        if (e instanceof UnauthorizedException) {
-          emitAuthInvalid();
-          res.status(401).json({
-            error: 'auth_invalid',
-            message: (e as Error).message,
-            requestId,
-          });
-          return;
-        }
-        throw e;
-      }
+      const authOutcome = await this.authStage.run(stageCtx);
       observe('auth', (Date.now() - t0) / 1000);
+      if (authOutcome.kind === 'short-circuit') {
+        res.status(authOutcome.status).json(authOutcome.body);
+        return;
+      }
+      claims = stageCtx.claims!;
 
       // ── Step 6: Revocation ─────────────────────────────────────────
       t0 = Date.now();
