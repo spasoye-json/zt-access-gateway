@@ -10,6 +10,7 @@ import { ProxyModule } from '../proxy/proxy.module';
 import { AuditModule } from '../audit/audit.module';
 import { MetricsModule } from '../metrics/metrics.module';
 import { FingerprintModule } from '../fingerprint/fingerprint.module';
+import { DemoModeModule } from '../shared/demo-mode/demo-mode.module';
 import { GatewayMiddleware } from './gateway.middleware';
 import { PipelineOrchestrator } from './pipeline/orchestrator';
 import { PIPELINE_STAGES } from './pipeline/stage-tokens';
@@ -56,6 +57,7 @@ import { registerDefaultDetailBuilders } from './pipeline/logging/default-detail
     AuditModule,
     MetricsModule,
     FingerprintModule,
+    DemoModeModule,
   ],
   providers: [
     GatewayMiddleware,

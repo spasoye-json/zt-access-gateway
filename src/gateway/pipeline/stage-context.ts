@@ -26,6 +26,11 @@ export interface StageContext {
   claims?: UserClaims;
   trustScore?: number;
   trustCtx?: TrustContext;
+  /** Set to 'demo' when the trust score was supplied by the DEMO_MODE header
+   *  override rather than computed by the real providers. The narrative
+   *  surfaces this so the audience cannot mistake an override for a real
+   *  score (PRD #1 user story 11). */
+  trustOverride?: 'demo';
   policyDecision?: PolicyDecision;
   upstreamStatus?: number;
   upstreamBody?: unknown;
