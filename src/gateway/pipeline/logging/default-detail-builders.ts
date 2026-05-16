@@ -26,7 +26,9 @@ export function registerDefaultDetailBuilders(registry: StageDetailRegistry): vo
 
   registry.register('trust_score', (ctx) => {
     if (typeof ctx.trustScore !== 'number') return {};
-    return { score: ctx.trustScore.toFixed(2) };
+    const out: Record<string, string> = { score: ctx.trustScore.toFixed(2) };
+    if (ctx.trustOverride === 'demo') out.override = 'demo';
+    return out;
   });
 
   registry.register('hashcash', (_ctx, outcome) => {
