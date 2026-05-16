@@ -6,6 +6,7 @@ import { PipelineOrchestrator } from './pipeline/orchestrator';
 import { buildStageContext } from './pipeline/build-stage-context';
 import { writeOutcome } from './pipeline/write-outcome';
 import { handleTerminalError } from './pipeline/handle-terminal-error';
+import { openingFrame, closingFrame } from './pipeline/logging/lifecycle-frames';
 
 /**
  * Phase D — GatewayMiddleware reduced to a thin orchestration shell.
@@ -35,11 +36,14 @@ export class GatewayMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     if (req.method === 'OPTIONS') return next();
     const ctx = buildStageContext(req, res, next);
+    this.logger.log(openingFrame(req, ctx.requestId, ctx.reqPath));
     try {
       const outcome = await this.orchestrator.run(ctx);
       writeOutcome(res, next, outcome, this.metrics);
     } catch (e) {
       handleTerminalError(res, e, ctx, this.events, this.metrics, this.logger);
+    } finally {
+      this.logger.log(closingFrame(ctx.requestId, res, Date.now() - ctx.startedAt));
     }
   }
 }

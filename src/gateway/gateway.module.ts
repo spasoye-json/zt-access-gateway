@@ -27,6 +27,10 @@ import { AuditAllowStage } from './pipeline/stages/audit-allow.stage';
 import { ProxyStage } from './pipeline/stages/proxy.stage';
 import { BoplaStripStage } from './pipeline/stages/bopla-strip.stage';
 import { RecordTrustContextStage } from './pipeline/stages/record-trust-context.stage';
+import { StageDetailRegistry } from './pipeline/logging/stage-detail-registry';
+import { StageLoggerDecorator } from './pipeline/logging/stage-logger-decorator';
+import { wrapStages } from './pipeline/logging/wrap-stages';
+import { registerDefaultDetailBuilders } from './pipeline/logging/default-detail-builders';
 
 /**
  * Phase 10 / D — GatewayModule wires the 9 prerequisite modules plus the
@@ -69,9 +73,13 @@ import { RecordTrustContextStage } from './pipeline/stages/record-trust-context.
     ProxyStage,
     BoplaStripStage,
     RecordTrustContextStage,
+    StageDetailRegistry,
+    StageLoggerDecorator,
     {
       provide: PIPELINE_STAGES,
       // Factory order = execution order. Do not reorder casually.
+      // Wrapping happens once at module construction so the orchestrator
+      // sees the decorated PipelineStage interface and is itself untouched.
       useFactory: (
         s1: PublicBypassStage,
         s2: HoneypotBypassStage,
@@ -86,8 +94,12 @@ import { RecordTrustContextStage } from './pipeline/stages/record-trust-context.
         s11: ProxyStage,
         s12: BoplaStripStage,
         s13: RecordTrustContextStage,
-      ): readonly PipelineStage[] =>
-        [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13] as const,
+        registry: StageDetailRegistry,
+        decorator: StageLoggerDecorator,
+      ): readonly PipelineStage[] => {
+        registerDefaultDetailBuilders(registry);
+        return wrapStages([s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13], decorator);
+      },
       inject: [
         PublicBypassStage,
         HoneypotBypassStage,
@@ -102,6 +114,8 @@ import { RecordTrustContextStage } from './pipeline/stages/record-trust-context.
         ProxyStage,
         BoplaStripStage,
         RecordTrustContextStage,
+        StageDetailRegistry,
+        StageLoggerDecorator,
       ],
     },
   ],
