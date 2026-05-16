@@ -6,12 +6,10 @@ import type { ServerConfig, TrustConfig } from '../../config/slices';
 import { DbService } from '../../db/db.service';
 import { TrustTelemetryRepository } from '../trust-telemetry.repository';
 import { TrustScoreService } from '../trust-score.service';
-import { DeviceReputationProvider } from '../providers/device-reputation.provider';
-import { IpReputationProvider } from '../providers/ip-reputation.provider';
 import { Ja4hDriftProvider } from '../providers/ja4h-drift.provider';
-import { RequestFrequencyProvider } from '../providers/request-frequency.provider';
 import { TrustDecayProvider } from '../providers/trust-decay.provider';
 import { BehaviorAnomalyProvider } from '../providers/behavior-anomaly.provider';
+import { SIGNAL_RULES } from '../signal-rules';
 import type { TrustContext } from '../trust-context';
 
 function ztTestUrlFromEnv(): string {
@@ -55,10 +53,9 @@ describeDb('TRST-09 trust persistence boundary', () => {
     service = new TrustScoreService(
       fingerprintStore,
       repository,
-      new DeviceReputationProvider(repository, config),
-      new IpReputationProvider(repository, config),
+      config,
+      SIGNAL_RULES,
       new Ja4hDriftProvider(repository, new TypedEvents(new EventEmitter2())),
-      new RequestFrequencyProvider(repository, config),
       new TrustDecayProvider(repository, config),
       new BehaviorAnomalyProvider(repository, config),
     );
