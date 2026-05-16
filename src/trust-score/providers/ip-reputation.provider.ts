@@ -17,8 +17,8 @@ export class IpReputationProvider implements TrustSignalProvider {
     const sum = await this.repo.sumAllowsForUserIp(ctx.userId, ctx.ip);
     const thr = this.config.knownThreshold;
     if (sum >= thr) {
-      return { delta: -0.15, reason: 'ip_trusted' };
+      return { source: 'ip_reputation', delta: -0.15, reason: 'ip_trusted', decayable: true };
     }
-    return { delta: 0.15, reason: 'ip_untrusted' };
+    return { source: 'ip_reputation', delta: 0.15, reason: 'ip_untrusted', decayable: true };
   }
 }

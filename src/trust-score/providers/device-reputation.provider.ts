@@ -17,8 +17,8 @@ export class DeviceReputationProvider implements TrustSignalProvider {
     const n = await this.repo.countAllowsForUserDeviceIp(ctx.userId, ctx.deviceId, ctx.ip);
     const thr = this.config.knownThreshold;
     if (n >= thr) {
-      return { delta: -0.15, reason: 'device_known' };
+      return { source: 'device_reputation', delta: -0.15, reason: 'device_known', decayable: true };
     }
-    return { delta: 0.15, reason: 'device_unknown' };
+    return { source: 'device_reputation', delta: 0.15, reason: 'device_unknown', decayable: true };
   }
 }

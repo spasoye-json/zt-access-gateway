@@ -53,7 +53,7 @@ export class TrustScoreService {
                 ? err
                 : JSON.stringify(err);
           this.logger.warn(`Trust provider fault ${p.name}: ${errMsg}`);
-          return { delta: 0.1, reason: `${p.name}_fault` };
+          return { source: p.name, delta: 0.1, reason: `${p.name}_fault`, decayable: false };
         }),
       ),
     );

@@ -22,7 +22,7 @@ export class TrustDecayProvider implements TrustSignalProvider {
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
     const row = await this.repo.getSignalRow(ctx.userId, ctx.deviceId, ctx.ip);
     if (!row) {
-      return { delta: 0, reason: 'trust_decay_none' };
+      return { source: 'trust_decay', delta: 0, reason: 'trust_decay_none', decayable: false };
     }
 
     const now = ctx.requestTimestamp ?? new Date();
@@ -48,6 +48,6 @@ export class TrustDecayProvider implements TrustSignalProvider {
       correction += ipRaw * (k - 1);
     }
 
-    return { delta: correction, reason: 'trust_decay' };
+    return { source: 'trust_decay', delta: correction, reason: 'trust_decay', decayable: false };
   }
 }

@@ -27,7 +27,12 @@ describe('Ja4hDriftProvider (Phase 14 Plan 01 — drift event, D-02)', () => {
 
     const adj = await provider.compute(baseCtx);
 
-    expect(adj).toEqual({ delta: 0.3, reason: 'ja4h_drift' });
+    expect(adj).toEqual({
+      source: 'ja4h_drift',
+      delta: 0.3,
+      reason: 'ja4h_drift',
+      decayable: false,
+    });
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
@@ -38,7 +43,12 @@ describe('Ja4hDriftProvider (Phase 14 Plan 01 — drift event, D-02)', () => {
 
     const adj = await provider.compute(baseCtx);
 
-    expect(adj).toEqual({ delta: -0.05, reason: 'ja4h_stable' });
+    expect(adj).toEqual({
+      source: 'ja4h_drift',
+      delta: -0.05,
+      reason: 'ja4h_stable',
+      decayable: false,
+    });
     expect(listener).not.toHaveBeenCalled();
   });
 
@@ -49,7 +59,12 @@ describe('Ja4hDriftProvider (Phase 14 Plan 01 — drift event, D-02)', () => {
 
     const adj = await provider.compute(baseCtx);
 
-    expect(adj).toEqual({ delta: -0.05, reason: 'ja4h_stable' });
+    expect(adj).toEqual({
+      source: 'ja4h_drift',
+      delta: -0.05,
+      reason: 'ja4h_stable',
+      decayable: false,
+    });
     expect(listener).not.toHaveBeenCalled();
   });
 });

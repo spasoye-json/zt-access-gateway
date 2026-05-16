@@ -18,8 +18,18 @@ export class RequestFrequencyProvider implements TrustSignalProvider {
     const since = new Date(now.getTime() - this.config.frequencyWindowMs);
     const c = await this.repo.countActivitySince(ctx.userId, since);
     if (c > this.config.frequencyNormalMax) {
-      return { delta: 0.2, reason: 'frequency_burst' };
+      return {
+        source: 'request_frequency',
+        delta: 0.2,
+        reason: 'frequency_burst',
+        decayable: false,
+      };
     }
-    return { delta: -0.1, reason: 'frequency_normal' };
+    return {
+      source: 'request_frequency',
+      delta: -0.1,
+      reason: 'frequency_normal',
+      decayable: false,
+    };
   }
 }
