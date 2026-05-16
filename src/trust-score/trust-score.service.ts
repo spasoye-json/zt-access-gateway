@@ -32,17 +32,23 @@ export class TrustScoreService {
       return 1;
     }
 
+    // Phase 1: rules + custom providers in parallel.
     const ruleTasks = this.rules.map((rule) =>
       evaluateRule(rule, this.telemetry, this.config, ctx).catch((err: unknown) =>
         this.faultAdjustment(rule.name, err),
       ),
     );
-    const providerTasks = [this.ja4hDrift, this.trustDecay, this.behaviorAnomaly].map((p) =>
+    const providerTasks = [this.ja4hDrift, this.behaviorAnomaly].map((p) =>
       p.compute(ctx).catch((err: unknown) => this.faultAdjustment(p.name, err)),
     );
+    const phase1 = await Promise.all([...ruleTasks, ...providerTasks]);
 
-    const adjustments = await Promise.all([...ruleTasks, ...providerTasks]);
-    const deltaSum = adjustments.reduce((s, a) => s + a.delta, 0);
+    // Phase 2: Trust Decay attenuates favourable decayable adjustments.
+    const decayCorrection = await this.trustDecay
+      .attenuate(ctx, phase1)
+      .catch((err: unknown) => this.faultAdjustment(this.trustDecay.name, err));
+
+    const deltaSum = [...phase1, decayCorrection].reduce((s, a) => s + a.delta, 0);
     return Math.min(1, Math.max(0, 0.5 + deltaSum));
   }
 

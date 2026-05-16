@@ -36,11 +36,22 @@ function throwingProvider(source: string) {
   return { name: source, compute: jest.fn().mockRejectedValue(new Error('boom')) };
 }
 
+function stubDecay(delta = 0) {
+  return {
+    name: 'trust_decay',
+    attenuate: jest.fn().mockResolvedValue(stubAdjustment('trust_decay', delta)),
+  };
+}
+
+function throwingDecay() {
+  return { name: 'trust_decay', attenuate: jest.fn().mockRejectedValue(new Error('boom')) };
+}
+
 function build(opts: {
   isTerminal?: boolean;
   rules?: readonly SignalRule[];
   ja4h?: ReturnType<typeof stubProvider>;
-  decay?: ReturnType<typeof stubProvider>;
+  decay?: ReturnType<typeof stubDecay>;
   anomaly?: ReturnType<typeof stubProvider>;
   telemetry?: Partial<TrustTelemetryRepository>;
 }) {
@@ -49,7 +60,7 @@ function build(opts: {
   } as unknown as FingerprintStore;
   const telemetry = (opts.telemetry ?? {}) as TrustTelemetryRepository;
   const ja4h = (opts.ja4h ?? stubProvider('ja4h_drift', 0)) as unknown as Ja4hDriftProvider;
-  const decay = (opts.decay ?? stubProvider('trust_decay', 0)) as unknown as TrustDecayProvider;
+  const decay = (opts.decay ?? stubDecay(0)) as unknown as TrustDecayProvider;
   const anomaly = (opts.anomaly ??
     stubProvider('behavior_anomaly', 0)) as unknown as BehaviorAnomalyProvider;
   const service = new TrustScoreService(
@@ -81,8 +92,25 @@ describe('TrustScoreService', () => {
   });
 
   it('adds +0.1 bias when a custom provider throws (D-08)', async () => {
-    const { service } = build({ decay: throwingProvider('trust_decay') });
+    const { service } = build({ ja4h: throwingProvider('ja4h_drift') });
     expect(await service.evaluateScore(ctx)).toBe(0.6);
+  });
+
+  it('adds +0.1 bias when Trust Decay throws', async () => {
+    const { service } = build({ decay: throwingDecay() });
+    expect(await service.evaluateScore(ctx)).toBe(0.6);
+  });
+
+  it('passes phase-1 adjustments into Trust Decay for attenuation', async () => {
+    const decay = stubDecay(0);
+    const { service } = build({
+      ja4h: stubProvider('ja4h_drift', -0.05),
+      decay,
+    });
+    await service.evaluateScore(ctx);
+    expect(decay.attenuate).toHaveBeenCalledTimes(1);
+    const phase1 = decay.attenuate.mock.calls[0][1] as SignalAdjustment[];
+    expect(phase1.some((a) => a.source === 'ja4h_drift' && a.delta === -0.05)).toBe(true);
   });
 
   it('adds +0.1 bias when a rule query throws', async () => {
