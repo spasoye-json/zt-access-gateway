@@ -3,6 +3,8 @@ import { jwtVerify, decodeProtectedHeader, importSPKI, createRemoteJWKSet, error
 import type { JWTVerifyResult, JWTPayload } from 'jose';
 import { AUTH_CONFIG, type AuthConfig } from '../config/slices';
 import { UserClaims } from './interfaces/user-claims.interface';
+import { TokenRevocationService } from './token-revocation.service';
+import type { AuthOutcome } from './auth-outcome';
 
 /**
  * JWT validation with algorithm-routed key resolution (D-03).
@@ -14,7 +16,32 @@ export class AuthService {
   /** Singleton JWKS function -- cached per Pitfall 2 */
   private jwksFunction: ReturnType<typeof createRemoteJWKSet> | null = null;
 
-  constructor(@Inject(AUTH_CONFIG) private readonly config: AuthConfig) {}
+  constructor(
+    @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
+    private readonly revocation: TokenRevocationService,
+  ) {}
+
+  /**
+   * Issue #16 — deep seam for "is this token usable right now?".
+   *
+   * Owns header extraction, scheme parsing, token verification, and revocation
+   * lookup. Failures are values (see AuthOutcome), not exceptions — except for
+   * genuine programmer bugs surfacing from validateToken (e.g., DB outages
+   * during JWKS fetch), which propagate.
+   *
+   * No production callers yet. Adapter migration lands in #17 and #18.
+   */
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async authenticate(req: {
+    headers: { authorization?: string | string[] };
+  }): Promise<AuthOutcome> {
+    // Minimal happy-path implementation (cycle 1). Subsequent cycles cover
+    // missing/scheme/token/revoked outcomes; this assumes a valid bearer.
+    const raw = req.headers.authorization as string;
+    const token = raw.slice('Bearer '.length);
+    const claims = await this.validateToken(token);
+    return { kind: 'ok', claims };
+  }
 
   /**
    * Validate a JWT and extract UserClaims.

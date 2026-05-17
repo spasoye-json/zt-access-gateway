@@ -40,6 +40,10 @@ _Avoid_: request context (ambiguous), pipeline state.
 The value `PolicyEvaluatorService.evaluate` returns: `{ decision: ALLOW | CHALLENGE | DENY, reason, score?, matchedSubject? }`. Stored on `StageContext.policyDecision` and consumed by downstream Stages.
 _Avoid_: authorisation result, verdict.
 
+**Auth Outcome**:
+The discriminated union `AuthService.authenticate` returns: `{ kind: 'ok', claims }` | `{ kind: 'invalid', reason, message? }` | `{ kind: 'revoked' }`. Owns header parsing, scheme check, signature verification, and revocation lookup as one indivisible answer to "is this token usable right now?". Consumed by exactly two adapters — `AuthStage` (maps to `StageOutcome`) and `JwtAuthGuard` (maps to `UnauthorizedException`). Adapters share one emission helper so `AUTH_INVALID_TOKEN` payloads stay identical across seams.
+_Avoid_: auth result, validation result.
+
 **Stage Outcome**:
 The discriminated union a Stage returns: `continue`, `bypass`, `short-circuit`, `proxied`. The orchestrator advances on `continue` and terminates the pipeline otherwise.
 _Avoid_: result, return code.
@@ -52,6 +56,7 @@ _Avoid_: result, return code.
 - The sum of all **Trust Signals** (clamped to `[0, 1]` around a 0.5 base) is the trust score on `StageContext.trustScore`.
 - A **Policy Decision** is computed from the trust score plus Casbin rules; thresholds map score bands to `ALLOW | CHALLENGE | DENY`.
 - Every **Stage** reads and writes the same **StageContext** and returns a **Stage Outcome**.
+- `AuthStage` and `JwtAuthGuard` are the only callers of `AuthService.authenticate`; both consume the same **Auth Outcome** and emit `AUTH_INVALID_TOKEN` via the shared `buildAuthInvalidPayload` helper.
 
 ## Example dialogue
 
