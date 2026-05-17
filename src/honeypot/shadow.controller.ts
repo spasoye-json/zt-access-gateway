@@ -3,14 +3,22 @@ import { Request, Response } from 'express';
 import { TypedEvents } from '../shared/typed-events';
 import { FingerprintStore } from '../fingerprint/fingerprint.store';
 import { SecurityMetricsService } from './security-metrics.service';
+import { AuditService } from '../audit/audit.service';
+import { DemoModeService } from '../shared/demo-mode/demo-mode.service';
 import { SERVER_CONFIG, type ServerConfig } from '../config/slices';
 import { Honeypot } from './honeypot.decorator';
 import { getFakeResponse } from './honeypot-responses';
 import { HONEYPOT_PATHS } from './honeypot.constants';
 import { sleep, randomDelay } from '../shared/sleep.util';
-import { extractJa4h } from '../shared/request-context.util';
+import { extractIp, extractJa4h } from '../shared/request-context.util';
 import { Public } from '../shared/public.decorator';
 import { HONEYPOT_TRIGGER, type ThreatSignalPayload } from '../policy/policy-events';
+
+// PRD #1 user story 14: cap honeypot tarpit at 50ms when DEMO_MODE is active
+// so scenario 3 reads as "instant deception", not a hung gateway.
+const TARPIT_DEMO_MAX_MS = 50;
+const TARPIT_PROD_MIN_MS = 2000;
+const TARPIT_PROD_MAX_MS = 5000;
 
 /**
  * ShadowController — deception layer of the zero-trust pipeline.
@@ -37,6 +45,8 @@ export class ShadowController implements OnModuleInit {
     private readonly metrics: SecurityMetricsService,
     @Inject(SERVER_CONFIG) private readonly config: ServerConfig,
     private readonly events: TypedEvents,
+    private readonly audit: AuditService,
+    private readonly demoMode: DemoModeService,
   ) {}
 
   onModuleInit(): void {
@@ -101,8 +111,25 @@ export class ShadowController implements OnModuleInit {
       }),
     );
 
-    // Tarpit: hold the connection to slow down scanners (D-05, HPOT-05)
-    await sleep(randomDelay(2000, 5000));
+    // Persist the honeypot hit as a deny row in audit_logs (#4 / PRD F5).
+    // Best-effort: AuditService.log() for non-allow decisions never throws.
+    await this.audit.log({
+      userId: 'anonymous',
+      resource: path,
+      action: req.method,
+      decision: 'deny',
+      ja4hFingerprint: extractJa4h(req),
+      ipAddress: extractIp(req),
+      userAgent: req.headers['user-agent'],
+      eventType: 'HONEYPOT_TRIGGERED',
+    });
+
+    // Tarpit: hold the connection to slow down scanners (D-05, HPOT-05).
+    // Capped to 50ms in demo mode so live scenario 3 doesn't read as a hang.
+    const [minMs, maxMs] = this.demoMode.isActive()
+      ? [0, TARPIT_DEMO_MAX_MS]
+      : [TARPIT_PROD_MIN_MS, TARPIT_PROD_MAX_MS];
+    await sleep(randomDelay(minMs, maxMs));
 
     const fakeResponse = getFakeResponse(path);
     if (typeof fakeResponse.body === 'string') {

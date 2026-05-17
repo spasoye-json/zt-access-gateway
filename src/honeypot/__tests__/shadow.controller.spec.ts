@@ -4,6 +4,8 @@ import { TypedEvents } from '../../shared/typed-events';
 import { ShadowController } from '../shadow.controller';
 import { FingerprintStore } from '../../fingerprint/fingerprint.store';
 import { SecurityMetricsService } from '../security-metrics.service';
+import type { AuditService } from '../../audit/audit.service';
+import type { DemoModeService } from '../../shared/demo-mode/demo-mode.service';
 import type { ServerConfig } from '../../config/slices';
 import { HONEYPOT_KEY } from '../honeypot.decorator';
 import { HONEYPOT_TRIGGER } from '../../policy/policy-events';
@@ -45,6 +47,8 @@ describe('ShadowController', () => {
   let metrics: jest.Mocked<SecurityMetricsService>;
   let config: jest.Mocked<ServerConfig>;
   let events: TypedEvents;
+  let audit: jest.Mocked<AuditService>;
+  let demoMode: jest.Mocked<DemoModeService>;
   let emitSpy: jest.SpyInstance;
   let warnSpy: jest.SpyInstance;
 
@@ -69,7 +73,14 @@ describe('ShadowController', () => {
     events = new TypedEvents(new EventEmitter2());
     emitSpy = jest.spyOn(events, 'emit');
 
-    controller = new ShadowController(store, metrics, config, events);
+    audit = {
+      log: jest.fn().mockResolvedValue(undefined),
+    } as any;
+    demoMode = {
+      isActive: jest.fn().mockReturnValue(false),
+    } as any;
+
+    controller = new ShadowController(store, metrics, config, events, audit, demoMode);
     warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
     (sleep as jest.Mock).mockClear();
@@ -239,6 +250,59 @@ describe('ShadowController', () => {
           ts: expect.any(Number),
         }),
       );
+    });
+  });
+
+  describe('audit row on honeypot hit (Slice C, #4)', () => {
+    it('writes one audit row with decision=deny + eventType=HONEYPOT_TRIGGERED before responding', async () => {
+      const req = makeMockReq('/.env', 'jh-fp-1');
+      const res = makeMockRes();
+      await (controller as any).dotEnv(req, res);
+      expect(audit.log).toHaveBeenCalledTimes(1);
+      const entry = audit.log.mock.calls[0][0];
+      expect(entry).toEqual(
+        expect.objectContaining({
+          decision: 'deny',
+          eventType: 'HONEYPOT_TRIGGERED',
+          resource: '/.env',
+          ja4hFingerprint: 'jh-fp-1',
+          userId: 'anonymous',
+        }),
+      );
+    });
+
+    it('audit.log is invoked before sleep/tarpit (write-then-tarpit ordering)', async () => {
+      const calls: string[] = [];
+      audit.log.mockImplementation(async () => {
+        calls.push('audit');
+      });
+      (sleep as jest.Mock).mockImplementation(async () => {
+        calls.push('sleep');
+      });
+      const req = makeMockReq('/.env');
+      const res = makeMockRes();
+      await (controller as any).dotEnv(req, res);
+      expect(calls).toEqual(['audit', 'sleep']);
+    });
+  });
+
+  describe('demo-mode tarpit cap (Slice C, #4)', () => {
+    it('caps random delay at 50ms when DemoModeService.isActive() is true', async () => {
+      (demoMode.isActive as jest.Mock).mockReturnValue(true);
+      const req = makeMockReq('/.env');
+      const res = makeMockRes();
+      await (controller as any).dotEnv(req, res);
+      expect(randomDelay).toHaveBeenCalledTimes(1);
+      const [, max] = (randomDelay as jest.Mock).mock.calls[0];
+      expect(max).toBeLessThanOrEqual(50);
+    });
+
+    it('uses production 2000-5000ms range when demo mode is inactive', async () => {
+      (demoMode.isActive as jest.Mock).mockReturnValue(false);
+      const req = makeMockReq('/.env');
+      const res = makeMockRes();
+      await (controller as any).dotEnv(req, res);
+      expect(randomDelay).toHaveBeenCalledWith(2000, 5000);
     });
   });
 

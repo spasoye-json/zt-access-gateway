@@ -1,17 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { PipelineStage, StageOutcome } from '../pipeline-stage';
 import type { StageContext } from '../stage-context';
 import { AuthService } from '../../../auth/auth.service';
+import { AuditService } from '../../../audit/audit.service';
+import { MetricsService } from '../../../metrics/metrics.service';
 import { TypedEvents } from '../../../shared/typed-events';
 import { AUTH_INVALID_TOKEN } from '../../../policy/policy-events';
 import { buildAuthInvalidPayload } from '../../../auth/auth-invalid-payload';
 import { GATEWAY_VALIDATED } from '../../../auth/gateway-validated.symbol';
+import { extractIp } from '../../../shared/request-context.util';
+import { recordWithTimeoutBestEffort } from '../record-with-timeout.util';
 
 @Injectable()
 export class AuthStage implements PipelineStage {
   readonly id = 'auth';
+  private readonly logger = new Logger(AuthStage.name);
   constructor(
     private readonly auth: AuthService,
+    private readonly audit: AuditService,
+    private readonly metrics: MetricsService,
     private readonly events: TypedEvents,
   ) {}
   async run(ctx: StageContext): Promise<StageOutcome> {
@@ -24,6 +31,15 @@ export class AuthStage implements PipelineStage {
       r[GATEWAY_VALIDATED] = true;
       return { kind: 'continue' };
     }
+    await recordWithTimeoutBestEffort(this.audit, this.metrics, this.logger, {
+      userId: 'anonymous',
+      resource: ctx.reqPath,
+      action: ctx.req.method,
+      decision: 'deny',
+      ja4hFingerprint: ctx.ja4h,
+      ipAddress: extractIp(ctx.req),
+      requestId,
+    });
     if (o.kind === 'revoked')
       return { kind: 'short-circuit', status: 401, body: { error: 'token_revoked', requestId } };
     this.events.emit(AUTH_INVALID_TOKEN, buildAuthInvalidPayload(ctx.req));
