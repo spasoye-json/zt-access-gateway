@@ -11,7 +11,7 @@ import chalk from 'chalk';
  * Logger, no env reads — so it snapshots deterministically once `chalk.level`
  * is fixed by the test setup.
  */
-export type StageStatus = 'pass' | 'deny' | 'chall' | 'skip';
+export type StageStatus = 'pass' | 'deny' | 'chall' | 'skip' | 'promo';
 
 const STATUS_TABLE: Record<
   StageStatus,
@@ -21,6 +21,10 @@ const STATUS_TABLE: Record<
   deny: { glyph: '✗', word: 'DENY ', paint: (s) => chalk.red(s) },
   chall: { glyph: '⚠', word: 'CHALL', paint: (s) => chalk.yellow(s) },
   skip: { glyph: '⊘', word: 'SKIP ', paint: (s) => chalk.dim(s) },
+  // Slice E (#6): CHALLENGE → ALLOW promotion via a valid x-mfa-token. Same
+  // green as PASS because the promotion succeeded, but a distinct word so the
+  // audience sees that a CHALLENGE was lifted rather than passing untouched.
+  promo: { glyph: '✓', word: 'PROMO', paint: (s) => chalk.green(s) },
 };
 
 const REQ_ID_W = 8;

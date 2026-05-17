@@ -224,6 +224,42 @@ export class MfaChallenger {
   }
 
   /**
+   * Slice E (#6) — DEMO_MODE-gated shortcut. Mints an MFA JWT bound to
+   * userId|deviceId|ip and inserts the matching mfa_tokens row, bypassing the
+   * full enrollment + TOTP-verify chain. The minted token is byte-identical
+   * (claim shape, secret, fingerprint hash) to one produced by verifyTotp, so
+   * it round-trips through validateMfaToken without any code-path divergence
+   * — the load-bearing correctness anchor for the demo path.
+   *
+   * Callers are responsible for gating on DemoModeService.isActive() at the
+   * controller layer; this method does NOT check the flag itself.
+   */
+  async mintDemoMfaToken(input: {
+    userId: string;
+    deviceId: string;
+    ip: string;
+  }): Promise<{ token: string; expiresAt: number }> {
+    const { userId, deviceId, ip } = input;
+    const fpHash = createHash('sha256').update(`${userId}|${deviceId}|${ip}`, 'utf8').digest('hex');
+    const jti = randomUUID();
+    const expiresAtMs = Date.now() + this.tokenTtlMs;
+    const expiresAtSec = Math.floor(expiresAtMs / 1000);
+    const token = await new SignJWT({
+      sub: userId,
+      jti,
+      deviceId,
+      fpHash,
+      typ: 'mfa',
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(expiresAtSec)
+      .sign(this.jwtSecretBytes);
+    await this.tokenRepo.insertMfaToken(jti, userId, fpHash, new Date(expiresAtMs));
+    return { token, expiresAt: expiresAtMs };
+  }
+
+  /**
    * Validates an MFA JWT from X-MFA-Token header.
    * Checks: signature → typ:'mfa' → jti in mfa_tokens (not expired/revoked) → fingerprint match.
    * Emits MFA_FAILED on any failure (D-12).

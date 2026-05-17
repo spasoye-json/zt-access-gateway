@@ -18,6 +18,7 @@ export const AUTH_ONLY_EXACT: ReadonlySet<string> = new Set([
   '/mfa/enroll',
   '/mfa/enroll/confirm',
   '/audit/logs', // Phase 12 — AUDT-05 (closes I-01)
+  '/demo/mfa-token', // Slice E (#6) — DEMO_MODE-only; bypass trust/hashcash so a CHALLENGE-state user can mint MFA. Route is physically absent when DEMO_MODE=false (DemoMfaModule.forRoot()), so listing it here is inert in production.
 ]);
 
 export const AUTH_ONLY_PREFIXES: readonly string[] = [

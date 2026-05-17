@@ -13,8 +13,16 @@ function shortRequestId(reqId: string | undefined): string {
   return flat.slice(0, SHORT_REQ_ID_LEN).padEnd(SHORT_REQ_ID_LEN, '?');
 }
 
-function classify(outcome: StageOutcome): StageStatus {
-  if (outcome.kind === 'continue' || outcome.kind === 'proxied') return 'pass';
+function classify(stageId: string, ctx: StageContext, outcome: StageOutcome): StageStatus {
+  if (outcome.kind === 'continue' || outcome.kind === 'proxied') {
+    // Slice E (#6): mfa_promotion returning `continue` when the policy stage
+    // had decided CHALLENGE means a valid x-mfa-token lifted the gate. Render
+    // PROMO instead of PASS so the audience sees the lift visually.
+    if (stageId === 'mfa_promotion' && ctx.policyDecision?.decision === 'CHALLENGE') {
+      return 'promo';
+    }
+    return 'pass';
+  }
   if (outcome.kind === 'bypass') return 'skip';
   if (outcome.kind === 'short-circuit') {
     if (outcome.challenge === true) return 'chall';
@@ -50,7 +58,13 @@ export class StageLoggerDecorator {
           const ms = Date.now() - t0;
           const detail = details.buildFor(stage.id, ctx, outcome);
           logger.log(
-            formatStageLine(shortRequestId(ctx.requestId), stage.id, classify(outcome), ms, detail),
+            formatStageLine(
+              shortRequestId(ctx.requestId),
+              stage.id,
+              classify(stage.id, ctx, outcome),
+              ms,
+              detail,
+            ),
           );
           return outcome;
         } catch (e) {

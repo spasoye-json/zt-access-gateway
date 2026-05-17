@@ -614,6 +614,90 @@ describe('MfaChallenger', () => {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // mintDemoMfaToken() — Slice E (#6) demo shortcut
+  // ---------------------------------------------------------------------------
+  describe('mintDemoMfaToken()', () => {
+    it('produces a token that round-trips through validateMfaToken (correctness anchor)', async () => {
+      let capturedJti: string | undefined;
+      let capturedFp: string | undefined;
+      let capturedExp: Date | undefined;
+      tokenRepo.insertMfaToken.mockImplementationOnce(
+        async (jti: string, _userId: string, fpHash: string, expiresAt: Date) => {
+          capturedJti = jti;
+          capturedFp = fpHash;
+          capturedExp = expiresAt;
+        },
+      );
+
+      const mint = await service.mintDemoMfaToken({
+        userId: TEST_USER,
+        deviceId: TEST_DEVICE,
+        ip: TEST_IP,
+      });
+
+      expect(typeof mint.token).toBe('string');
+      expect(mint.token.split('.').length).toBe(3);
+      expect(mint.expiresAt).toBeGreaterThan(Date.now());
+
+      tokenRepo.getMfaTokenWithStatus.mockResolvedValueOnce({
+        jti: capturedJti,
+        userId: TEST_USER,
+        fingerprintHash: capturedFp,
+        issuedAt: new Date(),
+        expiresAt: capturedExp,
+        isRevoked: false,
+        isExpired: false,
+      });
+
+      const validate = await service.validateMfaToken(mint.token, TEST_USER, TEST_DEVICE, TEST_IP);
+
+      assertOkTrue<Extract<MfaValidateResult, { ok: true }>>(validate);
+      expect(validate.claims.typ).toBe('mfa');
+      expect(validate.claims.sub).toBe(TEST_USER);
+      expect(validate.claims.deviceId).toBe(TEST_DEVICE);
+    });
+
+    it('binds fingerprint to userId|deviceId|ip — mismatched ip rejects', async () => {
+      let capturedJti: string | undefined;
+      let capturedFp: string | undefined;
+      let capturedExp: Date | undefined;
+      tokenRepo.insertMfaToken.mockImplementationOnce(
+        async (jti: string, _userId: string, fpHash: string, expiresAt: Date) => {
+          capturedJti = jti;
+          capturedFp = fpHash;
+          capturedExp = expiresAt;
+        },
+      );
+
+      const mint = await service.mintDemoMfaToken({
+        userId: TEST_USER,
+        deviceId: TEST_DEVICE,
+        ip: TEST_IP,
+      });
+
+      tokenRepo.getMfaTokenWithStatus.mockResolvedValueOnce({
+        jti: capturedJti,
+        userId: TEST_USER,
+        fingerprintHash: capturedFp,
+        issuedAt: new Date(),
+        expiresAt: capturedExp,
+        isRevoked: false,
+        isExpired: false,
+      });
+
+      const validate = await service.validateMfaToken(
+        mint.token,
+        TEST_USER,
+        TEST_DEVICE,
+        '10.0.0.99',
+      );
+
+      assertOkFalse<Extract<MfaValidateResult, { ok: false }>>(validate);
+      expect(validate.reason).toBe('fingerprint_mismatch');
+    });
+  });
+
   // Ensure MfaErrorRecorder is reached on infra errors (smoke check that the
   // infra-error path is wired uniformly across the three public methods).
   describe('infra error routing (MFA_INFRA_ERROR symbol export still defined)', () => {
