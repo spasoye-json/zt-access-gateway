@@ -31,13 +31,13 @@ export class AuthService {
    *
    * No production callers yet. Adapter migration lands in #17 and #18.
    */
-  // eslint-disable-next-line @typescript-eslint/require-await
   async authenticate(req: {
     headers: { authorization?: string | string[] };
   }): Promise<AuthOutcome> {
-    // Minimal happy-path implementation (cycle 1). Subsequent cycles cover
-    // missing/scheme/token/revoked outcomes; this assumes a valid bearer.
-    const raw = req.headers.authorization as string;
+    const raw = req.headers.authorization;
+    if (typeof raw !== 'string') {
+      return { kind: 'invalid', reason: 'missing' };
+    }
     const token = raw.slice('Bearer '.length);
     const claims = await this.validateToken(token);
     return { kind: 'ok', claims };
