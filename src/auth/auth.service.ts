@@ -38,7 +38,10 @@ export class AuthService {
     if (typeof raw !== 'string') {
       return { kind: 'invalid', reason: 'missing' };
     }
-    const token = raw.slice('Bearer '.length);
+    const [scheme, token] = raw.split(' ');
+    if (scheme !== 'Bearer') {
+      return { kind: 'invalid', reason: 'scheme' };
+    }
     const claims = await this.validateToken(token);
     return { kind: 'ok', claims };
   }
