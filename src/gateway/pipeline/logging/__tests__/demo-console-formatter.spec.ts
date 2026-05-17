@@ -23,16 +23,18 @@ describe('formatStageLine', () => {
     expect(line).toContain('alg=HS256');
   });
 
-  it('colour-codes each of the four statuses with its own ANSI sequence', () => {
+  it('colour-codes each of the five statuses with its own ANSI sequence', () => {
     const pass = formatStageLine('r1', 'auth', 'pass', 1);
     const deny = formatStageLine('r2', 'auth', 'deny', 1);
     const chall = formatStageLine('r3', 'auth', 'chall', 1);
     const skip = formatStageLine('r4', 'auth', 'skip', 1);
+    const promo = formatStageLine('r5', 'mfa_promotion', 'promo', 1);
 
     expect(pass).toContain(chalk.green('✓ PASS '));
     expect(deny).toContain(chalk.red('✗ DENY '));
     expect(chall).toContain(chalk.yellow('⚠ CHALL'));
     expect(skip).toContain(chalk.dim('⊘ SKIP '));
+    expect(promo).toContain(chalk.green('✓ PROMO'));
   });
 
   it('snapshots each status at fixed widths', () => {

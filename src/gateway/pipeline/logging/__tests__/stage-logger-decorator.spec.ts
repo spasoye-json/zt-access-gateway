@@ -112,6 +112,36 @@ describe('StageLoggerDecorator', () => {
     expect(logs[0]).toContain('SKIP');
   });
 
+  it('emits PROMO for mfa_promotion when CHALLENGE is lifted by a valid x-mfa-token', async () => {
+    const inner = makeStage('mfa_promotion', { kind: 'continue' });
+    const wrapped = new StageLoggerDecorator(new StageDetailRegistry()).wrap(inner);
+    const ctx = {
+      requestId: 'abcdef01',
+      startedAt: Date.now(),
+      policyDecision: { decision: 'CHALLENGE' },
+    } as StageContext;
+
+    await wrapped.run(ctx);
+
+    expect(logs[0]).toContain('PROMO');
+    expect(logs[0]).toContain('mfa_promotion');
+  });
+
+  it('emits PASS (not PROMO) for mfa_promotion when policy already decided ALLOW', async () => {
+    const inner = makeStage('mfa_promotion', { kind: 'continue' });
+    const wrapped = new StageLoggerDecorator(new StageDetailRegistry()).wrap(inner);
+    const ctx = {
+      requestId: 'abcdef01',
+      startedAt: Date.now(),
+      policyDecision: { decision: 'ALLOW' },
+    } as StageContext;
+
+    await wrapped.run(ctx);
+
+    expect(logs[0]).toContain('PASS');
+    expect(logs[0]).not.toContain('PROMO');
+  });
+
   it('renders detail kvs from the registered builder', async () => {
     const inner = makeStage('auth', { kind: 'continue' });
     const registry = new StageDetailRegistry();
