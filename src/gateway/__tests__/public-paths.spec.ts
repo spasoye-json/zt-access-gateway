@@ -5,17 +5,22 @@ describe('public-paths', () => {
     expect([...PUBLIC_PATHS].sort()).toEqual(['/health', '/metrics']);
   });
 
-  it('AUTH_ONLY_EXACT contains exactly the six auth-only routes', () => {
+  it('AUTH_ONLY_EXACT contains the auth-only routes including /demo/mfa-token (Slice E)', () => {
     expect([...AUTH_ONLY_EXACT].sort()).toEqual(
       [
         '/audit/logs',
         '/auth/revoke',
+        '/demo/mfa-token',
         '/mfa/enroll',
         '/mfa/enroll/confirm',
         '/mfa/initiate',
         '/mfa/verify',
       ].sort(),
     );
+  });
+
+  it('isAuthOnlyPath returns true for /demo/mfa-token (Slice E — bypass trust/hashcash so users at CHALLENGE can mint MFA)', () => {
+    expect(isAuthOnlyPath('/demo/mfa-token')).toBe(true);
   });
 
   it('AUTH_ONLY_PREFIXES contains /mfa/admin/enrollment and /policy/admin', () => {

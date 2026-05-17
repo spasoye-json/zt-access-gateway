@@ -11,6 +11,7 @@ import { TrustScoreModule } from './trust-score/trust-score.module';
 import { HashcashModule } from './hashcash/hashcash.module';
 import { PolicyModule } from './policy/policy.module';
 import { MfaModule } from './mfa/mfa.module';
+import { DemoMfaModule } from './demo-mfa/demo-mfa.module';
 import { ProxyModule } from './proxy/proxy.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { AuditModule } from './audit/audit.module';
@@ -64,6 +65,7 @@ import { GatewayMiddleware } from './gateway/gateway.middleware';
     HashcashModule,
     PolicyModule, // Phase 6 — D-24 module structure (after Hashcash, before Honeypot)
     MfaModule, // Phase 7 — D-19 (after PolicyModule, before HoneypotModule)
+    DemoMfaModule.forRoot(), // Slice E (#6) — DEMO_MODE-only POST /demo/mfa-token; 404s when flag is off
     ProxyModule, // Phase 8 — D-01..D-12 (wave 3; before HoneypotModule)
     MetricsModule, // Phase 9 — registry merge (after Hashcash/Policy peers, before Honeypot last)
     AuditModule, // Phase 9 — WAL writer + admin query endpoint
