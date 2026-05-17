@@ -380,5 +380,12 @@ describe('AuthService', () => {
       });
       expect(outcome).toEqual({ kind: 'invalid', reason: 'missing' });
     });
+
+    it('non-Bearer scheme → { kind: "invalid", reason: "scheme" }', async () => {
+      const outcome = await authService.authenticate({
+        headers: { authorization: 'Basic dXNlcjpwYXNz' },
+      });
+      expect(outcome).toEqual({ kind: 'invalid', reason: 'scheme' });
+    });
   });
 });
