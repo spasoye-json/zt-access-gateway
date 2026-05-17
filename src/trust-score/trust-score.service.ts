@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { FingerprintStore } from '../fingerprint/fingerprint.store';
 import { TRUST_CONFIG, type TrustConfig } from '../config/slices';
+import { TypedEvents } from '../shared/typed-events';
+import { TRUST_PROVIDER_FAULT } from '../metrics/metrics-events';
 import { TrustTelemetryRepository } from './trust-telemetry.repository';
 import type { TrustContext } from './trust-context';
 import type { SignalAdjustment } from './trust-signal-provider.interface';
@@ -22,6 +24,7 @@ export class TrustScoreService {
     private readonly ja4hDrift: Ja4hDriftProvider,
     private readonly trustDecay: TrustDecayProvider,
     private readonly behaviorAnomaly: BehaviorAnomalyProvider,
+    private readonly events: TypedEvents,
   ) {}
 
   /**
@@ -56,6 +59,7 @@ export class TrustScoreService {
     const msg =
       err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
     this.logger.warn(`Trust signal fault ${source}: ${msg}`);
+    this.events.emit(TRUST_PROVIDER_FAULT, { provider: source });
     return { source, delta: 0.1, reason: `${source}_fault`, decayable: false };
   }
 

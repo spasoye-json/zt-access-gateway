@@ -8,7 +8,9 @@ import {
   AUTH_TOKEN_REVOKED,
   FINGERPRINT_BLACKLIST_SIZE_CHANGED,
   FINGERPRINT_DRIFT_DETECTED,
+  TRUST_PROVIDER_FAULT,
   type FingerprintBlacklistSizeChangedPayload,
+  type TrustProviderFaultPayload,
 } from './metrics-events';
 
 /** Buckets for both stage_duration_seconds and audit_wal_duration_seconds (D-09, D-10). */
@@ -75,6 +77,19 @@ export class MetricsService {
   private readonly fingerprintDriftTotal = new Counter({
     name: 'zt_gateway_fingerprint_drift_total',
     help: 'Total mid-session JA4H fingerprint drift detections',
+    registers: [this.registry],
+  });
+
+  /**
+   * Issue #13 — TrustScoreService.faultAdjustment emits TRUST_PROVIDER_FAULT
+   * when a signal rule or provider rejects (catching the error and adding a
+   * 0.1 bias). Six concurrent faults compound to a +0.6 swing → score clamps
+   * to 1.0. This counter makes that swing observable per offender.
+   */
+  private readonly trustProviderFaultTotal = new Counter({
+    name: 'zt_gateway_trust_provider_fault_total',
+    help: 'Total trust-signal provider/rule faults caught by TrustScoreService',
+    labelNames: ['provider'] as const,
     registers: [this.registry],
   });
 
@@ -209,6 +224,15 @@ export class MetricsService {
   @OnEvent(AUTH_TOKEN_REVOKED)
   onAuthTokenRevoked(): void {
     this.incrementTokenRevocation();
+  }
+
+  /**
+   * Issue #13 — emitted from TrustScoreService.faultAdjustment with the
+   * offending rule/provider name (e.g. `device_reputation`, `ja4h_drift`).
+   */
+  @OnEvent(TRUST_PROVIDER_FAULT)
+  onTrustProviderFault(p: TrustProviderFaultPayload): void {
+    this.trustProviderFaultTotal.inc({ provider: p.provider });
   }
 
   // ── Aggregation surface (MTRC-03) ──

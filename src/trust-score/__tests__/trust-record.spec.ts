@@ -58,6 +58,7 @@ describeDb('TRST-09 trust persistence boundary', () => {
       new Ja4hDriftProvider(repository, new TypedEvents(new EventEmitter2())),
       new TrustDecayProvider(repository, config),
       new BehaviorAnomalyProvider(repository, config),
+      new TypedEvents(new EventEmitter2()),
     );
   });
 

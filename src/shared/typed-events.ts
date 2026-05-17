@@ -18,7 +18,9 @@ import {
   FINGERPRINT_DRIFT_DETECTED,
   AUTH_TOKEN_REVOKED,
   AUDIT_RECORD_FAILED,
+  TRUST_PROVIDER_FAULT,
   FingerprintBlacklistSizeChangedPayload,
+  TrustProviderFaultPayload,
 } from '../metrics/metrics-events';
 
 /**
@@ -51,6 +53,7 @@ export interface EventPayloads {
   [FINGERPRINT_DRIFT_DETECTED]: Record<string, never>;
   [AUTH_TOKEN_REVOKED]: Record<string, never>;
   [AUDIT_RECORD_FAILED]: void;
+  [TRUST_PROVIDER_FAULT]: TrustProviderFaultPayload;
 }
 
 @Injectable()

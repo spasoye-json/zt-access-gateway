@@ -17,6 +17,17 @@ export const AUTH_TOKEN_REVOKED = 'auth.token_revoked';
  */
 export const AUDIT_RECORD_FAILED = 'audit.record_failed';
 
+/**
+ * Issue #13 — emitted by TrustScoreService.faultAdjustment when a signal
+ * rule or provider rejects. Provider name is the rule/provider source so
+ * the swing is observable per offender on the dashboard.
+ */
+export const TRUST_PROVIDER_FAULT = 'trust.provider_fault';
+
 export interface FingerprintBlacklistSizeChangedPayload {
   size: number;
+}
+
+export interface TrustProviderFaultPayload {
+  provider: string;
 }

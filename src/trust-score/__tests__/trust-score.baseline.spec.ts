@@ -72,6 +72,7 @@ describeDb('TrustScoreService fresh-device baseline (issue #13)', () => {
       ja4hDrift,
       trustDecay,
       behaviorAnomaly,
+      new TypedEvents(new EventEmitter2()),
     );
   });
 
