@@ -42,7 +42,15 @@ export class AuthService {
     if (scheme !== 'Bearer' || !token) {
       return { kind: 'invalid', reason: 'scheme' };
     }
-    const claims = await this.validateToken(token);
+    let claims;
+    try {
+      claims = await this.validateToken(token);
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        return { kind: 'invalid', reason: 'token', message: err.message };
+      }
+      throw err;
+    }
     return { kind: 'ok', claims };
   }
 
