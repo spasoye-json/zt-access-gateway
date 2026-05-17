@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth.service';
+import { TokenRevocationService } from '../token-revocation.service';
 import { AUTH_CONFIG, type AuthConfig } from '../../config/slices';
 import {
   TEST_HS256_SECRET,
@@ -20,6 +21,7 @@ import {
  */
 describe('AuthService', () => {
   let authService: AuthService;
+  let revocation: TokenRevocationService;
   let mockConfig: Partial<AuthConfig>;
 
   beforeEach(async () => {
@@ -32,10 +34,15 @@ describe('AuthService', () => {
     };
 
     const module = await Test.createTestingModule({
-      providers: [AuthService, { provide: AUTH_CONFIG, useValue: mockConfig }],
+      providers: [
+        AuthService,
+        TokenRevocationService,
+        { provide: AUTH_CONFIG, useValue: mockConfig },
+      ],
     }).compile();
 
     authService = module.get(AuthService);
+    revocation = module.get(TokenRevocationService);
   });
 
   describe('validateToken - HS256 (AUTH-01)', () => {
@@ -331,6 +338,89 @@ describe('AuthService', () => {
 
       const claims = await authService.validateToken(token);
       expect(claims.userId).toBe('u1');
+    });
+  });
+
+  /**
+   * Issue #16 — Auth Outcome.
+   *
+   * authenticate(req) is the single deep seam for "is this token usable right now?".
+   * Failures become values, not exceptions. Adapters (AuthStage, JwtAuthGuard)
+   * map AuthOutcome → their conventions. Migration of adapters lives in #17/#18.
+   */
+  describe('authenticate (Auth Outcome)', () => {
+    it('valid bearer + non-revoked jti → { kind: "ok", claims }', async () => {
+      const token = await createHs256Token(
+        { sub: 'u1', roles: ['user'], email: 'u@test.com' },
+        { jti: 'jti-ok' },
+      );
+      void revocation; // collaborator wired; revoked-path covered in a later cycle
+      const outcome = await authService.authenticate({
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(outcome.kind).toBe('ok');
+      if (outcome.kind !== 'ok') return;
+      expect(outcome.claims.userId).toBe('u1');
+      expect(outcome.claims.jti).toBe('jti-ok');
+      expect(outcome.claims.roles).toEqual(['user']);
+    });
+
+    it('missing Authorization header → { kind: "invalid", reason: "missing" }', async () => {
+      const outcome = await authService.authenticate({ headers: {} });
+      expect(outcome).toEqual({ kind: 'invalid', reason: 'missing' });
+    });
+
+    // WR-02 regression: duplicate Authorization headers produce an array. The
+    // current JwtAuthGuard normalises arrays then throws UnauthorizedException;
+    // authenticate() must classify them as invalid:missing — never throw.
+    it('array-valued Authorization (duplicate headers) → invalid:missing', async () => {
+      const outcome = await authService.authenticate({
+        headers: { authorization: ['Bearer abc', 'Bearer def'] },
+      });
+      expect(outcome).toEqual({ kind: 'invalid', reason: 'missing' });
+    });
+
+    it('non-Bearer scheme → { kind: "invalid", reason: "scheme" }', async () => {
+      const outcome = await authService.authenticate({
+        headers: { authorization: 'Basic dXNlcjpwYXNz' },
+      });
+      expect(outcome).toEqual({ kind: 'invalid', reason: 'scheme' });
+    });
+
+    it('empty token after Bearer → { kind: "invalid", reason: "scheme" }', async () => {
+      const outcome = await authService.authenticate({
+        headers: { authorization: 'Bearer ' },
+      });
+      expect(outcome).toEqual({ kind: 'invalid', reason: 'scheme' });
+    });
+
+    it('expired token → { kind: "invalid", reason: "token", message preserved }', async () => {
+      const token = await createExpiredHs256Token();
+      const outcome = await authService.authenticate({
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(outcome.kind).toBe('invalid');
+      if (outcome.kind !== 'invalid') return;
+      expect(outcome.reason).toBe('token');
+      expect(outcome.message).toBe('Token has expired');
+    });
+
+    it('validateToken throws non-UnauthorizedException → re-throws (matches AuthStage)', async () => {
+      jest.spyOn(authService, 'validateToken').mockRejectedValueOnce(new Error('db down'));
+      await expect(
+        authService.authenticate({ headers: { authorization: 'Bearer abc' } }),
+      ).rejects.toThrow('db down');
+    });
+
+    it('valid bearer but jti is revoked → { kind: "revoked" }', async () => {
+      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'jti-revoked' });
+      revocation.revoke('jti-revoked', Date.now() + 60_000, 'u1');
+
+      const outcome = await authService.authenticate({
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(outcome).toEqual({ kind: 'revoked' });
     });
   });
 });
