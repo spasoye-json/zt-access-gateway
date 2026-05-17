@@ -16,8 +16,10 @@ function shortRequestId(reqId: string | undefined): string {
 function classify(outcome: StageOutcome): StageStatus {
   if (outcome.kind === 'continue' || outcome.kind === 'proxied') return 'pass';
   if (outcome.kind === 'bypass') return 'skip';
-  // short-circuit: 4xx with 403 = challenge, everything else = deny
-  if (outcome.kind === 'short-circuit' && outcome.status === 403) return 'chall';
+  if (outcome.kind === 'short-circuit') {
+    if (outcome.challenge === true) return 'chall';
+    if (outcome.status === 403) return 'chall';
+  }
   return 'deny';
 }
 

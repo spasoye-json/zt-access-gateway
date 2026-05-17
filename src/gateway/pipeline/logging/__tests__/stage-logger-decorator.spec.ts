@@ -78,6 +78,21 @@ describe('StageLoggerDecorator', () => {
     expect(logs[0]).toContain('mfa');
   });
 
+  it('emits one CHALL line when the inner stage short-circuits with challenge=true', async () => {
+    const inner = makeStage('hashcash', {
+      kind: 'short-circuit',
+      status: 429,
+      body: {},
+      challenge: true,
+    });
+    const wrapped = new StageLoggerDecorator(new StageDetailRegistry()).wrap(inner);
+
+    await wrapped.run(makeCtx());
+
+    expect(logs[0]).toContain('CHALL');
+    expect(logs[0]).toContain('hashcash');
+  });
+
   it('emits one DENY line and re-throws when the inner stage throws', async () => {
     const inner = makeStage('proxy', new Error('boom'));
     const wrapped = new StageLoggerDecorator(new StageDetailRegistry()).wrap(inner);

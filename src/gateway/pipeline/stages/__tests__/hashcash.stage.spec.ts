@@ -61,6 +61,7 @@ describe('HashcashStage', () => {
         requestId: 'req-1',
       },
       headers: { 'X-Hashcash-Challenge': 'NONCE:5', 'Retry-After': '1' },
+      challenge: true,
     });
   });
 
@@ -76,6 +77,12 @@ describe('HashcashStage', () => {
       makeCtx({ trustScore: 0.9, nonce: 'N', solution: 's'.repeat(257) }),
     );
     expect((out as { body: { error: string } }).body.error).toBe('proof_of_work_invalid');
+  });
+
+  it('marks the short-circuit as challenge=true (logger classifies as CHALL, not DENY)', async () => {
+    const { stage } = build();
+    const out = await stage.run(makeCtx({ trustScore: 0.9, solution: 'abc' }));
+    expect((out as { challenge?: true }).challenge).toBe(true);
   });
 
   it('verifySolution !ok → proof_of_work_invalid', async () => {

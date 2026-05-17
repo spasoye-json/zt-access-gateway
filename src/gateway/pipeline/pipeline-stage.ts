@@ -28,5 +28,8 @@ export type StageOutcome =
       status: number;
       body: unknown;
       headers?: Record<string, string>;
+      // Optional: when true, the stage logger classifies this as a CHALL (not DENY).
+      // Use for outcomes that ask the client to do work and retry (e.g. hashcash).
+      challenge?: true;
     }
   | { kind: 'proxied'; status: number; body: unknown };

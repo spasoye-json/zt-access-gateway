@@ -69,6 +69,7 @@ export class HashcashStage implements PipelineStage {
           'X-Hashcash-Challenge': `${nonce}:${difficulty}`,
           'Retry-After': '1',
         },
+        challenge: true,
       };
     };
 
