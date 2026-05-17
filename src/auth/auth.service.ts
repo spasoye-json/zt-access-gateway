@@ -51,6 +51,9 @@ export class AuthService {
       }
       throw err;
     }
+    if (this.revocation.isRevoked(claims.jti)) {
+      return { kind: 'revoked' };
+    }
     return { kind: 'ok', claims };
   }
 
