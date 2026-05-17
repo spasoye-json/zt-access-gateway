@@ -394,5 +394,16 @@ describe('AuthService', () => {
       });
       expect(outcome).toEqual({ kind: 'invalid', reason: 'scheme' });
     });
+
+    it('expired token → { kind: "invalid", reason: "token", message preserved }', async () => {
+      const token = await createExpiredHs256Token();
+      const outcome = await authService.authenticate({
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(outcome.kind).toBe('invalid');
+      if (outcome.kind !== 'invalid') return;
+      expect(outcome.reason).toBe('token');
+      expect(outcome.message).toBe('Token has expired');
+    });
   });
 });
