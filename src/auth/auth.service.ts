@@ -39,7 +39,7 @@ export class AuthService {
       return { kind: 'invalid', reason: 'missing' };
     }
     const [scheme, token] = raw.split(' ');
-    if (scheme !== 'Bearer') {
+    if (scheme !== 'Bearer' || !token) {
       return { kind: 'invalid', reason: 'scheme' };
     }
     const claims = await this.validateToken(token);
