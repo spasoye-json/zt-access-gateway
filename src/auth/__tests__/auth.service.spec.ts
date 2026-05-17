@@ -370,5 +370,15 @@ describe('AuthService', () => {
       const outcome = await authService.authenticate({ headers: {} });
       expect(outcome).toEqual({ kind: 'invalid', reason: 'missing' });
     });
+
+    // WR-02 regression: duplicate Authorization headers produce an array. The
+    // current JwtAuthGuard normalises arrays then throws UnauthorizedException;
+    // authenticate() must classify them as invalid:missing — never throw.
+    it('array-valued Authorization (duplicate headers) → invalid:missing', async () => {
+      const outcome = await authService.authenticate({
+        headers: { authorization: ['Bearer abc', 'Bearer def'] },
+      });
+      expect(outcome).toEqual({ kind: 'invalid', reason: 'missing' });
+    });
   });
 });
