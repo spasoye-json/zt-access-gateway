@@ -365,5 +365,10 @@ describe('AuthService', () => {
       expect(outcome.claims.jti).toBe('jti-ok');
       expect(outcome.claims.roles).toEqual(['user']);
     });
+
+    it('missing Authorization header → { kind: "invalid", reason: "missing" }', async () => {
+      const outcome = await authService.authenticate({ headers: {} });
+      expect(outcome).toEqual({ kind: 'invalid', reason: 'missing' });
+    });
   });
 });
