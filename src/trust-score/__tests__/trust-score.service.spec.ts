@@ -1,5 +1,8 @@
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TrustScoreService } from '../trust-score.service';
 import { FingerprintStore } from '../../fingerprint/fingerprint.store';
+import { TypedEvents } from '../../shared/typed-events';
+import { TRUST_PROVIDER_FAULT } from '../../metrics/metrics-events';
 import type { TrustTelemetryRepository } from '../trust-telemetry.repository';
 import type { TrustContext } from '../trust-context';
 import type { TrustConfig } from '../../config/slices';
@@ -63,6 +66,7 @@ function build(opts: {
   const decay = (opts.decay ?? stubDecay(0)) as unknown as TrustDecayProvider;
   const anomaly = (opts.anomaly ??
     stubProvider('behavior_anomaly', 0)) as unknown as BehaviorAnomalyProvider;
+  const events = new TypedEvents(new EventEmitter2());
   const service = new TrustScoreService(
     store,
     telemetry,
@@ -71,8 +75,9 @@ function build(opts: {
     ja4h,
     decay,
     anomaly,
+    events,
   );
-  return { service, store, telemetry, ja4h, decay, anomaly };
+  return { service, store, telemetry, ja4h, decay, anomaly, events };
 }
 
 describe('TrustScoreService', () => {
@@ -140,6 +145,29 @@ describe('TrustScoreService', () => {
     const { service } = build({ rules: reputationRules, telemetry: repo });
 
     expect(await service.evaluateScore(ctx)).toBe(0.8);
+  });
+
+  it('emits TRUST_PROVIDER_FAULT when a provider throws (issue #13 observability)', async () => {
+    const { service, events } = build({ ja4h: throwingProvider('ja4h_drift') });
+    const spy = jest.spyOn(events, 'emit');
+    await service.evaluateScore(ctx);
+    expect(spy).toHaveBeenCalledWith(TRUST_PROVIDER_FAULT, { provider: 'ja4h_drift' });
+  });
+
+  it('emits TRUST_PROVIDER_FAULT when a rule throws (issue #13 observability)', async () => {
+    const failingRule: SignalRule = {
+      name: 'fake_rule',
+      decayable: false,
+      query: jest.fn().mockRejectedValue(new Error('boom')),
+      threshold: () => 0,
+      compare: 'gt',
+      whenMet: { delta: 0, reason: 'm' },
+      whenUnmet: { delta: 0, reason: 'u' },
+    };
+    const { service, events } = build({ rules: [failingRule] });
+    const spy = jest.spyOn(events, 'emit');
+    await service.evaluateScore(ctx);
+    expect(spy).toHaveBeenCalledWith(TRUST_PROVIDER_FAULT, { provider: 'fake_rule' });
   });
 
   it('clamps to [0,1] when summed deltas exceed the range', async () => {

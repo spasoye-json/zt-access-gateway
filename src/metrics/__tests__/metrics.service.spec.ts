@@ -246,5 +246,17 @@ describe('MetricsService', () => {
       const text = await m.getAggregatedMetrics();
       expect(text).toContain('zt_gateway_token_revocations_total 1');
     });
+
+    it('onTrustProviderFault increments per-provider fault counter (issue #13)', async () => {
+      const m = makeService();
+      m.onTrustProviderFault({ provider: 'ja4h_drift' });
+      m.onTrustProviderFault({ provider: 'ja4h_drift' });
+      m.onTrustProviderFault({ provider: 'device_reputation' });
+      const text = await m.getAggregatedMetrics();
+      expect(text).toContain('zt_gateway_trust_provider_fault_total{provider="ja4h_drift"} 2');
+      expect(text).toContain(
+        'zt_gateway_trust_provider_fault_total{provider="device_reputation"} 1',
+      );
+    });
   });
 });
