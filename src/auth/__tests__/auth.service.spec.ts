@@ -387,5 +387,12 @@ describe('AuthService', () => {
       });
       expect(outcome).toEqual({ kind: 'invalid', reason: 'scheme' });
     });
+
+    it('empty token after Bearer → { kind: "invalid", reason: "scheme" }', async () => {
+      const outcome = await authService.authenticate({
+        headers: { authorization: 'Bearer ' },
+      });
+      expect(outcome).toEqual({ kind: 'invalid', reason: 'scheme' });
+    });
   });
 });
