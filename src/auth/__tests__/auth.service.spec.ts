@@ -405,5 +405,12 @@ describe('AuthService', () => {
       expect(outcome.reason).toBe('token');
       expect(outcome.message).toBe('Token has expired');
     });
+
+    it('validateToken throws non-UnauthorizedException → re-throws (matches AuthStage)', async () => {
+      jest.spyOn(authService, 'validateToken').mockRejectedValueOnce(new Error('db down'));
+      await expect(
+        authService.authenticate({ headers: { authorization: 'Bearer abc' } }),
+      ).rejects.toThrow('db down');
+    });
   });
 });
