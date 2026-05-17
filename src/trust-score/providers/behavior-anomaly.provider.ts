@@ -19,7 +19,7 @@ export class BehaviorAnomalyProvider implements TrustSignalProvider {
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
     const row = await this.repo.getSignalRow(ctx.userId, ctx.deviceId, ctx.ip);
     if (!row || row.allow_count < this.config.anomalyWarmupN) {
-      return { delta: 0, reason: 'anomaly_warmup' };
+      return { source: 'behavior_anomaly', delta: 0, reason: 'anomaly_warmup', decayable: false };
     }
 
     const hist = [...row.hour_histogram];
@@ -39,6 +39,6 @@ export class BehaviorAnomalyProvider implements TrustSignalProvider {
     const raw = zHour + zRate;
     const delta = Math.min(0.4, Math.max(0, raw));
 
-    return { delta, reason: 'behavior_anomaly' };
+    return { source: 'behavior_anomaly', delta, reason: 'behavior_anomaly', decayable: false };
   }
 }

@@ -17,15 +17,15 @@ export class Ja4hDriftProvider implements TrustSignalProvider {
   async compute(ctx: TrustContext): Promise<SignalAdjustment> {
     const row = await this.repo.getSignalRow(ctx.userId, ctx.deviceId, ctx.ip);
     if (!row || row.ja4h == null || row.ja4h === '') {
-      return { delta: -0.05, reason: 'ja4h_stable' };
+      return { source: 'ja4h_drift', delta: -0.05, reason: 'ja4h_stable', decayable: false };
     }
     if (row.ja4h !== ctx.ja4h) {
       // Phase 14 Plan 01 (D-02): emit drift signal so MetricsService increments
       // zt_gateway_fingerprint_drift_total. Audit-stated "Ja4hMiddleware" location
       // is impossible — middleware runs before auth, has no prior-fingerprint state.
       this.events.emit(FINGERPRINT_DRIFT_DETECTED, {});
-      return { delta: 0.3, reason: 'ja4h_drift' };
+      return { source: 'ja4h_drift', delta: 0.3, reason: 'ja4h_drift', decayable: false };
     }
-    return { delta: -0.05, reason: 'ja4h_stable' };
+    return { source: 'ja4h_drift', delta: -0.05, reason: 'ja4h_stable', decayable: false };
   }
 }
