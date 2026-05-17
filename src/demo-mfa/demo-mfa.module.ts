@@ -1,6 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { MfaModule } from '../mfa/mfa.module';
+import { SharedModule } from '../shared/shared.module';
 import { DemoMfaController } from './demo-mfa.controller';
 
 /**
@@ -18,7 +19,10 @@ export class DemoMfaModule {
     const active = process.env.DEMO_MODE === 'true';
     return {
       module: DemoMfaModule,
-      imports: [AuthModule, MfaModule],
+      // SharedModule re-exports TypedEvents, which JwtAuthGuard needs at construction.
+      // Without it the runtime DI fails even though the unit test passes
+      // (the test overrides the guard).
+      imports: [AuthModule, MfaModule, SharedModule],
       controllers: active ? [DemoMfaController] : [],
     };
   }
