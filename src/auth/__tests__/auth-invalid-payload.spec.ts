@@ -29,9 +29,7 @@ describe('buildAuthInvalidPayload', () => {
 
   it('produces { type, ip, ja4h, ts } with type=AUTH_INVALID_TOKEN', () => {
     const before = Date.now();
-    const p = buildAuthInvalidPayload(
-      fakeReq({ forwarded: '203.0.113.7', ja4h: 'abc-def' }),
-    );
+    const p = buildAuthInvalidPayload(fakeReq({ forwarded: '203.0.113.7', ja4h: 'abc-def' }));
     const after = Date.now();
 
     expect(p.type).toBe(AUTH_INVALID_TOKEN);

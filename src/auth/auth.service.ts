@@ -42,7 +42,7 @@ export class AuthService {
     if (scheme !== 'Bearer' || !token) {
       return { kind: 'invalid', reason: 'scheme' };
     }
-    let claims;
+    let claims: UserClaims;
     try {
       claims = await this.validateToken(token);
     } catch (err) {
