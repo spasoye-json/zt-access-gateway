@@ -111,13 +111,13 @@ describe('JwtAuthGuard', () => {
       expect(emitSpy).not.toHaveBeenCalled();
     });
 
-    it('un-branded req.user does NOT bypass — falls through to authenticate()', async () => {
+    it('pre-populated req.user does NOT bypass — falls through to authenticate()', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       const claims = makeClaims({ userId: 'u-real', jti: 'jti-real' });
       authService.authenticate.mockResolvedValue({ kind: 'ok', claims });
 
-      // Attacker-shaped plain UserClaims pre-populated on req.user; the
-      // structural brand check is gone, only the Symbol-key gate bypasses.
+      // Attacker-shaped UserClaims pre-populated on req.user; only the
+      // Symbol-key gate bypasses, never a wire-deserialisable field.
       const ctx = ctxFor(
         makeReq({
           authorization: 'Bearer x.y.z',
@@ -127,7 +127,6 @@ describe('JwtAuthGuard', () => {
             jti: 'x',
             exp: 0,
             deviceId: 'd',
-            __authenticatedByGateway: true,
           },
         }),
       );

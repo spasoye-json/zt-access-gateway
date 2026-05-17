@@ -35,7 +35,7 @@ describe('AuthStage', () => {
     expect(build().stage.id).toBe('auth');
   });
 
-  it('outcome ok → sets ctx.claims, brands req.user, sets GATEWAY_VALIDATED, continues', async () => {
+  it('outcome ok → sets ctx.claims, assigns plain claims to req.user, sets GATEWAY_VALIDATED, continues', async () => {
     const { stage, auth } = build();
     const claims = { userId: 'u1', roles: ['user'], jti: 'j1', exp: 9, deviceId: 'd1' };
     auth.authenticate.mockResolvedValue({ kind: 'ok', claims });
@@ -48,7 +48,7 @@ describe('AuthStage', () => {
     const req = ctx.req as unknown as Record<string | symbol, unknown> & {
       user?: Record<string, unknown>;
     };
-    expect(req.user).toEqual({ ...claims, __authenticatedByGateway: true });
+    expect(req.user).toEqual(claims);
     expect(req[GATEWAY_VALIDATED]).toBe(true);
   });
 

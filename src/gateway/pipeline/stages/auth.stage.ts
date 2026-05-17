@@ -20,7 +20,7 @@ export class AuthStage implements PipelineStage {
     if (o.kind === 'ok') {
       ctx.claims = o.claims;
       const r = ctx.req as typeof ctx.req & { user?: unknown; [GATEWAY_VALIDATED]?: true };
-      r.user = { ...o.claims, __authenticatedByGateway: true };
+      r.user = o.claims;
       r[GATEWAY_VALIDATED] = true;
       return { kind: 'continue' };
     }
