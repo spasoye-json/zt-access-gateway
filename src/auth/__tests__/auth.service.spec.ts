@@ -412,5 +412,18 @@ describe('AuthService', () => {
         authService.authenticate({ headers: { authorization: 'Bearer abc' } }),
       ).rejects.toThrow('db down');
     });
+
+    it('valid bearer but jti is revoked → { kind: "revoked" }', async () => {
+      const token = await createHs256Token(
+        { sub: 'u1', roles: ['user'] },
+        { jti: 'jti-revoked' },
+      );
+      revocation.revoke('jti-revoked', Date.now() + 60_000, 'u1');
+
+      const outcome = await authService.authenticate({
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(outcome).toEqual({ kind: 'revoked' });
+    });
   });
 });
