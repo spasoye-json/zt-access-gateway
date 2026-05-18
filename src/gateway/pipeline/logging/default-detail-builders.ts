@@ -57,6 +57,9 @@ export function registerDefaultDetailBuilders(registry: StageDetailRegistry): vo
   });
 
   registry.register('bopla_strip', (ctx) => {
+    if (ctx.boplaRemoved && ctx.boplaRemoved.length > 0) {
+      return { removed: `[${ctx.boplaRemoved.join(',')}]` };
+    }
     return ctx.strippedBody !== undefined ? { stripped: 'yes' } : {};
   });
 

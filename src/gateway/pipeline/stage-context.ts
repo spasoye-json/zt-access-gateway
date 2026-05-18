@@ -35,4 +35,8 @@ export interface StageContext {
   upstreamStatus?: number;
   upstreamBody?: unknown;
   strippedBody?: unknown;
+  /** Top-level field names removed by BoplaStripStage. Set only when both the
+   *  upstream and stripped bodies are plain objects and at least one key was
+   *  dropped; surfaced by the demo log builder as `removed=[…]`. */
+  boplaRemoved?: string[];
 }
