@@ -11,7 +11,7 @@
 #     <service>.key     server private key
 #     <service>.crt     server cert (CN=<service> + SANs, signed by CA)
 #
-# Services produced: passed as positional args (default: orders-service).
+# Services produced: passed as positional args (default: orders-service users-service).
 
 set -euo pipefail
 
@@ -28,7 +28,7 @@ for arg in "$@"; do
   esac
 done
 if [ "${#SERVICES[@]}" -eq 0 ]; then
-  SERVICES=("orders-service")
+  SERVICES=("orders-service" "users-service")
 fi
 
 CERT_DIR="${CERT_DIR:-$(cd "$(dirname "$0")/.." && pwd)/certs}"
