@@ -18,6 +18,7 @@ import type { PipelineStage } from './pipeline/pipeline-stage';
 import { PublicBypassStage } from './pipeline/stages/public-bypass.stage';
 import { HoneypotBypassStage } from './pipeline/stages/honeypot-bypass.stage';
 import { AuthStage } from './pipeline/stages/auth.stage';
+import { RevocationStage } from './pipeline/stages/revocation.stage';
 import { AuthOnlyShortCircuitStage } from './pipeline/stages/auth-only-shortcircuit.stage';
 import { TrustScoreStage } from './pipeline/stages/trust-score.stage';
 import { HashcashStage } from './pipeline/stages/hashcash.stage';
@@ -34,7 +35,7 @@ import { registerDefaultDetailBuilders } from './pipeline/logging/default-detail
 
 /**
  * Phase 10 / D — GatewayModule wires the 9 prerequisite modules plus the
- * 12 pipeline stages and the PipelineOrchestrator. The PIPELINE_STAGES
+ * 13 pipeline stages and the PipelineOrchestrator. The PIPELINE_STAGES
  * factory provider gathers the stages **in canonical execution order** —
  * adding a new stage is one new file + one entry below (no edits to the
  * middleware or the metrics union).
@@ -64,6 +65,7 @@ import { registerDefaultDetailBuilders } from './pipeline/logging/default-detail
     PublicBypassStage,
     HoneypotBypassStage,
     AuthStage,
+    RevocationStage,
     AuthOnlyShortCircuitStage,
     TrustScoreStage,
     HashcashStage,
@@ -84,25 +86,27 @@ import { registerDefaultDetailBuilders } from './pipeline/logging/default-detail
         s1: PublicBypassStage,
         s2: HoneypotBypassStage,
         s3: AuthStage,
-        s4: AuthOnlyShortCircuitStage,
-        s5: TrustScoreStage,
-        s6: HashcashStage,
-        s7: PolicyStage,
-        s8: MfaPromotionStage,
-        s9: AuditAllowStage,
-        s10: ProxyStage,
-        s11: BoplaStripStage,
-        s12: RecordTrustContextStage,
+        s4: RevocationStage,
+        s5: AuthOnlyShortCircuitStage,
+        s6: TrustScoreStage,
+        s7: HashcashStage,
+        s8: PolicyStage,
+        s9: MfaPromotionStage,
+        s10: AuditAllowStage,
+        s11: ProxyStage,
+        s12: BoplaStripStage,
+        s13: RecordTrustContextStage,
         registry: StageDetailRegistry,
         decorator: StageLoggerDecorator,
       ): readonly PipelineStage[] => {
         registerDefaultDetailBuilders(registry);
-        return wrapStages([s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12], decorator);
+        return wrapStages([s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13], decorator);
       },
       inject: [
         PublicBypassStage,
         HoneypotBypassStage,
         AuthStage,
+        RevocationStage,
         AuthOnlyShortCircuitStage,
         TrustScoreStage,
         HashcashStage,

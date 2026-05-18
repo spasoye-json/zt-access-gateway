@@ -100,18 +100,6 @@ describe('AuthStage', () => {
     );
   });
 
-  it('outcome revoked → 401 token_revoked, NO emit', async () => {
-    const { stage, auth, events } = build();
-    auth.authenticate.mockResolvedValue({ kind: 'revoked' });
-    const out = await stage.run(makeCtx({ authorization: 'Bearer abc' }));
-    expect(out).toEqual({
-      kind: 'short-circuit',
-      status: 401,
-      body: { error: 'token_revoked', requestId: 'req-1' },
-    });
-    expect(events.emit).not.toHaveBeenCalled();
-  });
-
   it('authenticate throws → propagates, no emit', async () => {
     const { stage, auth, events } = build();
     auth.authenticate.mockRejectedValue(new Error('db down'));
@@ -143,14 +131,6 @@ describe('AuthStage', () => {
     it('outcome invalid (token) → audit.log called with deny', async () => {
       const { stage, auth, audit } = build();
       auth.authenticate.mockResolvedValue({ kind: 'invalid', reason: 'token', message: 'expired' });
-      await stage.run(makeCtx({ authorization: 'Bearer abc' }));
-      expect(audit.log).toHaveBeenCalledTimes(1);
-      expect(audit.log.mock.calls[0][0].decision).toBe('deny');
-    });
-
-    it('outcome revoked → audit.log called with deny', async () => {
-      const { stage, auth, audit } = build();
-      auth.authenticate.mockResolvedValue({ kind: 'revoked' });
       await stage.run(makeCtx({ authorization: 'Bearer abc' }));
       expect(audit.log).toHaveBeenCalledTimes(1);
       expect(audit.log.mock.calls[0][0].decision).toBe('deny');

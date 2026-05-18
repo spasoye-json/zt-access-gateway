@@ -13,5 +13,4 @@ export type AuthInvalidReason = 'missing' | 'scheme' | 'token';
 
 export type AuthOutcome =
   | { kind: 'ok'; claims: UserClaims }
-  | { kind: 'invalid'; reason: AuthInvalidReason; message?: string }
-  | { kind: 'revoked' };
+  | { kind: 'invalid'; reason: AuthInvalidReason; message?: string };

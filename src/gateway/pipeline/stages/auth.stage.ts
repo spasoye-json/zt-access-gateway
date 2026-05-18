@@ -40,8 +40,6 @@ export class AuthStage implements PipelineStage {
       ipAddress: extractIp(ctx.req),
       requestId,
     });
-    if (o.kind === 'revoked')
-      return { kind: 'short-circuit', status: 401, body: { error: 'token_revoked', requestId } };
     this.events.emit(AUTH_INVALID_TOKEN, buildAuthInvalidPayload(ctx.req));
     const body =
       o.reason === 'token'
