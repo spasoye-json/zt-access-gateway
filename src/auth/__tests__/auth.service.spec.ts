@@ -1,7 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth.service';
-import { TokenRevocationService } from '../token-revocation.service';
 import { AUTH_CONFIG, type AuthConfig } from '../../config/slices';
 import {
   TEST_HS256_SECRET,
@@ -21,7 +20,6 @@ import {
  */
 describe('AuthService', () => {
   let authService: AuthService;
-  let revocation: TokenRevocationService;
   let mockConfig: Partial<AuthConfig>;
 
   beforeEach(async () => {
@@ -34,15 +32,10 @@ describe('AuthService', () => {
     };
 
     const module = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        TokenRevocationService,
-        { provide: AUTH_CONFIG, useValue: mockConfig },
-      ],
+      providers: [AuthService, { provide: AUTH_CONFIG, useValue: mockConfig }],
     }).compile();
 
     authService = module.get(AuthService);
-    revocation = module.get(TokenRevocationService);
   });
 
   describe('validateToken - HS256 (AUTH-01)', () => {
@@ -349,12 +342,11 @@ describe('AuthService', () => {
    * map AuthOutcome → their conventions. Migration of adapters lives in #17/#18.
    */
   describe('authenticate (Auth Outcome)', () => {
-    it('valid bearer + non-revoked jti → { kind: "ok", claims }', async () => {
+    it('valid bearer → { kind: "ok", claims } (revocation handled by RevocationStage)', async () => {
       const token = await createHs256Token(
         { sub: 'u1', roles: ['user'], email: 'u@test.com' },
         { jti: 'jti-ok' },
       );
-      void revocation; // collaborator wired; revoked-path covered in a later cycle
       const outcome = await authService.authenticate({
         headers: { authorization: `Bearer ${token}` },
       });
@@ -411,16 +403,6 @@ describe('AuthService', () => {
       await expect(
         authService.authenticate({ headers: { authorization: 'Bearer abc' } }),
       ).rejects.toThrow('db down');
-    });
-
-    it('valid bearer but jti is revoked → { kind: "revoked" }', async () => {
-      const token = await createHs256Token({ sub: 'u1', roles: ['user'] }, { jti: 'jti-revoked' });
-      revocation.revoke('jti-revoked', Date.now() + 60_000, 'u1');
-
-      const outcome = await authService.authenticate({
-        headers: { authorization: `Bearer ${token}` },
-      });
-      expect(outcome).toEqual({ kind: 'revoked' });
     });
   });
 });

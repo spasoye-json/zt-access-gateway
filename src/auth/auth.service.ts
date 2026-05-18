@@ -3,7 +3,6 @@ import { jwtVerify, decodeProtectedHeader, importSPKI, createRemoteJWKSet, error
 import type { JWTVerifyResult, JWTPayload } from 'jose';
 import { AUTH_CONFIG, type AuthConfig } from '../config/slices';
 import { UserClaims } from './interfaces/user-claims.interface';
-import { TokenRevocationService } from './token-revocation.service';
 import type { AuthOutcome } from './auth-outcome';
 
 /**
@@ -16,20 +15,15 @@ export class AuthService {
   /** Singleton JWKS function -- cached per Pitfall 2 */
   private jwksFunction: ReturnType<typeof createRemoteJWKSet> | null = null;
 
-  constructor(
-    @Inject(AUTH_CONFIG) private readonly config: AuthConfig,
-    private readonly revocation: TokenRevocationService,
-  ) {}
+  constructor(@Inject(AUTH_CONFIG) private readonly config: AuthConfig) {}
 
   /**
-   * Issue #16 — deep seam for "is this token usable right now?".
+   * Deep seam for "is this bearer token cryptographically valid?".
    *
-   * Owns header extraction, scheme parsing, token verification, and revocation
-   * lookup. Failures are values (see AuthOutcome), not exceptions — except for
-   * genuine programmer bugs surfacing from validateToken (e.g., DB outages
-   * during JWKS fetch), which propagate.
-   *
-   * No production callers yet. Adapter migration lands in #17 and #18.
+   * Slice F (#7) moved the revocation lookup out to RevocationStage —
+   * authenticate() now only owns header extraction, scheme parsing, and token
+   * verification. Failures are values; only programmer bugs from validateToken
+   * (e.g., DB outages during JWKS fetch) propagate.
    */
   async authenticate(req: {
     headers: { authorization?: string | string[] };
@@ -42,19 +36,15 @@ export class AuthService {
     if (scheme !== 'Bearer' || !token) {
       return { kind: 'invalid', reason: 'scheme' };
     }
-    let claims: UserClaims;
     try {
-      claims = await this.validateToken(token);
+      const claims = await this.validateToken(token);
+      return { kind: 'ok', claims };
     } catch (err) {
       if (err instanceof UnauthorizedException) {
         return { kind: 'invalid', reason: 'token', message: err.message };
       }
       throw err;
     }
-    if (this.revocation.isRevoked(claims.jti)) {
-      return { kind: 'revoked' };
-    }
-    return { kind: 'ok', claims };
   }
 
   /**

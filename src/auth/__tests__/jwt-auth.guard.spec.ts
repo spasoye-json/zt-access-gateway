@@ -204,16 +204,6 @@ describe('JwtAuthGuard', () => {
       );
     });
 
-    it("revoked → UnauthorizedException('Token has been revoked') and does NOT emit", async () => {
-      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      authService.authenticate.mockResolvedValue({ kind: 'revoked' });
-
-      const ctx = ctxFor(makeReq({ authorization: 'Bearer x.y.z' }));
-
-      await expect(guard.canActivate(ctx)).rejects.toThrow('Token has been revoked');
-      expect(emitSpy).not.toHaveBeenCalled();
-    });
-
     it('propagates non-UnauthorizedException thrown by authenticate() (e.g., DB outage)', async () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       authService.authenticate.mockRejectedValue(new Error('jwks down'));

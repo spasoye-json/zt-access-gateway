@@ -28,7 +28,6 @@ export class JwtAuthGuard implements CanActivate {
       brand[GATEWAY_VALIDATED] = true;
       return true;
     }
-    if (outcome.kind === 'revoked') throw new UnauthorizedException('Token has been revoked');
     this.events.emit(AUTH_INVALID_TOKEN, buildAuthInvalidPayload(req));
     throw new UnauthorizedException(outcome.message);
   }
