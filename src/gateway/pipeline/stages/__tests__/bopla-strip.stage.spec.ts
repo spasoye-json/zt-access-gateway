@@ -49,4 +49,38 @@ describe('BoplaStripStage', () => {
     await stage.run(ctx);
     expect(boPla.strip).toHaveBeenCalledWith({}, '/x', []);
   });
+
+  it('records removed top-level fields when strip drops keys (BOPLA demo log)', async () => {
+    const { stage, boPla } = build();
+    boPla.strip.mockReturnValue({ id: 'u-1', name: 'Alice', email: 'a@x' });
+    const ctx = makeCtx({
+      upstreamBody: {
+        id: 'u-1',
+        name: 'Alice',
+        email: 'a@x',
+        ssn: '999-99-9999',
+        internalRiskScore: 0.42,
+      },
+      roles: ['user'],
+    });
+    await stage.run(ctx);
+    expect(ctx.boplaRemoved).toEqual(['ssn', 'internalRiskScore']);
+  });
+
+  it('omits boplaRemoved when nothing was stripped (admin pass-through)', async () => {
+    const { stage, boPla } = build();
+    const body = { id: 'u-1', name: 'Alice', email: 'a@x', ssn: '9' };
+    boPla.strip.mockReturnValue(body);
+    const ctx = makeCtx({ upstreamBody: body, roles: ['admin'] });
+    await stage.run(ctx);
+    expect(ctx.boplaRemoved).toBeUndefined();
+  });
+
+  it('omits boplaRemoved when upstream body is not a plain object', async () => {
+    const { stage, boPla } = build();
+    boPla.strip.mockReturnValue('text');
+    const ctx = makeCtx({ upstreamBody: 'text', roles: ['user'] });
+    await stage.run(ctx);
+    expect(ctx.boplaRemoved).toBeUndefined();
+  });
 });

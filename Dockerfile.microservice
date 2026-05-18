@@ -1,6 +1,6 @@
 # Demo upstream microservice image (used by docker-compose.demo.yml).
-# Slice A produces only orders-service; users-service follows in a later slice.
-# Override `command:` in compose to pick the specific service entrypoint.
+# Builds both orders-service and users-service; override `command:` in compose
+# to pick the specific service entrypoint.
 FROM node:18-alpine
 
 WORKDIR /app

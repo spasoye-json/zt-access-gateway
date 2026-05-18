@@ -35,4 +35,6 @@ export interface StageContext {
   upstreamStatus?: number;
   upstreamBody?: unknown;
   strippedBody?: unknown;
+  /** Top-level keys removed by BoplaStripStage; surfaced as `removed=[…]`. */
+  boplaRemoved?: string[];
 }
