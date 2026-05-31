@@ -239,6 +239,25 @@ describe('ProxyService', () => {
       const headers = axiosMock.mock.calls[0][0].headers as Record<string, string>;
       expect(headers['x-gateway-request']).toBe('true');
     });
+
+    it('forwards x-ja4h from the request property (set by Ja4hMiddleware, not req.headers)', async () => {
+      axiosMock.mockResolvedValue(makeOkResponse());
+      // Ja4hMiddleware attaches the fingerprint as a request property, not a header.
+      await service.forward(
+        makeRequest({ 'x-ja4h': 'ja4h-fingerprint-abc' } as unknown as Partial<Request>),
+        makeClaims(),
+        0.0,
+      );
+      const headers = axiosMock.mock.calls[0][0].headers as Record<string, string>;
+      expect(headers['x-ja4h']).toBe('ja4h-fingerprint-abc');
+    });
+
+    it('omits x-ja4h when no fingerprint was attached', async () => {
+      axiosMock.mockResolvedValue(makeOkResponse());
+      await service.forward(makeRequest(), makeClaims(), 0.0);
+      const headers = axiosMock.mock.calls[0][0].headers as Record<string, string>;
+      expect(headers['x-ja4h']).toBeUndefined();
+    });
   });
 
   describe('forward() — mTLS (PRXY-01)', () => {
