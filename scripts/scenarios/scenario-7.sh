@@ -58,7 +58,10 @@ echo "GET ${DECOY_PATH} (2nd, same fingerprint) → ${CODE_7B} in ${LATENCY_MS}m
 # 7c) x-ja4h propagation. An AUTHENTICATED request has a different header set
 #     (Authorization present) → different JA4H → NOT blacklisted, so it proxies.
 #     The orders-service echoes the forwarded fingerprint as received_ja4h.
-TOKEN="$(SUB=alice ROLES=user node -r ts-node/register "${REPO_ROOT}/scripts/mint-demo-jwt.ts")" \
+#     Use an ADMIN token: BOPLA's /orders policy is admin:["*"], so the demo-only
+#     received_ja4h field survives field-stripping. A 'user' token would have it
+#     stripped to the production allowlist (id/status/total/amount/currency).
+TOKEN="$(SUB=admin ROLES=admin node -r ts-node/register "${REPO_ROOT}/scripts/mint-demo-jwt.ts")" \
   || fail "failed to mint demo JWT"
 [[ -n "${TOKEN}" ]] || fail "minted JWT is empty"
 

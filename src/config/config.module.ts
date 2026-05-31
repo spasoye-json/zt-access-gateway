@@ -92,7 +92,19 @@ export const validationSchema = Joi.object({
   THREAT_COOLDOWN_MS: Joi.number().integer().min(1000).default(600000),
   // Phase 7: MFA Challenge (D-09, D-15, D-03, D-17)
   MFA_JWT_SECRET: Joi.string().min(32).required(),
-  MFA_TOTP_ENCRYPTION_KEY: Joi.string().min(44).required(),
+  // Must base64-decode to EXACTLY 32 bytes — AES-256-GCM rejects any other key
+  // length at runtime, so a length-only check would let a bad key pass boot and
+  // crash on the first enrollment (aesGcmEncrypt → "Invalid key length").
+  MFA_TOTP_ENCRYPTION_KEY: Joi.string()
+    .required()
+    .custom((value: string, helpers) => {
+      if (Buffer.from(value, 'base64').length !== 32)
+        return helpers.message({
+          custom:
+            'MFA_TOTP_ENCRYPTION_KEY must be base64 that decodes to exactly 32 bytes (AES-256)',
+        });
+      return value;
+    }),
   MFA_CHALLENGE_TTL_MS: Joi.number().integer().min(1).default(300000),
   MFA_TOKEN_TTL_MS: Joi.number().integer().min(1).default(600000),
   MFA_RATE_LIMIT_MAX: Joi.number().integer().min(1).default(5),

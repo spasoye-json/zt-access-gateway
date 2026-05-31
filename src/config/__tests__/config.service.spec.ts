@@ -61,7 +61,7 @@ function setRequiredEnv() {
   process.env.HASHCASH_HMAC_SECRET = 'hashcash-secret-that-is-at-least-32-chars-long!';
   // Phase 7 MFA required vars (D-09, D-15)
   process.env.MFA_JWT_SECRET = 'mfa-secret-that-is-at-least-32-chars-long!!';
-  process.env.MFA_TOTP_ENCRYPTION_KEY = 'base64-encoded-32-byte-key-here-44-chars-xxx=';
+  process.env.MFA_TOTP_ENCRYPTION_KEY = Buffer.from('a'.repeat(32)).toString('base64');
   // Phase 8 Proxy required vars (D-03)
   if (!process.env.PROXY_SERVICE_REGISTRY)
     process.env.PROXY_SERVICE_REGISTRY = JSON.stringify({
@@ -192,9 +192,10 @@ describe('ConfigAppModule slices', () => {
       await expect(bootValidationFailure()).rejects.toThrow();
     });
 
-    it('throws when MFA_TOTP_ENCRYPTION_KEY length < 44 chars', async () => {
+    it('throws when MFA_TOTP_ENCRYPTION_KEY does not base64-decode to 32 bytes', async () => {
       setRequiredEnv();
-      process.env.MFA_TOTP_ENCRYPTION_KEY = 'too-short-key';
+      // 45 chars but decodes to 33 bytes — passes a naive length check, fails AES-256.
+      process.env.MFA_TOTP_ENCRYPTION_KEY = 'base64-encoded-32-byte-key-here-44-chars-xxx=';
       await expect(bootValidationFailure()).rejects.toThrow();
     });
   });
@@ -439,7 +440,7 @@ describe('ConfigAppModule slices', () => {
       process.env.MFA_TOKEN_TTL_MS = '600000';
       const slice = await resolveSlice<MfaConfig>(MFA_CONFIG);
       expect(slice.jwtSecret).toBe('mfa-secret-that-is-at-least-32-chars-long!!');
-      expect(slice.totpEncryptionKey).toBe('base64-encoded-32-byte-key-here-44-chars-xxx=');
+      expect(slice.totpEncryptionKey).toBe(Buffer.from('a'.repeat(32)).toString('base64'));
       expect(slice.challengeTtlMs).toBe(300000);
       expect(slice.tokenTtlMs).toBe(600000);
       expect(slice.rateLimitMax).toBe(5);
