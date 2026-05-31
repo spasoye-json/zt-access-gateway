@@ -173,7 +173,7 @@ describeE2e('MFA Enrollment HTTP e2e', () => {
         .send({ enrollmentId, totpCode: '000000' });
 
       expect(confirmRes.status).toBe(400);
-      expect(confirmRes.body).toMatchObject({ reason: 'invalid_totp' });
+      expect(confirmRes.body).toMatchObject({ error: 'enrollment_failed', reason: 'invalid_totp' });
     });
   });
 
