@@ -277,7 +277,7 @@ describe('MFA env validation fails at bootstrap, not at first request (#33 item 
     process.env.DATABASE_URL = 'postgresql://ztgateway:ztgateway@localhost:5432/ztgateway';
     process.env.HASHCASH_HMAC_SECRET = 'hashcash-secret-that-is-at-least-32-chars-long!';
     process.env.MFA_JWT_SECRET = 'mfa-secret-that-is-at-least-32-chars-long!!';
-    process.env.MFA_TOTP_ENCRYPTION_KEY = 'base64-encoded-32-byte-key-here-44-chars-xxx=';
+    process.env.MFA_TOTP_ENCRYPTION_KEY = Buffer.from('a'.repeat(32)).toString('base64');
     process.env.PROXY_SERVICE_REGISTRY = JSON.stringify({ dummy: 'https://dummy.test:8443' });
   }
 
@@ -327,9 +327,10 @@ describe('MFA env validation fails at bootstrap, not at first request (#33 item 
     expect(errMsg).toContain('MFA_TOTP_ENCRYPTION_KEY');
   });
 
-  it('fails to boot when MFA_TOTP_ENCRYPTION_KEY is shorter than 44 chars', async () => {
+  it('fails to boot when MFA_TOTP_ENCRYPTION_KEY does not base64-decode to 32 bytes', async () => {
     setRequiredEnv();
-    process.env.MFA_TOTP_ENCRYPTION_KEY = 'too-short-key';
+    // 45 chars but decodes to 33 bytes — passes a naive length check, fails AES-256.
+    process.env.MFA_TOTP_ENCRYPTION_KEY = 'base64-encoded-32-byte-key-here-44-chars-xxx=';
     await expect(bootConfigOnly()).rejects.toThrow();
   });
 
