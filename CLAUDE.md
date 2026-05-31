@@ -25,6 +25,13 @@ npm run lint
 docker-compose up --build
 ```
 
+## Documentation map
+
+- **[`CONTEXT.md`](./CONTEXT.md)** — ubiquitous-language glossary. The canonical vocabulary for the domain. Read this before naming anything.
+- **[`docs/adr/`](./docs/adr/)** — Architecture Decision Records. The *why* behind hard-to-reverse, non-obvious choices. Check here before "fixing" something that looks deliberate.
+- **[`docs/HARDENING_ARCHITECTURE.md`](./docs/HARDENING_ARCHITECTURE.md)** / **[`DIAGRAMS.md`](./docs/DIAGRAMS.md)** — the *how* (mechanics, diagrams).
+- **[`docs/CODEBASE.md`](./docs/CODEBASE.md)** / **[`docs/STARTUP_GUIDE.md`](./docs/STARTUP_GUIDE.md)** — implementation reference and local setup.
+
 ## Architecture
 
 This is a **Zero-Trust Access Gateway** built with NestJS. Every inbound request passes through a fixed pipeline before being proxied to a downstream microservice:
