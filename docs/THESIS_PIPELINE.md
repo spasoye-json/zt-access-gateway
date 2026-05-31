@@ -77,60 +77,67 @@ The following diagram shows the high-level split between the control plane (the 
 
 ```mermaid
 flowchart TB
-  subgraph Clients
-    Client[Client]
-  end
+  Client[Client]
 
-  subgraph Gateway["Gateway (NestJS)"]
+  subgraph Edge["Edge hardening (main.ts global middleware)"]
     direction TB
-    Helmet[Helmet / CORS / Rate limit]
-    Correlation[x-request-id middleware]
-    GWModule[GatewayMiddleware]
-    Controllers[Control-plane controllers]
-    Guards[JwtAuthGuard + RolesGuard]
+    Helmet[helmet]
+    Cors[CORS]
+    RateLimit[express-rate-limit -> 429]
   end
 
-  subgraph DataPlane["Data-plane (proxy pipeline)"]
-    Auth[Auth: JWT validation]
-    Trust[Trust score]
-    Policy[Policy: Casbin + risk]
-    MFA[MFA step-up]
-    Audit[Audit log]
-    Proxy[Proxy + mTLS]
+  subgraph Ja4h["Ja4hMiddleware (DI-aware, pre-pipeline)"]
+    Compute[computeJa4h: SHA-256 of method/httpVersion/header-names/accept/content-type]
+    Blacklist{Blacklisted JA4H?}
+    Tarpit[tarpit 2-5s -> 403 Forbidden]
   end
 
-  subgraph Downstream["Downstream"]
+  subgraph Gateway["GatewayMiddleware -> PipelineOrchestrator"]
+    Pipeline[13 stages, first-non-continue wins]
+  end
+
+  subgraph ControlPlane["Control-plane controllers (auth_only bypass)"]
+    MfaCtl[MfaController /mfa/*]
+    AuditCtl[AuditController /audit/logs]
+    PolicyCtl[PolicyAdminController /policy/admin]
+    AuthCtl[AuthController /auth/revoke]
+    Metrics[MetricsController /metrics]
+    Health[Health /health]
+    Shadow[ShadowController honeypot decoys]
+  end
+
+  subgraph Downstream["Downstream microservices (mTLS)"]
     Users[users-service]
     Orders[orders-service]
     Perms[permissions-service]
   end
 
   subgraph Persistence["Persistence & observability"]
-    Postgres[(Postgres)]
-    Prometheus[Prometheus /metrics]
+    Postgres[(Postgres: trust, mfa, audit, user_secrets)]
+    Prom[Prometheus /metrics]
   end
 
-  Client --> Helmet
-  Helmet --> Correlation
-  Correlation --> GWModule
-  Correlation --> Controllers
-  Controllers --> Guards
+  Client --> Helmet --> Cors --> RateLimit --> Compute
+  Compute --> Blacklist
+  Blacklist -->|Yes| Tarpit
+  Blacklist -->|No| Pipeline
 
-  GWModule --> Auth
-  Auth --> Trust
-  Trust --> Policy
-  Policy --> MFA
-  MFA --> Audit
-  Audit --> Proxy
-  Proxy --> Users
-  Proxy --> Orders
-  Proxy --> Perms
+  Pipeline -->|public_bypass| Health
+  Pipeline -->|public_bypass| Metrics
+  Pipeline -->|honeypot_bypass| Shadow
+  Pipeline -->|auth_only| MfaCtl
+  Pipeline -->|auth_only| AuditCtl
+  Pipeline -->|auth_only| PolicyCtl
+  Pipeline -->|auth_only| AuthCtl
 
-  Auth -.-> Postgres
-  Trust -.-> Postgres
-  MFA -.-> Postgres
-  Audit -.-> Postgres
-  Controllers -.-> Prometheus
+  Pipeline -->|proxy| Users
+  Pipeline -->|proxy| Orders
+  Pipeline -->|proxy| Perms
+
+  Pipeline -.audit/trust.-> Postgres
+  MfaCtl -.-> Postgres
+  AuditCtl -.-> Postgres
+  Metrics -.-> Prom
 ```
 
 *(Diagram adapted from [`docs/DIAGRAMS.md`](DIAGRAMS.md), §1 "System overview".)*
@@ -201,33 +208,62 @@ The stages below appear in the exact order of the `PIPELINE_STAGES` factory in `
 
 ```mermaid
 flowchart TD
-  Start([Request arrives]) --> Headers[Extract headers: Authorization, IP, user-agent, x-mfa-token; deviceId from token after auth]
-  Headers --> NoAuth{Authorization header?}
-  NoAuth -->|No| AuditDeny1[Audit DENY]
-  AuditDeny1 --> Ret401a[Return 401 Unauthorized]
-  NoAuth -->|Yes| Auth[AuthService.validateAuthorizationHeader]
-  Auth --> AuthFail{Valid JWT?}
-  AuthFail -->|No| AuditDeny2[Audit DENY]
-  AuditDeny2 --> Ret401b[Return 401]
-  AuthFail -->|Yes| Trust[TrustScoreService.calculateTrustScore]
-  Trust --> Policy[PolicyService.evaluateAccess]
-  Policy --> Decision{Policy decision?}
-  Decision -->|CHALLENGE & MFA satisfied| Upgrade[Upgrade to ALLOW]
-  Decision -->|ALLOW & MFA not satisfied| Downgrade[Downgrade to CHALLENGE]
-  Decision -->|DENY| DenyPath[Audit -> Metrics -> Return 403]
-  Decision -->|CHALLENGE| ChallengePath[Audit -> Metrics -> initiateChallenge -> 401 + challengeId]
-  Upgrade --> AuditAllow
-  Downgrade --> ChallengePath
-  Decision -->|ALLOW| AuditAllow[Audit WAL - blocking]
-  AuditAllow --> Forward[ProxyService.forwardRequest]
-  Forward --> ProxyFail{Success?}
-  ProxyFail -->|No| Ret502[Return 502 Bad Gateway]
-  ProxyFail -->|Yes| RecordTrust[recordTrustContext]
-  RecordTrust --> Metrics[Record metrics]
-  Metrics --> Ret200[Return downstream response]
+  Start([Orchestrator.run]) --> S1
+
+  S1[1. public_bypass]
+  S1 -->|/health, /metrics| BypassA[bypass -> next -> controller]
+  S1 -->|else| S2
+
+  S2[2. honeypot_bypass]
+  S2 -->|7 decoy paths| BypassB[bypass -> ShadowController: blacklist JA4H + tarpit + fake 200]
+  S2 -->|else| S3
+
+  S3[3. auth: AuthService.authenticate]
+  S3 -->|invalid| D401a[short-circuit 401 auth_required / auth_invalid + deny audit]
+  S3 -->|ok -> ctx.claims| S4
+
+  S4[4. revocation: TokenRevocationService.isRevoked jti]
+  S4 -->|revoked| D401b[short-circuit 401 token_revoked + deny audit]
+  S4 -->|not revoked| S5
+
+  S5[5. auth_only short-circuit]
+  S5 -->|/auth/revoke, /mfa/*, /audit/logs, /policy/admin*, /demo/mfa-token| BypassC[best-effort allow audit -> bypass -> controller]
+  S5 -->|else| S6
+
+  S6[6. trust_score: TrustScoreService.evaluateScore]
+  S6 --> S7
+
+  S7[7. hashcash PoW gate]
+  S7 -->|trustScore > triggerThreshold AND missing/invalid solution| D429[short-circuit 429 + X-Hashcash-Challenge]
+  S7 -->|score <= threshold OR valid solution| S8
+
+  S8[8. policy: PolicyEvaluatorService.evaluate -> ctx.policyDecision]
+  S8 --> S9
+
+  S9[9. mfa_promotion]
+  S9 -->|DENY| D403[short-circuit 403 policy_denied + deny audit]
+  S9 -->|CHALLENGE + no/invalid X-MFA-Token| D401c[short-circuit 401 mfa_required + challenge / 429 / 503]
+  S9 -->|ALLOW, or CHALLENGE promoted by valid X-MFA-Token| S10
+
+  S10[10. audit_allow: FAIL-CLOSED WAL written BEFORE proxy]
+  S10 -->|AuditExhaustedException| D503[short-circuit 503 audit_unavailable + Retry-After: 5]
+  S10 -->|written| S11
+
+  S11[11. proxy: ProxyService.forward via mTLS]
+  S11 -->|ServiceUnavailable / circuit open| D502[502 proxy_unavailable]
+  S11 -->|upstream response| S12
+
+  S12[12. bopla_strip: BoPlaInterceptor.strip field allowlist]
+  S12 --> S13
+
+  S13[13. record_trust_context]
+  S13 -->|upstreamStatus < 400| Rec[recordTrustContextAfterAllow]
+  S13 -->|>= 400| NoRec[skip - no reputation farming]
+  Rec --> Done[proxied -> write upstream response + allow metric]
+  NoRec --> Done
 ```
 
-*(Diagram adapted from [`docs/DIAGRAMS.md`](DIAGRAMS.md), §2 "Data-plane pipeline flowchart".)*
+*(Diagram adapted from [`docs/DIAGRAMS.md`](DIAGRAMS.md), §2 "The 13-stage data-plane pipeline".)*
 
 ### 1. `public_bypass` — Public-path bypass
 
@@ -381,7 +417,7 @@ flowchart TD
   ChallengeRisk -->|No| Allow[ALLOW]
 ```
 
-*(Diagram adapted from [`docs/DIAGRAMS.md`](DIAGRAMS.md), §6 "Policy evaluation flowchart".)*
+*(Diagram adapted from [`docs/DIAGRAMS.md`](DIAGRAMS.md), §6 "Policy evaluation".)*
 
 **Dynamic thresholds.** `ThreatEscalationService` maintains a system-wide threat level (**Normal / Elevated / Critical**) from a sliding window of signals (denies, invalid tokens, honeypot hits, MFA rate-limits). As threat rises, the deny and challenge thresholds *tighten*, so the same trust score that was ALLOWed under Normal may be CHALLENGEd or DENYed under Critical.
 
