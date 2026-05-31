@@ -16,7 +16,17 @@ void createMtlsServer({
   keyPath: KEY_PATH,
   caPath: CA_PATH,
   routes: {
-    'GET /o-1': () => ({ body: { id: 'o-1', amount: 99, currency: 'USD' } }),
+    // Echo the gateway-injected JA4H header so the x-ja4h proxy-forwarding
+    // contract (issue #32, criterion 2) is observable end-to-end in a live demo.
+    // Extra field is additive — scenario-1's id/amount/currency assertions still hold.
+    'GET /o-1': (req) => ({
+      body: {
+        id: 'o-1',
+        amount: 99,
+        currency: 'USD',
+        received_ja4h: req.headers['x-ja4h'] ?? null,
+      },
+    }),
   },
 })
   .then((handle) => {
