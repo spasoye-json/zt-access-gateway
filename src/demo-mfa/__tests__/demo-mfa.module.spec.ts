@@ -1,3 +1,21 @@
+// Set required env BEFORE importing the modules below — AuthModule transitively
+// requires config.module.ts, whose ConfigModule.forRoot() evaluates its Joi
+// schema eagerly at require() time. Guards let a real .env / CI env win. Mirrors
+// the canonical defaults in src/config/__tests__/config.service.spec.ts.
+if (!process.env.PROXY_SERVICE_REGISTRY)
+  process.env.PROXY_SERVICE_REGISTRY = JSON.stringify({ dummy: 'https://dummy.test:8443' });
+if (!process.env.MTLS_CA_CERT_PATH) process.env.MTLS_CA_CERT_PATH = '/dev/null';
+if (!process.env.MTLS_CLIENT_CERT_PATH) process.env.MTLS_CLIENT_CERT_PATH = '/dev/null';
+if (!process.env.MTLS_CLIENT_KEY_PATH) process.env.MTLS_CLIENT_KEY_PATH = '/dev/null';
+if (!process.env.MTLS_ALLOWED_SUBJECTS) process.env.MTLS_ALLOWED_SUBJECTS = 'cn=test';
+if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-chars-long!';
+if (!process.env.DATABASE_URL) process.env.DATABASE_URL = 'postgresql://localhost:5432/zt_test';
+if (!process.env.HASHCASH_HMAC_SECRET) process.env.HASHCASH_HMAC_SECRET = 'a'.repeat(64);
+if (!process.env.MFA_JWT_SECRET)
+  process.env.MFA_JWT_SECRET = 'mfa-test-secret-that-is-at-least-32-chars!!';
+if (!process.env.MFA_TOTP_ENCRYPTION_KEY)
+  process.env.MFA_TOTP_ENCRYPTION_KEY = Buffer.from('a'.repeat(32)).toString('base64');
+
 import { DemoMfaModule } from '../demo-mfa.module';
 import { DemoMfaController } from '../demo-mfa.controller';
 import { SharedModule } from '../../shared/shared.module';
