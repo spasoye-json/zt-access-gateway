@@ -28,7 +28,7 @@ if (!process.env.PROXY_SERVICE_REGISTRY) {
 
 import { Test } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { AuditRepository } from '../../src/audit/audit.repository';
 import { TrustScoreService } from '../../src/trust-score/trust-score.service';
