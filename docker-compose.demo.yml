@@ -1,19 +1,35 @@
-# Demo overlay — extends docker-compose.yml with the orders-service and
-# users-service upstreams and mounts the local certs/ tree into the gateway
-# and the services.
+# Demo overlay — extends docker-compose.yml with the users-service upstream
+# (orders-service is already in the base stack) and swaps the gateway and
+# services over to host-mounted certs minted by scripts/gen-certs.sh.
+#
+# The base docker-compose.yml now sets the gateway MTLS_*/PROXY_SERVICE_REGISTRY
+# via an `environment:` block (which outranks env_file) and ships a `certgen`
+# init container that mints certs into a named volume. The demo instead uses
+# host-mounted ./certs, so this overlay:
+#   - re-asserts the demo gateway registry + allowed subjects in `environment:`
+#   - replaces volume mounts with the host ./certs bind (!override)
+#   - neutralizes the certgen init container to a no-op
 #
 # Usage:
 #   bash scripts/gen-certs.sh
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo up --build
 
 services:
+  certgen:
+    command: ['true']
+
   gateway:
     env_file: .env.demo
-    volumes:
+    volumes: !override
       - ./certs:/app/certs:ro
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-    depends_on:
+      MTLS_CA_CERT_PATH: /app/certs/ca.crt
+      MTLS_CLIENT_CERT_PATH: /app/certs/gateway.crt
+      MTLS_CLIENT_KEY_PATH: /app/certs/gateway.key
+      MTLS_ALLOWED_SUBJECTS: orders-service,users-service
+      PROXY_SERVICE_REGISTRY: '{"orders":"https://orders-service:8443","users":"https://users-service:8443"}'
+    depends_on: !override
       postgres:
         condition: service_healthy
       orders-service:
@@ -22,18 +38,9 @@ services:
         condition: service_started
 
   orders-service:
-    build:
-      context: .
-      dockerfile: Dockerfile.microservice
-    command: node dist/microservices/orders-service/main-https.js
-    environment:
-      PORT: '8443'
-      CERT_DIR: /app/certs
-    volumes:
+    volumes: !override
       - ./certs:/app/certs:ro
-    expose:
-      - '8443'
-    restart: unless-stopped
+    depends_on: !override []
 
   users-service:
     build:

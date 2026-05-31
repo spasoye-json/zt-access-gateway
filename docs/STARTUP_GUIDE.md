@@ -162,8 +162,43 @@ The project ships with `.env` defaults suitable for development; override as nee
 
 ### 7.3 Deployment Modes
 - **Local development**: run gateway and sample microservices via `npm run start:dev` and `npx ts-node microservices/...`.
-- **Docker Compose**: `docker-compose up` spins up gateway + demo services + Postgres.
+- **Docker Compose (full stack)**: `docker compose up --build` spins up the complete observability stack (see 7.4).
 - **Production**: build with `npm run build`, deploy `dist/` artifacts, and supply real certificates and configuration secrets.
+
+### 7.4 Full Observability Stack (Docker Compose)
+The top-level `docker-compose.yml` brings up the gateway plus a complete local observability stack with a single command:
+
+```bash
+cp .env.example .env   # then fill in the CHANGE_ME secrets
+docker compose up --build
+```
+
+Services:
+
+| Service | Role | Endpoint |
+| --- | --- | --- |
+| `gateway` | The zero-trust gateway; exposes `/metrics` | http://localhost:3000 |
+| `postgres` | Trust signals, audit WAL, MFA state | localhost:5432 |
+| `orders-service` | Sample downstream microservice (mTLS), registered as `orders` in `PROXY_SERVICE_REGISTRY` | internal `:8443` |
+| `certgen` | One-shot init that mints the demo PKI (CA + gateway client cert + orders-service server cert) into a shared `certs` volume | — |
+| `prometheus` | Scrapes `gateway:3000/metrics` every 15s | http://localhost:9090 |
+| `grafana` | Provisioned Prometheus datasource + "ZT Access Gateway — Security Overview" dashboard | http://localhost:3001 |
+
+Grafana logs in as `admin` / `${GRAFANA_ADMIN_PASSWORD:-admin}`. The dashboard panels are built on the real `zt_gateway_*` metric names (request/policy decisions, threat level, JA4H blacklist size, honeypot triggers, hashcash outcomes, pipeline stage latency, audit WAL latency, MFA promotions).
+
+**mTLS note.** The gateway's `ProxyService` always forwards downstream over mutual TLS — there is no plaintext-HTTP path in this build. To keep `docker compose up` runnable end-to-end with no manual steps, the `certgen` init container runs `scripts/gen-certs.sh` once at startup and writes the demo PKI into a named `certs` volume; the gateway and `orders-service` mount it read-only. No certificates are committed to git (`certs/` is gitignored). Configuration files for the observability stack live under `observability/` (`prometheus.yml`, `grafana/provisioning/*`, `grafana/dashboards/*`).
+
+Demonstrate the proxy path once the stack is healthy:
+
+```bash
+# Mint a demo JWT (roles=user) and call the gateway, which proxies to orders-service over mTLS.
+TOKEN="$(SUB=alice ROLES=user node -r ts-node/register scripts/mint-demo-jwt.ts)"
+curl -H "Authorization: Bearer ${TOKEN}" http://localhost:3000/orders/o-1
+```
+
+A fresh low-risk request lands ALLOW and returns the deterministic orders body. To force a deterministic trust score, set `DEMO_MODE=true` in `.env` and add `-H "x-demo-trust-score: 0.0"` (the override is honored only when `DEMO_MODE=true`).
+
+The richer demo overlay (`docker-compose.demo.yml`, adds `users-service` for the BOPLA scenario and uses host-mounted certs) is unchanged — see the comments at the top of that file.
 
 ---
 
