@@ -17,6 +17,7 @@ import CircuitBreaker = require('opossum');
 import type { Request } from 'express';
 import { PROXY_CONFIG, type ProxyConfig } from '../config/slices';
 import { MtlsService } from '../shared/mtls.service';
+import { extractJa4h } from '../shared/request-context.util';
 import { sleep } from '../shared/sleep.util';
 import type { UserClaims } from '../auth/interfaces/user-claims.interface';
 import { ServiceRegistryService } from './service-registry.service';
@@ -111,7 +112,7 @@ export class ProxyService implements OnModuleInit {
     const axiosConfig: AxiosRequestConfig = {
       method: req.method,
       url: target.toString(),
-      headers: this.buildProxyHeaders(req.headers, claims, trustScore),
+      headers: this.buildProxyHeaders(req.headers, claims, trustScore, extractJa4h(req)),
       data: req.body as unknown,
       httpsAgent,
       // axios default responseType='json' — required for BOPLA (Pitfall 4); do NOT change
@@ -174,6 +175,7 @@ export class ProxyService implements OnModuleInit {
     incoming: Record<string, string | string[] | undefined>,
     claims: UserClaims,
     trustScore: number,
+    ja4h?: string,
   ): Record<string, string> {
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(incoming)) {
@@ -188,6 +190,9 @@ export class ProxyService implements OnModuleInit {
     out['x-roles'] = (claims.roles ?? []).join(',');
     out['x-trust-score'] = String(trustScore);
     out['x-gateway-request'] = 'true';
+    // JA4H lives on the request as a property, not in req.headers — forward it
+    // explicitly so downstream services see the client fingerprint.
+    if (ja4h !== undefined) out['x-ja4h'] = ja4h;
     return out;
   }
 }
