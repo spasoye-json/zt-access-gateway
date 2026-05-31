@@ -46,6 +46,7 @@ import { TrustScoreService } from '../../src/trust-score/trust-score.service';
 import { PolicyEvaluatorService } from '../../src/policy/policy-evaluator.service';
 import { MfaChallenger } from '../../src/mfa/mfa-challenger.service';
 import { FingerprintStore } from '../../src/fingerprint/fingerprint.store';
+import { extractJa4h } from '../../src/shared/request-context.util';
 import { createHs256Token } from '../../src/auth/__tests__/test-keys';
 import type { Request } from 'express';
 import type { UserClaims } from '../../src/auth/interfaces/user-claims.interface';
@@ -277,16 +278,17 @@ describe('Phase 02 — Honeypot blacklist + x-ja4h injection e2e (refs #32)', ()
       expect((stamped as string).length).toBe(64); // SHA-256 hex
     });
 
-    // BEHAVIOUR GAP (ticket #32 criterion 2): the gateway computes the JA4H on
-    // req['x-ja4h'] (a request property, NOT req.headers), but
-    // ProxyService.buildProxyHeaders only copies req.headers + injects
-    // x-user-id / x-roles / x-trust-score — it never injects x-ja4h. So unless
-    // the client literally sent an x-ja4h HTTP header, the computed fingerprint
-    // is NOT forwarded downstream. Codified with it.failing so the suite stays
-    // green today and flips to a real failure (signalling work is needed) — or
-    // must be converted to a plain assertion once the injection lands.
-    (networkAvailable ? it.failing : it.skip)(
-      'injects x-ja4h into the downstream request headers (NOT YET IMPLEMENTED — refs #32)',
+    // Criterion 2 (ticket #32) is now IMPLEMENTED: ProxyService.buildProxyHeaders
+    // reads the fingerprint via extractJa4h(req) and injects it as the outgoing
+    // x-ja4h header (fixed in #43, header-write unit-tested in
+    // src/proxy/__tests__/proxy.service.spec.ts).
+    //
+    // This e2e mocks ProxyService, so it cannot observe the outgoing axios
+    // headers directly — buildProxyHeaders never runs. What it CAN assert is the
+    // proxy's input contract: the gateway hands the proxy a request whose
+    // fingerprint is reachable by the exact helper the production code forwards.
+    itIfNet(
+      'hands the proxy a request whose JA4H is forwarded via extractJa4h (refs #32)',
       async () => {
         const server = app.getHttpServer();
         const token = await createHs256Token(
@@ -301,9 +303,10 @@ describe('Phase 02 — Honeypot blacklist + x-ja4h injection e2e (refs #32)', ()
 
         const { req } = forwardCalls[0];
         const stamped = (req as unknown as Record<string, unknown>)['x-ja4h'] as string;
-        // The header the gateway would forward downstream MUST equal the
-        // computed fingerprint. Today req.headers['x-ja4h'] is undefined.
-        expect(req.headers['x-ja4h']).toBe(stamped);
+        // extractJa4h is exactly what ProxyService.buildProxyHeaders calls to
+        // produce the outgoing x-ja4h header — so this is the value forwarded.
+        expect(extractJa4h(req)).toBe(stamped);
+        expect(extractJa4h(req)).toMatch(/^[0-9a-f]{64}$/);
       },
     );
   });
