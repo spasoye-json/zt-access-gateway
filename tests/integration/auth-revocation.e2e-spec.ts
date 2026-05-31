@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 // Env vars set by tests/setup-e2e.ts (setupFiles) before this import resolves
 import { AppModule } from '../../src/app.module';
 import { TokenRevocationService } from '../../src/auth/token-revocation.service';

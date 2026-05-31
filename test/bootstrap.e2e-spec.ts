@@ -8,7 +8,7 @@ process.env.RATE_LIMIT_WINDOW_MS = '60000';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { AppModule } from '../src/app.module';
