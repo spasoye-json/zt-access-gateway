@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
-# Scenario 5 — revoked token replay (PRD #1 user story 20, issue #7).
+# Scenario 5 — policy DENY → 403 (Casbin RBAC).
 #
-# Self-contained: mints Alice's JWT, calls POST /auth/revoke with that JWT
-# (asserts 200), replays the same JWT against a protected endpoint
-# (asserts 401 + error=token_revoked). Exits non-zero on any mismatch.
+# Demonstrates that authorization is enforced on the ACTION, not just identity.
+# Alice (role:user) may GET an order but the policy grants her no DELETE on
+# /orders/:id, so:
+#   5a) DELETE /orders/o-1 (user, low trust) → 403 policy_denied / casbin_no_match.
+#   5b) GET    /orders/o-1 (same user, same trust) → 200 — proving the denial is
+#       the missing permission, not the credential.
+#
+# Low trust (x-demo-trust-score: 0.0) keeps the request below the hashcash
+# trigger so it reaches the policy stage cleanly. Self-contained; exits non-zero
+# on any mismatch.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Load .env.demo so JWT_SECRET, PORT, etc. are available.
 if [[ -f "${REPO_ROOT}/.env.demo" ]]; then
   set -a
   # shellcheck disable=SC1091
@@ -19,7 +25,7 @@ if [[ -f "${REPO_ROOT}/.env.demo" ]]; then
 fi
 
 GATEWAY="${GATEWAY_URL:-http://localhost:${PORT:-3000}}"
-REPLAY_PATH="${REPLAY_PATH:-/orders/echo}"
+TARGET_PATH="${TARGET_PATH:-/orders/o-1}"
 
 fail() {
   echo "scenario-5: $*" >&2
@@ -28,51 +34,32 @@ fail() {
 
 command -v jq >/dev/null 2>&1 || fail "jq is required"
 
-# 1) Mint Alice's JWT.
+# Mint Alice's JWT (roles=user). The policy grants user GET on /orders/:id but
+# no DELETE — see policy/policy.csv.
 TOKEN="$(SUB=alice ROLES=user node -r ts-node/register "${REPO_ROOT}/scripts/mint-demo-jwt.ts")" \
   || fail "failed to mint demo JWT"
 [[ -n "${TOKEN}" ]] || fail "minted JWT is empty"
 
-# 2) Decode jti + exp from the JWT payload.
-b64url_decode() {
-  local data="${1//-/+}"
-  data="${data//_/\/}"
-  local pad=$(( 4 - ${#data} % 4 ))
-  if (( pad < 4 )); then data+="$(printf '=%.0s' $(seq 1 $pad))"; fi
-  printf '%s' "$data" | base64 -d 2>/dev/null
-}
+TMP="$(mktemp)"
+trap 'rm -f "${TMP}"' EXIT
 
-PAYLOAD_B64="$(printf '%s' "${TOKEN}" | cut -d. -f2)"
-PAYLOAD_JSON="$(b64url_decode "${PAYLOAD_B64}")"
-JTI="$(printf '%s' "${PAYLOAD_JSON}" | jq -r '.jti')"
-EXP="$(printf '%s' "${PAYLOAD_JSON}" | jq -r '.exp')"
-[[ "${JTI}" != "null" && -n "${JTI}" ]] || fail "could not extract jti from JWT"
-[[ "${EXP}" != "null" && -n "${EXP}" ]] || fail "could not extract exp from JWT"
-
-# 3) Self-revoke via the production endpoint. Expect 200.
-REVOKE_RESP="$(mktemp)"
-trap 'rm -f "${REVOKE_RESP}"' EXIT
-REVOKE_CODE="$(curl -sS -o "${REVOKE_RESP}" -w '%{http_code}' \
-  -X POST "${GATEWAY}/auth/revoke" \
+# 5a) Forbidden action → Casbin no-match → 403 policy_denied.
+CODE_5A="$(curl -sS -o "${TMP}" -w '%{http_code}' \
+  -X DELETE "${GATEWAY}${TARGET_PATH}" \
   -H "Authorization: Bearer ${TOKEN}" \
-  -H 'Content-Type: application/json' \
-  --data "$(jq -n --arg jti "${JTI}" --argjson exp "${EXP}" '{jti:$jti, exp:$exp}')")"
-echo "POST /auth/revoke → ${REVOKE_CODE}"
-cat "${REVOKE_RESP}"; echo
-[[ "${REVOKE_CODE}" == "200" ]] || fail "expected 200 from /auth/revoke, got ${REVOKE_CODE}"
+  -H "x-demo-trust-score: 0.0")"
+echo "5a: DELETE ${TARGET_PATH} (user, trust 0.0) → ${CODE_5A}"
+cat "${TMP}"; echo
+[[ "${CODE_5A}" == "403" ]] || fail "expected 403 from policy DENY, got ${CODE_5A}"
+[[ "$(jq -r '.error // empty' "${TMP}")" == "policy_denied" ]] \
+  || fail "expected body.error=policy_denied on 5a"
 
-# 4) Replay the now-revoked JWT against a protected endpoint. Expect 401 + token_revoked.
-REPLAY_RESP="$(mktemp)"
-trap 'rm -f "${REVOKE_RESP}" "${REPLAY_RESP}"' EXIT
-REPLAY_CODE="$(curl -sS -o "${REPLAY_RESP}" -w '%{http_code}' \
-  "${GATEWAY}${REPLAY_PATH}" \
-  -H "Authorization: Bearer ${TOKEN}")"
-echo "GET ${REPLAY_PATH} (replay) → ${REPLAY_CODE}"
-cat "${REPLAY_RESP}"; echo
-[[ "${REPLAY_CODE}" == "401" ]] || fail "expected 401 on replay, got ${REPLAY_CODE}"
+# 5b) Permitted action, same identity → 200 (the denial was the action, not the user).
+CODE_5B="$(curl -sS -o /dev/null -w '%{http_code}' \
+  "${GATEWAY}${TARGET_PATH}" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "x-demo-trust-score: 0.0")"
+echo "5b: GET ${TARGET_PATH} (same user, trust 0.0) → ${CODE_5B}"
+[[ "${CODE_5B}" == "200" ]] || fail "expected 200 on the permitted GET, got ${CODE_5B}"
 
-REPLAY_ERROR="$(jq -r '.error // empty' "${REPLAY_RESP}")"
-[[ "${REPLAY_ERROR}" == "token_revoked" ]] \
-  || fail "expected body.error=token_revoked on replay, got '${REPLAY_ERROR}'"
-
-echo "scenario-5: OK"
+echo "scenario-5: OK (DELETE → 403 policy_denied; GET → 200)"
