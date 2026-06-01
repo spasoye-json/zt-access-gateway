@@ -1,8 +1,8 @@
 # Zero-Trust Access Gateway — Hardening Architecture
 
-Target-state architecture for the bulletproof gateway hardening initiative. Covers OWASP API Security 2023 compliance, custom differentiating features (JA4H fingerprinting, Hashcash PoW, shadow honeypots, BOPLA interceptor), and the fail-fast pipeline design.
+As-built architecture of the hardened gateway. Covers OWASP API Security 2023 compliance, the differentiating security features (JA4H fingerprinting, Hashcash PoW, shadow honeypots, BOPLA response stripping), and the fail-fast pipeline as it is implemented today.
 
-For the **current** architecture diagrams, see [DIAGRAMS.md](./DIAGRAMS.md).
+Companion docs: [DIAGRAMS.md](./DIAGRAMS.md) is the diagram reference; [THESIS_PIPELINE.md](./THESIS_PIPELINE.md) is the narrative walkthrough of the request lifecycle.
 
 ---
 
@@ -25,19 +25,18 @@ For the **current** architecture diagrams, see [DIAGRAMS.md](./DIAGRAMS.md).
 
 ## 1. Component map
 
-Every module and service after all hardening phases are implemented. Components marked with `*` are new.
+Every module and service in the hardened gateway. Security-specific components are called out inline.
 
 ```mermaid
 graph TB
   subgraph bootstrap [Bootstrap Layer]
-    MainTS[main.ts]
-    BootstrapApp[bootstrap-app.ts]
+    MainTS["main.ts\nhelmet -> CORS -> rate-limit\n+ config validation + app wiring"]
   end
 
-  subgraph middlewareLayer [Pre-Auth Middleware -- Fail Fast]
-    JA4H["JA4H Fingerprint Middleware *\nCompute fingerprint from rawHeaders"]
-    GlobalThrottler["Global Throttler\nIP-based rate limit"]
-    HoneypotGuard["Honeypot Guard *\nDecoy route detection + tarpitting"]
+  subgraph middlewareLayer [Edge + Pre-Pipeline -- Fail Fast]
+    GlobalThrottler["Global Throttler (edge)\nexpress-rate-limit, IP-based"]
+    JA4H["JA4H Fingerprint Middleware\nCompute fingerprint from rawHeaders"]
+    HoneypotStage["Honeypot Bypass Stage\nDecoy route detection + tarpitting"]
   end
 
   subgraph authModule [Auth Module]
@@ -45,71 +44,70 @@ graph TB
     JwtService[JwtService]
     JwtAuthGuard[JwtAuthGuard]
     RolesGuard[RolesGuard]
-    TokenRevocation["TokenRevocationService *"]
+    TokenRevocation[TokenRevocationService]
   end
 
   subgraph trustModule [Trust Score Module]
     TrustScoreService[TrustScoreService]
     TrustTelemetryRepo[TrustTelemetryRepository]
-    BehaviorAnomaly["BehaviorAnomalyService *"]
-    TrustDecay["TrustDecayEngine *"]
-    JA4HIntegration["JA4H Signal Integration *\nFingerprint drift detection"]
+    BehaviorAnomaly[BehaviorAnomalyProvider]
+    TrustDecay[TrustDecayProvider]
+    JA4HIntegration["Ja4hDriftProvider\nFingerprint drift detection"]
   end
 
   subgraph economicLayer [Economic Deterrent Layer]
-    HashcashGuard["HashcashGuard *\nPoW challenge/verify"]
+    HashcashService["HashcashService\nPoW challenge/verify"]
   end
 
   subgraph policyModule [Policy Module]
     PolicyService[PolicyService]
     PolicyEvaluator[PolicyEvaluatorService]
-    ThreatEscalation["ThreatEscalationService *"]
+    ThreatEscalation[ThreatEscalationService]
   end
 
-  subgraph mfaModule [MFA Module]
-    MfaService[MfaService]
-    MfaRepository[MfaRepository]
+  subgraph mfaModule [MFA Module -- TOTP]
+    MfaChallenger[MfaChallengerService]
+    MfaEnroller[MfaEnrollerService]
+    UserSecretsRepo[UserSecretsRepository]
   end
 
   subgraph interceptorLayer [Response Layer]
-    BOPLAInterceptor["BOPLA Interceptor *\n@AuthorizedFields decorator\nRole-based field stripping"]
+    BOPLAInterceptor["BoPlaInterceptor\nRole-based field stripping\n(policy/field-policy.json)"]
   end
 
   subgraph proxyModule [Proxy Module]
     ProxyService[ProxyService]
     ServiceRegistry[ServiceRegistryService]
-    DnsGuard["DnsRebindingGuard *\nResolve-then-validate IP"]
-    ResponseValidator["ResponseValidator *"]
+    DnsGuard["DnsRebindingGuard\nResolve-then-validate IP"]
+    ResponseValidator[ResponseValidator]
   end
 
   subgraph auditModule [Audit Module]
     AuditService[AuditService]
     AuditRepository[AuditRepository]
-    AuditWAL["WriteAheadBuffer *"]
   end
 
   subgraph metricsModule [Metrics Module]
     MetricsService[MetricsService]
-    SecurityMetrics["SecurityMetrics *"]
+    SecurityMetrics[SecurityMetricsService]
   end
 
   subgraph sharedModule [Shared Module]
     MtlsService[MtlsService]
-    CertMonitor["CertMonitorService *"]
+    CertMonitor[CertMonitorService]
     RequestContext[RequestContextUtil]
     ExceptionFilter[HttpExceptionFilter]
-    FingerprintStore["FingerprintStore *\nJA4H + blacklist state"]
+    FingerprintStore["FingerprintStore\nJA4H + blacklist state"]
   end
 
-  MainTS --> BootstrapApp
-  BootstrapApp --> JA4H
-  JA4H --> GlobalThrottler
-  GlobalThrottler --> HoneypotGuard
+  MainTS --> GlobalThrottler
+  GlobalThrottler --> JA4H
+  JA4H --> HoneypotStage
 
-  HoneypotGuard -->|Decoy hit| FingerprintStore
+  HoneypotStage -->|Decoy hit| FingerprintStore
   FingerprintStore -->|Blacklist JA4H| TrustScoreService
 
-  HoneypotGuard -->|Clean| JwtAuthGuard
+  HoneypotStage -->|Clean| JwtAuthGuard
   JwtAuthGuard --> AuthService
   AuthService --> TokenRevocation
 
@@ -118,20 +116,18 @@ graph TB
   TrustScoreService --> TrustDecay
   TrustScoreService --> TrustTelemetryRepo
 
-  HashcashGuard --> TrustScoreService
-  HashcashGuard --> MetricsService
+  HashcashService --> TrustScoreService
+  HashcashService --> MetricsService
 
   PolicyService --> PolicyEvaluator
-  PolicyService --> ThreatEscalation
+  PolicyEvaluator --> ThreatEscalation
 
   ProxyService --> DnsGuard
   ProxyService --> MtlsService
   ProxyService --> ServiceRegistry
+  ProxyService --> ResponseValidator
 
-  BOPLAInterceptor --> AuthService
-
-  AuditService --> AuditWAL
-  AuditWAL --> AuditRepository
+  AuditService --> AuditRepository
 
   ThreatEscalation --> AuditService
   MtlsService --> CertMonitor
@@ -141,34 +137,38 @@ graph TB
 
 ## 2. Fail-fast pipeline
 
-The full request lifecycle. Every step is ordered so the cheapest rejections happen first. New steps are marked with `*`.
+The full request lifecycle. Two pieces run *before* the orchestrated pipeline as NestJS/Express middleware — the global throttler (edge, `express-rate-limit` in `main.ts`) and the JA4H fingerprint middleware. The pipeline itself is **13 stages** executed in canonical order by `PipelineOrchestrator` (factory order in `gateway.module.ts`'s `PIPELINE_STAGES`). Stages are ordered so the cheapest rejections happen first, and the ALLOW audit is fail-closed (written **before** proxy forwarding).
 
 ```mermaid
 flowchart TD
-  A[Incoming Request] --> B["Step 1: JA4H Middleware *\nExtract fingerprint from req.rawHeaders\nAttach to req as x-ja4h"]
-  B --> C{"Step 2: Is JA4H blacklisted? *\n(honeypot or threat escalation)"}
-  C -->|Blacklisted| C_DENY["403 Forbidden\n(tarpit: delay 2-5s before responding)"]
-  C -->|Clean| D["Step 3: Global Throttler\nIP-based rate limit"]
-  D -->|429| D_DENY[429 Too Many Requests]
-  D -->|Pass| E{"Step 4: Honeypot Guard *\nIs route a decoy?"}
-  E -->|Decoy Hit| E_TRAP["Blacklist JA4H fingerprint\nSet trust = 1.0 terminal\nReturn fake JSON payload\n(tarpitting)"]
-  E -->|Real Route| F["Step 5: Auth Guard\nValidate JWT -> UserClaims"]
-  F -->|Invalid| F_DENY[401 Unauthorized]
-  F -->|Valid| G["Step 5b: Token Revocation Check *\nIs JTI blacklisted?"]
-  G -->|Revoked| G_DENY[401 Token Revoked]
-  G -->|Active| H["Step 6: Trust Scorer\nDevice + IP + JA4H drift +\nFrequency + Anomaly + Decay"]
-  H --> I{"Step 7: Economic Guard *\nIs riskScore > highThreshold?"}
-  I -->|High Risk| J{"Has valid X-Hashcash-Solution?"}
-  J -->|No| J_POW["429 + X-Hashcash-Challenge header\nClient must solve SHA-256 puzzle"]
-  J -->|Yes, verified| K["Step 8: Policy Guard\nCasbin RBAC + risk thresholds\n+ threat escalation overrides"]
-  I -->|Normal/Low Risk| K
-  K -->|DENY| K_DENY[403 Forbidden]
-  K -->|CHALLENGE| K_MFA["401 + MFA Challenge\nInitiate MFA flow"]
-  K -->|ALLOW| L["Step 9: Proxy Forward\nmTLS + DNS rebinding guard *\n+ egress allowlist"]
-  L -->|502| L_DENY[502 Bad Gateway]
-  L -->|Success| M["Step 10: BOPLA Interceptor *\nStrip unauthorized fields\nbased on UserClaims roles"]
-  M --> N["Audit + Metrics\nRecord trust context"]
-  N --> O[Return sanitized response]
+  A[Incoming Request] --> EDGE["Edge middleware: Global Throttler\nexpress-rate-limit, IP-based (main.ts)"]
+  EDGE -->|429| EDGE_DENY[429 Too Many Requests]
+  EDGE -->|Pass| B["JA4H Middleware (pre-pipeline)\nExtract fingerprint from req.rawHeaders\nAttach to req as x-ja4h"]
+  B --> S1{"Stage 1: public_bypass\nIs path /health or /metrics?"}
+  S1 -->|Yes| S1_BYPASS["Skip pipeline -> next()\n(controller handles it)"]
+  S1 -->|No| S2{"Stage 2: honeypot_bypass\nIs route a decoy?"}
+  S2 -->|Decoy Hit| S2_TRAP["Blacklist JA4H fingerprint\nAudit HONEYPOT_TRIGGERED\nReturn fake JSON payload (tarpitting)"]
+  S2 -->|Real route| S3["Stage 3: auth\nValidate JWT -> UserClaims"]
+  S3 -->|Invalid| S3_DENY[401 Unauthorized]
+  S3 -->|Valid| S4["Stage 4: revocation\nIs JTI blacklisted?"]
+  S4 -->|Revoked| S4_DENY[401 Token Revoked]
+  S4 -->|Active| S5{"Stage 5: auth_only\nControl-plane path?\n(authenticated, not scored/proxied)"}
+  S5 -->|Yes| S5_EXIT["Best-effort audit allow -> next()\n(short-circuit, no scoring/proxy)"]
+  S5 -->|No| S6["Stage 6: trust_score\nDevice + IP + JA4H drift +\nFrequency + Anomaly + Decay"]
+  S6 --> S7{"Stage 7: hashcash\nIs riskScore > high threshold?"}
+  S7 -->|High risk, no solution| S7_POW["429 + X-Hashcash-Challenge header\nClient must solve SHA-256 puzzle"]
+  S7 -->|Verified / not required| S8["Stage 8: policy\nCasbin RBAC + risk thresholds\n+ threat-escalation overrides"]
+  S8 -->|DENY| S8_DENY[403 Forbidden]
+  S8 -->|CHALLENGE| S9{"Stage 9: mfa_promotion\nValid MFA token presented?"}
+  S9 -->|No| S9_MFA["401 + MFA challenge\nInitiate MFA flow"]
+  S9 -->|Yes -> promote to ALLOW| S10
+  S8 -->|ALLOW| S10["Stage 10: audit_allow (fail-closed)\nDurably write ALLOW audit BEFORE proxy"]
+  S10 -->|Audit write failed| S10_DENY["503 Service Unavailable\n(audit-before-allow)"]
+  S10 -->|Persisted| S11["Stage 11: proxy\nmTLS + DNS rebinding guard\n+ egress allowlist"]
+  S11 -->|502| S11_DENY[502 Bad Gateway]
+  S11 -->|Response| S12["Stage 12: bopla_strip\nStrip unauthorized fields\nper policy/field-policy.json + roles"]
+  S12 --> S13["Stage 13: record_trust_context\nRecord trust context\n(only when upstreamStatus < 400)"]
+  S13 --> OUT[Return sanitized response]
 ```
 
 ---
@@ -311,8 +311,8 @@ sequenceDiagram
 
   Proxy-->>BOPLA: Raw response + UserClaims
 
-  BOPLA->>BOPLA: Load field policy for endpoint
-  Note over BOPLA: Field policies define which<br/>roles can see which fields.<br/>Configured via @AuthorizedFields<br/>or a central field-policy.json
+  BOPLA->>BOPLA: Match request path to field policy
+  Note over BOPLA: Field policies define which<br/>roles can see which fields.<br/>Central config: policy/field-policy.json<br/>(micromatch patterns, first-match-wins,<br/>fail-closed empty-object default,<br/>admin-always-allow)
 
   alt User has role "admin"
     BOPLA->>BOPLA: Keep all fields
@@ -332,19 +332,20 @@ sequenceDiagram
 flowchart LR
   subgraph fieldPolicyConfig [Field Policy Configuration]
     direction TB
-    Config["field-policy.json or<br/>@AuthorizedFields decorator"]
-    Example["'/users/:id': {\n 'admin': ['*'],\n 'user': ['id','name','email'],\n 'viewer': ['id','name']\n}"]
+    Config["policy/field-policy.json\n(central, micromatch path patterns)"]
+    Example["'/users/**': {\n 'user': ['id','name','email'],\n 'viewer': ['id','name']\n}\n(admin always passes through;\n no match -> {} fail-closed)"]
     Config --> Example
   end
 
   subgraph interceptorLogic [Interceptor Logic]
     direction TB
-    I1["1. Match route to field policy"]
-    I2["2. Get highest role from UserClaims"]
+    I0["0. admin role? -> return data unchanged"]
+    I1["1. First-match-wins: match path to pattern"]
+    I2["2. Highest-privilege matching role wins"]
     I3["3. Get allowed field set for role"]
     I4["4. Recursively strip disallowed keys"]
-    I5["5. Handle arrays of objects"]
-    I1 --> I2 --> I3 --> I4 --> I5
+    I5["5. Handle arrays of objects;\n no match -> {} (fail-closed)"]
+    I0 --> I1 --> I2 --> I3 --> I4 --> I5
   end
 
   fieldPolicyConfig --> interceptorLogic
@@ -499,36 +500,40 @@ sequenceDiagram
 
 ## 10. Dynamic threat escalation
 
-Monitors audit log signals and automatically tightens policies when threat thresholds are crossed. Includes auto-cooldown so escalations decay over time.
+`ThreatEscalationService` aggregates security signals over a bounded sliding window and **tightens the challenge/deny trust-score thresholds** as the system threat level rises (Normal -> Elevated -> Critical). Escalation is purely threshold-tightening — it does not block individual IPs or force per-user MFA. Cooldown is read-driven (no timers): once signals stop, the level steps back down one rung per elapsed cooldown window. A sticky manual override is available via the admin API.
+
+The level is the max across per-signal-type counts: policy DENYs, invalid auth tokens, honeypot hits, and MFA rate-limits each have their own elevated/critical count thresholds. (`mfa.failed` and `audit.signal` subscribers exist but are not the primary drivers.)
+
+The threshold numbers below are the **default values** from the config schema (`src/config/config.module.ts`); they are overridable via env (`POLICY_DENY_THRESHOLD`, `POLICY_ELEVATED_DENY_THRESHOLD`, `POLICY_CRITICAL_DENY_THRESHOLD`, and the `CHALLENGE` equivalents). Config validation enforces that critical is tighter than elevated, which is tighter than normal.
 
 ```mermaid
 flowchart TD
-  subgraph signals [Threat Signal Sources]
-    S1["Audit Log Monitor\n(repeated DENYs)"]
-    S2["MFA Monitor\n(failed verifications)"]
-    S3["Auth Monitor\n(invalid tokens from IP)"]
-    S4["Anomaly Monitor\n(high deviation scores)"]
+  subgraph signals [Threat Signal Sources -- sliding window]
+    S1["policy.deny\n(repeated DENYs)"]
+    S2["mfa.rate_limited / mfa.failed"]
+    S3["auth.invalid_token\n(invalid tokens)"]
+    S4["honeypot.trigger\n(decoy hits)"]
   end
 
   subgraph escalation [ThreatEscalationService]
-    S1 --> TE[Threat Aggregator]
+    S1 --> TE[Per-type counts; level = max across types]
     S2 --> TE
     S3 --> TE
     S4 --> TE
     TE --> TL{Threat Level}
-    TL -->|Normal| NormalPolicy["Normal thresholds\nDENY > 0.8, CHALLENGE > 0.5"]
-    TL -->|Elevated| ElevatedPolicy["Tightened thresholds\nDENY > 0.6, CHALLENGE > 0.3\nForce MFA for flagged users"]
-    TL -->|Critical| CriticalPolicy["Locked down\nDENY > 0.4, CHALLENGE > 0.2\nBlock flagged IPs entirely"]
+    TL -->|Normal| NormalPolicy["Base thresholds (default)\nDENY > 0.8, CHALLENGE > 0.5"]
+    TL -->|Elevated| ElevatedPolicy["Tightened thresholds (default)\nDENY > 0.6, CHALLENGE > 0.3"]
+    TL -->|Critical| CriticalPolicy["Most restrictive (default)\nDENY > 0.4, CHALLENGE > 0.2"]
   end
 
-  subgraph cooldown [Cooldown Mechanism]
-    ElevatedPolicy --> CD["Auto-decay after configurable\ncooldown period"]
+  subgraph cooldown [Cooldown Mechanism -- read-driven, no timers]
+    ElevatedPolicy --> CD["After idle >= cooldown window,\nstep down one level per elapsed window\n(Critical -> Elevated -> Normal)"]
     CriticalPolicy --> CD
     CD --> NormalPolicy
   end
 
   subgraph override [Admin Control]
-    AdminAPI["POST /policy/admin/escalation\nManual override / reset"]
+    AdminAPI["Admin API\nsticky manual override / clear"]
     AdminAPI --> TE
   end
 ```
@@ -537,21 +542,20 @@ flowchart TD
 
 ## 11. Audit write-ahead buffer
 
-Guarantees audit entries are persisted before allowing requests through. For ALLOW decisions, the gateway blocks the response until the audit write succeeds (audit-before-allow pattern).
+Guarantees ALLOW audit entries are persisted before the request is proxied (the `audit_allow` stage runs *before* `proxy`). For ALLOW decisions the write is fail-closed: `AuditService.log` retries with exponential backoff (50 -> 100 -> 200ms) and throws `AuditExhaustedException` if all retries fail, which surfaces as 503 + `Retry-After: 5`. CHALLENGE / DENY / AUTH_ONLY audits are best-effort (bounded timeout, never block).
 
 ```mermaid
 flowchart TD
-  A[AuditService.logAccessDecision] --> B["WriteAheadBuffer"]
-  B --> C{Write to DB}
+  A[AuditService.log] --> C{Write to DB}
   C -->|Success| D[Entry persisted]
-  C -->|Failure| E[Buffer entry locally]
-  E --> F["Retry with exponential backoff\n(max 3 retries)"]
+  C -->|Failure| F["Retry with backoff\n(50 -> 100 -> 200ms)"]
   F --> C
+  C -->|Retries exhausted| X[Throw AuditExhaustedException]
 
-  subgraph critical [Critical Path Guard]
+  subgraph critical [Critical Path Guard -- ALLOW only]
     G[ALLOW decision pending] --> H{Audit write succeeded?}
-    H -->|Yes| I[Proceed with proxy forward]
-    H -->|No, retries exhausted| J["DENY the request\n(audit-before-allow)"]
+    H -->|Yes| I[Proceed to proxy forward]
+    H -->|No, exhausted| J["503 Service Unavailable + Retry-After: 5\n(audit-before-allow; proxy NOT called)"]
   end
 
   A --> critical
@@ -561,62 +565,93 @@ flowchart TD
 
 ## 12. File structure
 
-New files and modules after all hardening phases.
+The as-built tree (security-relevant files; `__tests__/` and DTO dirs elided). The pipeline is implemented as a **stage-adapter pattern**: one file per stage under `gateway/pipeline/stages/`, gathered in execution order by the `PIPELINE_STAGES` factory in `gateway.module.ts` and run by `PipelineOrchestrator`. Adding a stage = one new file + one factory entry.
 
 ```
 src/
+├── main.ts                           (helmet -> CORS -> rate-limit, config validation, app wiring)
 ├── auth/
-│   ├── auth.service.ts              (enhanced: issuer/audience validation)
-│   ├── token-revocation.service.ts  * NEW
-│   ├── jwt.service.ts
+│   ├── auth.service.ts
+│   ├── token-revocation.service.ts   (JTI blacklist)
 │   ├── jwt-auth.guard.ts
-│   └── ...
+│   ├── roles.guard.ts
+│   └── roles.decorator.ts
 ├── gateway/
-│   ├── gateway.middleware.ts         (rewritten: 10-step fail-fast pipeline)
-│   └── gateway.module.ts
-├── fingerprint/                      * NEW MODULE
-│   ├── fingerprint.module.ts
-│   ├── ja4h.middleware.ts           * (rawHeaders -> JA4H hash)
-│   ├── fingerprint.store.ts         * (JA4H tracking + blacklist)
-│   └── __tests__/
-│       └── ja4h.middleware.spec.ts
-├── honeypot/                         * NEW MODULE
-│   ├── honeypot.module.ts
-│   ├── honeypot.decorator.ts        * (@Honeypot())
-│   ├── honeypot.guard.ts            * (decoy route detection)
-│   ├── shadow.controller.ts         * (fake endpoints + tarpit)
-│   └── __tests__/
-│       └── honeypot.guard.spec.ts
-├── hashcash/                         * NEW MODULE
-│   ├── hashcash.module.ts
-│   ├── hashcash.guard.ts            * (PoW challenge/verify)
-│   ├── hashcash.util.ts             * (SHA-256 puzzle logic)
-│   └── __tests__/
-│       └── hashcash.guard.spec.ts
+│   ├── gateway.middleware.ts
+│   ├── gateway.module.ts             (PIPELINE_STAGES factory = canonical stage order)
+│   └── pipeline/
+│       ├── orchestrator.ts           (runs stages in order)
+│       ├── pipeline-stage.ts         (PipelineStage interface + StageOutcome)
+│       ├── stage-context.ts
+│       ├── stage-tokens.ts
+│       ├── logging/                  (stage logger decorator + detail builders)
+│       └── stages/
+│           ├── public-bypass.stage.ts          (1: /health, /metrics skip pipeline)
+│           ├── honeypot-bypass.stage.ts        (2: decoy detection + tarpit)
+│           ├── auth.stage.ts                    (3)
+│           ├── revocation.stage.ts              (4)
+│           ├── auth-only-shortcircuit.stage.ts  (5: control-plane, no scoring/proxy)
+│           ├── trust-score.stage.ts             (6)
+│           ├── hashcash.stage.ts                (7)
+│           ├── policy.stage.ts                  (8)
+│           ├── mfa-promotion.stage.ts           (9)
+│           ├── audit-allow.stage.ts             (10: fail-closed, BEFORE proxy)
+│           ├── proxy.stage.ts                   (11)
+│           ├── bopla-strip.stage.ts             (12)
+│           └── record-trust-context.stage.ts    (13: only on upstreamStatus < 400)
+├── fingerprint/                      (NestJS pre-pipeline middleware)
+│   ├── ja4h.middleware.ts            (rawHeaders -> JA4H hash)
+│   ├── ja4h.util.ts
+│   └── fingerprint.store.ts          (JA4H tracking + blacklist)
+├── honeypot/                         (no honeypot.guard.ts — bypass stage + controller)
+│   ├── honeypot.decorator.ts         (@Honeypot())
+│   ├── honeypot.constants.ts         (decoy path list)
+│   ├── honeypot-responses.ts         (fake tarpit payloads)
+│   ├── shadow.controller.ts          (decoy endpoints)
+│   └── security-metrics.service.ts
+├── hashcash/                         (no hashcash.guard.ts — service + pipeline stage)
+│   ├── hashcash.service.ts           (PoW challenge/verify)
+│   ├── hashcash.util.ts              (SHA-256 puzzle logic)
+│   ├── hashcash-metrics.ts
+│   └── used-nonce-store.ts
 ├── policy/
-│   ├── threat-escalation.service.ts * NEW
-│   └── ...
+│   ├── policy-evaluator.service.ts
+│   ├── threat-escalation.service.ts  (sliding-window threshold tightening)
+│   └── policy-admin.controller.ts
 ├── proxy/
-│   ├── dns-rebinding.guard.ts       * NEW
-│   ├── response-validator.ts        * NEW
-│   └── ...
+│   ├── proxy.service.ts
+│   ├── service-registry.service.ts
+│   ├── dns-rebinding.guard.ts
+│   ├── response-validator.ts
+│   └── bopla.interceptor.ts          (field stripping; reads policy/field-policy.json)
 ├── trust-score/
-│   ├── trust-score.service.ts       (enhanced: JA4H + decay + anomaly)
-│   ├── behavior-anomaly.service.ts  * NEW
-│   └── ...
-├── interceptors/                     * NEW DIRECTORY
-│   ├── bopla.interceptor.ts         * (field stripping)
-│   ├── authorized-fields.decorator.ts * (@AuthorizedFields)
-│   └── field-policy.json            * (route->role->fields map)
+│   ├── trust-score.service.ts
+│   └── providers/
+│       ├── behavior-anomaly.provider.ts
+│       ├── trust-decay.provider.ts
+│       └── ja4h-drift.provider.ts
+├── mfa/                              (TOTP-based)
+│   ├── mfa-challenger.service.ts
+│   ├── mfa-enroller.service.ts       (TOTP enrollment)
+│   ├── enrollment.store.ts
+│   ├── mfa.controller.ts
+│   └── repositories/
+│       └── user-secrets.repository.ts
 ├── audit/
-│   ├── write-ahead-buffer.ts        * NEW
-│   └── ...
+│   ├── audit.service.ts              (ALLOW = fail-closed WAL w/ backoff retry)
+│   └── audit-exhausted.exception.ts
 ├── shared/
-│   ├── health.service.ts            * NEW
-│   ├── cert-monitor.service.ts      * NEW
-│   └── ...
+│   ├── health.controller.ts
+│   ├── cert-monitor.service.ts       (mTLS cert mtime watch)
+│   └── mtls.service.ts
 └── metrics/
-    └── metrics.service.ts           (enhanced: security-specific metrics)
+    ├── metrics.service.ts            (security-specific metrics)
+    └── metrics.controller.ts
+
+policy/                               (repo root, not under src/)
+├── model.conf                        (Casbin model)
+├── policy.csv                        (Casbin RBAC rules)
+└── field-policy.json                 (BOPLA: path patterns -> role -> allowed fields)
 ```
 
 ---
@@ -631,4 +666,4 @@ src/
   ```
 - **Online**: Paste a diagram block into [mermaid.live](https://mermaid.live).
 
-For the current (pre-hardening) architecture, see [DIAGRAMS.md](./DIAGRAMS.md). For implementation details, see [CODEBASE.md](./CODEBASE.md) and [STARTUP_GUIDE.md](./STARTUP_GUIDE.md).
+For diagram-only views, see [DIAGRAMS.md](./DIAGRAMS.md); for a narrative walkthrough of the request lifecycle, see [THESIS_PIPELINE.md](./THESIS_PIPELINE.md). For implementation details, see [CODEBASE.md](./CODEBASE.md) and [STARTUP_GUIDE.md](./STARTUP_GUIDE.md).

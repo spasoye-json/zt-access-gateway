@@ -71,7 +71,7 @@ Request → Auth Guard → Gateway Middleware → [TrustScore → Policy → Aud
 - **Service registry** (`PROXY_SERVICE_REGISTRY` env var, JSON map) is the SSRF allowlist — only registered services can be proxied to.
 - **mTLS cert caching** uses `mtime` to invalidate without restart.
 - **Audit logging is best-effort** — failures are caught and logged as warnings; they never block a request.
-- **Rate limiting, Helmet, CORS** are applied in `src/bootstrap-app.ts`.
+- **Rate limiting, Helmet, CORS** are applied in `src/main.ts`.
 
 ### Testing Patterns
 
@@ -299,7 +299,7 @@ A hardened NestJS zero-trust access gateway with a 10-step fail-fast pipeline. E
 - Prometheus metrics exposure for observability
 ## Layers
 - Purpose: Accept inbound requests and configure global middleware
-- Location: `src/main.ts`, `src/bootstrap-app.ts`
+- Location: `src/main.ts`
 - Contains: Application bootstrap, Helmet/CORS/rate-limiting config, exception filters
 - Depends on: NestJS core, ConfigService
 - Used by: Express/Node runtime
@@ -414,7 +414,7 @@ A hardened NestJS zero-trust access gateway with a 10-step fail-fast pipeline. E
 - Risk-based decisions (thresholds on trust score)
 - MFA promotion (CHALLENGE → ALLOW with valid MFA token)
 - Route-level @Roles() decorator (metrics → admin, policy → admin)
-- x-request-id middleware in bootstrap-app.ts generates/propagates ID
+- x-request-id is generated/propagated in `src/gateway/pipeline/build-stage-context.ts` (falls back to `randomUUID()`)
 - Included in all logs and responses
 - Helps trace requests through system
 
