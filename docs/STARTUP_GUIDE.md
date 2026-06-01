@@ -225,26 +225,24 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/health   # expect
 bash scripts/scenarios/scenario-1.sh
 ```
 
-| Scenario | What it verifies |
-| --- | --- |
-| `scenario-1` | Happy path — low-risk `GET /orders/o-1` lands ALLOW → `200` + deterministic body. |
-| `scenario-2` | Auth failure — missing / bad-signature token → `401`. |
-| `scenario-3` | Honeypot — `GET /.env` returns a deceptive `200` and blacklists the fingerprint. |
-| `scenario-4` | High-risk request → hashcash PoW challenge → solve → MFA promotion → `200` (synthetic MFA token). |
-| `scenario-5` | Revoked-token replay → `POST /auth/revoke` then reuse → `401 token_revoked`. |
-| `scenario-6` | BOPLA — `GET /users/u-1` returns only role-permitted fields (`ssn`, `internalRiskScore` stripped). Needs `users-service` (demo overlay). |
-| `scenario-7` | Honeypot blacklist enforcement + `x-ja4h` propagation — trap `200` → same-fingerprint `403` (tarpit) → forwarded fingerprint. |
-| `scenario-8` | Production MFA — real `/mfa/initiate` → `/mfa/verify` with a TOTP code → promotion, plus rate-limit `429`. |
-| `scenario-9` | MFA enrollment + admin-gated reset (non-admin reset → `403`). |
-| `scenario-10` | Fail-fast config validation — gateway refuses to **boot** without `MFA_JWT_SECRET`. |
+The suite is six scenarios, one per major pipeline flow:
 
-**Important — the suite is order-dependent.** Several defences keep **per-process in-memory state** (the JA4H blacklist, the hashcash used-nonce store, the JTI revocation list, MFA rate-limit counters). Scenarios that mutate that state therefore affect later ones. In particular, **`scenario-3` and `scenario-7` are both honeypot tests using the same `curl` fingerprint**: whichever runs second is `403`'d by the terminal blacklist the first one set, instead of seeing the fresh deceptive `200` it expects. To get a clean full pass, restart the gateway (clears in-memory state, keeps the database) between honeypot scenarios or before re-running the suite:
+| Scenario | What it verifies | Pipeline stages exercised |
+| --- | --- | --- |
+| `scenario-1` | Happy path — low-risk `GET /orders/o-1` lands ALLOW → `200` + deterministic body. | auth, trust score, policy ALLOW, mTLS proxy |
+| `scenario-2` | Rejected credentials — no token → `401`, bad-signature → `401`, and revoke-then-replay → `401 token_revoked`. | auth, revocation |
+| `scenario-3` | Honeypot deception + enforcement — `GET /.env` → deceptive `200`, same fingerprint again → `403` (tarpit), and `x-ja4h` propagated downstream. | JA4H fingerprint, honeypot, terminal blacklist |
+| `scenario-4` | High-risk → hashcash PoW → MFA step-up — `429` PoW → solve → `401 mfa_required` → enroll/confirm/initiate/verify (real TOTP) → promote → `200`. | trust score (high), hashcash, policy CHALLENGE, MFA promotion |
+| `scenario-5` | Policy DENY — `DELETE /orders/o-1` as a `user` → `403 policy_denied` (Casbin no-match), while the same user's `GET` → `200`. | policy DENY (RBAC) |
+| `scenario-6` | BOPLA — `GET /users/u-1` returns only role-permitted fields (`ssn`, `internalRiskScore` stripped). Needs `users-service` (demo overlay). | mTLS proxy, BOPLA field-level authz |
+
+This runs cleanly in order (`for n in 1 2 3 4 5 6; do bash scripts/scenarios/scenario-$n.sh; done`).
+
+**Re-running and per-process state.** Several defences keep **per-process in-memory state** (the JA4H blacklist, the hashcash used-nonce store, the JTI revocation list). `scenario-3` is self-contained — it trips *and* re-hits the trap within one run — but its terminal blacklist entry for the `curl` fingerprint persists in the gateway process, so a **second** run of `scenario-3` would see a `403` on the first hit instead of the fresh deceptive `200`. The other five use authenticated requests (distinct fingerprints) and are safely repeatable. To re-run the whole suite from a clean slate, restart the gateway (clears in-memory state, keeps the database):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo restart gateway
 ```
-
-**`scenario-10` is standalone.** It is a config-validation boot test, not a live-stack test: it builds and boots `dist/main.js` from a clean working directory and asserts the process exits non-zero with an error naming `MFA_JWT_SECRET`. Run `npm run build` first; it does **not** require the stack to be up.
 
 **Troubleshooting.** If `/health` returns `000` (connection refused) and the gateway container is `Restarting`, check `docker logs <gateway-container>`. A `password authentication failed for user "ztgateway" (28P01)` means a **stale `pgdata` volume** is holding an old `POSTGRES_PASSWORD` (Postgres only applies the password when it first initialises an empty data dir). Reset it with a volume-dropping teardown, then bring the stack back up:
 
