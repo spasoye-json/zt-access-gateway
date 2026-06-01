@@ -200,6 +200,59 @@ A fresh low-risk request lands ALLOW and returns the deterministic orders body. 
 
 The richer demo overlay (`docker-compose.demo.yml`, adds `users-service` for the BOPLA scenario and uses host-mounted certs) is unchanged — see the comments at the top of that file.
 
+### 7.5 Running the UAT scenario suite (`scripts/scenarios/`)
+
+The end-to-end scenario scripts under `scripts/scenarios/` exercise the full pipeline against a running gateway. They require the **demo overlay** — *not* a plain `docker compose up`. The reason: the scripts mint their JWTs using the secret in `.env.demo`, whereas the base `docker-compose.yml` boots the gateway from `.env` (a different `JWT_SECRET`, no `DEMO_MODE`, and no `users-service`). Run them against the base stack and every request is rejected `401` before it reaches the logic under test.
+
+**Prerequisites (host):** `jq`, `node`, and `npm install` having been run (the scripts call `node -r ts-node/register`).
+
+**1. Mint the demo PKI and bring up the demo stack** (gateway boots from `.env.demo`: matching secret, `DEMO_MODE=true` so `x-demo-trust-score` is honoured, and `users-service` registered):
+
+```bash
+bash scripts/gen-certs.sh
+docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo up --build -d
+```
+
+**2. Wait until the gateway is healthy:**
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/health   # expect 200
+```
+
+**3. Run a scenario** (each is self-contained and exits non-zero on any mismatch):
+
+```bash
+bash scripts/scenarios/scenario-1.sh
+```
+
+| Scenario | What it verifies |
+| --- | --- |
+| `scenario-1` | Happy path — low-risk `GET /orders/o-1` lands ALLOW → `200` + deterministic body. |
+| `scenario-2` | Auth failure — missing / bad-signature token → `401`. |
+| `scenario-3` | Honeypot — `GET /.env` returns a deceptive `200` and blacklists the fingerprint. |
+| `scenario-4` | High-risk request → hashcash PoW challenge → solve → MFA promotion → `200` (synthetic MFA token). |
+| `scenario-5` | Revoked-token replay → `POST /auth/revoke` then reuse → `401 token_revoked`. |
+| `scenario-6` | BOPLA — `GET /users/u-1` returns only role-permitted fields (`ssn`, `internalRiskScore` stripped). Needs `users-service` (demo overlay). |
+| `scenario-7` | Honeypot blacklist enforcement + `x-ja4h` propagation — trap `200` → same-fingerprint `403` (tarpit) → forwarded fingerprint. |
+| `scenario-8` | Production MFA — real `/mfa/initiate` → `/mfa/verify` with a TOTP code → promotion, plus rate-limit `429`. |
+| `scenario-9` | MFA enrollment + admin-gated reset (non-admin reset → `403`). |
+| `scenario-10` | Fail-fast config validation — gateway refuses to **boot** without `MFA_JWT_SECRET`. |
+
+**Important — the suite is order-dependent.** Several defences keep **per-process in-memory state** (the JA4H blacklist, the hashcash used-nonce store, the JTI revocation list, MFA rate-limit counters). Scenarios that mutate that state therefore affect later ones. In particular, **`scenario-3` and `scenario-7` are both honeypot tests using the same `curl` fingerprint**: whichever runs second is `403`'d by the terminal blacklist the first one set, instead of seeing the fresh deceptive `200` it expects. To get a clean full pass, restart the gateway (clears in-memory state, keeps the database) between honeypot scenarios or before re-running the suite:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo restart gateway
+```
+
+**`scenario-10` is standalone.** It is a config-validation boot test, not a live-stack test: it builds and boots `dist/main.js` from a clean working directory and asserts the process exits non-zero with an error naming `MFA_JWT_SECRET`. Run `npm run build` first; it does **not** require the stack to be up.
+
+**Troubleshooting.** If `/health` returns `000` (connection refused) and the gateway container is `Restarting`, check `docker logs <gateway-container>`. A `password authentication failed for user "ztgateway" (28P01)` means a **stale `pgdata` volume** is holding an old `POSTGRES_PASSWORD` (Postgres only applies the password when it first initialises an empty data dir). Reset it with a volume-dropping teardown, then bring the stack back up:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo down -v
+docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo up --build -d
+```
+
 ---
 
 ## 8. Operational Playbooks
@@ -226,10 +279,19 @@ The richer demo overlay (`docker-compose.demo.yml`, adds `users-service` for the
 3. Consider integrating external IP reputation feeds via additional DB columns.
 
 ### 8.5 MFA Challenge Workflow
-1. When a request receives `401 Challenge Required`, capture the `challengeId` and wait for the out-of-band code (logged to the gateway console in development).
-2. Submit `POST /mfa/verify` with the JWT authorization header and body `{ "challengeId": "...", "code": "XXXXXX" }`.
-3. On success, store the returned `mfaToken` and include it as `X-MFA-Token` on subsequent requests until it expires.
-4. Repeat the flow whenever the trust engine requires another challenge or the token expires.
+MFA uses **TOTP** (RFC 6238) — a 6-digit code from an authenticator app — not an out-of-band code. The user must enrol once before they can answer challenges.
+
+**Enrollment (one-time):**
+1. `POST /mfa/enroll` with the JWT authorization header. The response returns an `enrollmentId` and an `otpauthUri`; the client renders the URI as a QR code for the user's authenticator app. The TOTP secret never leaves the server.
+2. `POST /mfa/enroll/confirm` with body `{ "enrollmentId": "...", "totpCode": "XXXXXX" }` to prove the authenticator is set up. (Admins can reset a user's enrollment via `DELETE /mfa/admin/enrollment/:userId`.)
+
+**Answering a challenge:**
+1. When the pipeline returns `401` with reason `mfa_required` (and a `WWW-Authenticate` / `X-MFA-Challenge` header), call `POST /mfa/initiate` with the JWT authorization header to open a challenge. The response is `{ challengeId, expiresAt }`.
+2. Submit `POST /mfa/verify` with the JWT authorization header and body `{ "challengeId": "...", "totpCode": "XXXXXX" }`.
+3. On success the response is `{ token, expiresAt }`. Store `token` and include it as the `X-MFA-Token` header on subsequent requests until it expires. The MFA token is bound to `SHA-256(userId | deviceId | ip)`, so it cannot be replayed from another device or network.
+4. Repeat the flow whenever the trust engine raises another CHALLENGE or the token expires.
+
+The `scenario-8` script (§7.5) drives this exact flow end-to-end with a real TOTP code, including the per-user rate limit (`429`).
 
 ---
 
