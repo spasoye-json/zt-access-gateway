@@ -1,61 +1,83 @@
 # Zero-Trust Access Gateway (NestJS)
 
-An opinionated backend gateway that enforces Zero-Trust principles for a set of demo microservices (users/orders/permissions). Every inbound request is authenticated, risk-scored, policy-evaluated, and proxied over secure channels before reaching an internal service. Audit events and metrics are emitted for every decision.
+A hardened access gateway that enforces zero-trust principles for a set of internal microservices. Every inbound request passes through a fixed, fail-fast pipeline of 13 stages: client fingerprinting, deception, authentication, revocation, behavioral trust scoring, proof-of-work, policy evaluation, MFA step-up, fail-closed audit, mTLS proxying, and response field stripping. No request reaches a downstream service without being verified, scored, and authorized first.
 
 ## Documentation
 
-- `STARTUP_GUIDE.md` — architecture whitepaper and operational model.
-- `docs/CODEBASE.md` — codebase walkthrough (modules, flows, responsibilities).
+- [`docs/THESIS_PIPELINE.md`](docs/THESIS_PIPELINE.md), the full stage-by-stage pipeline walkthrough.
+- [`docs/HARDENING_ARCHITECTURE.md`](docs/HARDENING_ARCHITECTURE.md) and [`docs/DIAGRAMS.md`](docs/DIAGRAMS.md), mechanics and diagrams for each security control.
+- [`docs/adr/`](docs/adr/), Architecture Decision Records: the why behind the hard-to-reverse choices.
+- [`CONTEXT.md`](CONTEXT.md), the ubiquitous-language glossary for the domain.
+- [`docs/STARTUP_GUIDE.md`](docs/STARTUP_GUIDE.md) and [`docs/PRESENTATION_BRIEF.md`](docs/PRESENTATION_BRIEF.md), local setup, the demo environment, and the UAT scenario suite.
 
 ## Current Capabilities
 
 | Area | Details |
 | --- | --- |
-| Authentication | Centralized Bearer parsing and JWT verification supporting HS256 secrets or RS/ES algorithms via JWKS. Issuer/audience enforcement, length/sanity checks, and a global guard protect every route by default. |
-| Policy Engine | Casbin RBAC model (`policy/model.conf`, `policy/policy.csv`) evaluates `subject → resource → action` permissions, exposes admin APIs to list/add/remove/reload policies, and layers risk thresholds to return **ALLOW / CHALLENGE / DENY**. |
-| Trust / Risk | Heuristic scoring with configurable weights backed by telemetry stored in Postgres tracks per-device history, IP fingerprints, and request frequency to produce LOW/MEDIUM/HIGH outcomes plus factor metadata. |
-| Gateway Pipeline | Middleware enforces `Auth → Trust Score → Policy → Proxy → Audit → Metrics`. Helmet, CORS, rate limiting, validation pipes, and structured error responses are wired globally during bootstrap. Request IDs propagate via `x-request-id`. |
-| Proxy & mTLS | Forwards allowed traffic to internal microservices with identity headers/trust score, uses a configurable service registry allowlist, retries transient failures, and includes a lightweight circuit breaker. Validates targets and URL safety, enforces HTTPS by default, and loads mTLS material from configurable paths. |
-| Observability | Audit logs persist to Postgres when `DATABASE_URL` is set (best-effort logging otherwise). Prometheus metrics (via `prom-client`) are exposed at `/metrics`, and Docker Compose ships with Prometheus/Grafana for dashboards. |
-| Tests | Jest coverage for auth, policy evaluator, proxy, trust score, audit logging, gateway error handling, and end-to-end request flow. Tests auto-skip integration cases when sockets cannot be opened in CI sandboxes. |
+| Fingerprinting | Every request is JA4H-fingerprinted from its HTTP shape (method, version, header names, accept, content-type). The fingerprint keys the deception layer and feeds the trust score. |
+| Deception | Honeypot routes (`/.env`, admin paths, and configurable extras) return deceptive bodies with canary values, then terminally blacklist the caller's JA4H fingerprint. Repeat visitors are tarpitted and rejected. |
+| Authentication | Bearer JWT verification, algorithm-routed by the token header: HS256 against `JWT_SECRET`, RS256 or ES256 against `JWT_PUBLIC_KEY` (SPKI) or a `JWKS_URI` endpoint. `alg: none` is rejected, `jti`, `sub`, and `deviceId` claims are mandatory, and MFA-typed tokens cannot be used as access tokens. |
+| Revocation | `POST /auth/revoke` blacklists a token's `jti` immediately (in-memory, single-instance by design, see ADR-0012). |
+| Trust / Risk | A continuous score in [0, 1] built from a 0.5 baseline plus seven signals: terminal JA4H blacklist (forces 1.0), device reputation, IP reputation, request frequency, JA4H drift, behavioral anomaly (hour-of-day and rate baselines), and idle decay. Signal faults raise risk, never lower it. Backed by `trust_signals` and `trust_activity` in Postgres. |
+| Proof-of-work | Requests above a trust-score threshold must solve a hashcash challenge (stateless HMAC-signed nonces, difficulty scales with the score, single-use replay defense). |
+| Policy | Casbin RBAC (`policy/model.conf`, `policy/policy.csv`) evaluates `subject → resource → action`, layered with score thresholds to return **ALLOW / CHALLENGE / DENY**. Any enforcer error fails closed to DENY. A global threat-escalation ladder tightens thresholds while attack signals accumulate. |
+| MFA | CHALLENGE promotes to ALLOW only with a valid MFA token: TOTP-based enrollment and verification, secrets AES-256-GCM encrypted at rest, MFA JWTs signed with a separate secret and bound to a SHA-256(user, device, IP) fingerprint to defeat replay. |
+| Audit | ALLOW decisions are fail-closed: the audit row must be durably written to Postgres before the proxy fires, and an audit outage degrades to 503, never to unrecorded access (ADR-0001). CHALLENGE and DENY audits are best-effort. |
+| Proxy & mTLS | Forwards allowed traffic over mTLS to services in the `PROXY_SERVICE_REGISTRY` allowlist, injecting `x-user-id`, `x-roles`, `x-trust-score`, and `x-ja4h`. Per-service circuit breaker, bounded retries, and a DNS-rebinding guard that blocks loopback and the cloud metadata address. |
+| BOPLA | Response bodies are stripped of fields the caller's role may not see (`policy/field-policy.json`) before leaving the gateway. |
+| Observability | Prometheus metrics at `/metrics` (decision counters, per-stage latency histograms, security events). Docker Compose ships Prometheus plus a provisioned Grafana security dashboard. |
 
-## Architecture at a Glance
+## The Pipeline
 
 ```
-[Client] --HTTPS--> [Gateway (NestJS)]
-   ├─ AuthService (JWT/JWKS validation, guards)
-   ├─ TrustScoreService (context/risk heuristics)
-   ├─ PolicyEvaluatorService (Casbin + risk thresholds)
-   ├─ ProxyService (mTLS forwarding + SSRF protection)
-   ├─ AuditService (decision logging)
-   └─ MetricsService (Prometheus-style counters)
-
-Downstream demo services:
-  - users-service (port 3001)
-  - orders-service (port 3002)
-  - permissions-service (port 3003)
+Request
+  │ JA4H fingerprint middleware (blacklisted fingerprint → tarpit + 403)
+  ▼
+ 1. public bypass          /health, /metrics
+ 2. honeypot bypass        trap routes → deception + blacklist
+ 3. auth                   JWT verification → UserClaims
+ 4. revocation             revoked jti → 401 token_revoked
+ 5. auth-only bypass       control plane (/auth/revoke, /mfa/*, /policy/admin, /audit/logs)
+ 6. trust score            7-signal score in [0, 1]
+ 7. hashcash               high risk → 429 + PoW challenge
+ 8. policy                 Casbin + thresholds → ALLOW / CHALLENGE / DENY
+ 9. MFA promotion          CHALLENGE + valid MFA token → ALLOW, else 401 mfa_required
+10. audit (fail-closed)    ALLOW is persisted before proxying, or 503
+11. proxy                  mTLS forward to the registered service
+12. BOPLA strip            role-based response field removal
+13. record trust context   telemetry persisted only after a successful ALLOW
 ```
+
+The order is fixed and load-bearing (ADR-0005); it is encoded once in `src/gateway/gateway.module.ts`.
 
 ## Repository Layout
 
 ```
 .
 ├── src/
-│   ├── auth/          # JwtStrategy, guard, helpers
-│   ├── gateway/       # Request middleware & orchestration
-│   ├── policy/        # Policy module + Casbin evaluator
-│   ├── trust-score/   # Risk scoring heuristics
-│   ├── proxy/         # Secure forwarding & mTLS helpers
-│   ├── audit/         # Audit logging service/controller
-│   ├── metrics/       # Metrics aggregation + endpoint
-│   ├── shared/        # Cross-cutting services (JWT, mTLS, filters)
-│   └── bootstrap-app.ts # Global middleware setup
-├── microservices/     # Demo Nest services (users/orders/permissions)
-├── policy/            # Casbin model + policy CSV
-├── tests/             # Jest unit + integration suites
-├── Dockerfile         # Gateway container
-├── Dockerfile.microservice
-└── docker-compose.yml # Gateway + demo services + observability stack
+│   ├── fingerprint/   # JA4H computation + blacklist middleware
+│   ├── honeypot/      # Trap routes, deceptive responses, tarpit
+│   ├── auth/          # JWT verification, revocation, guards
+│   ├── trust-score/   # 7-signal scoring engine + telemetry repository
+│   ├── hashcash/      # Stateless PoW challenges + verification
+│   ├── policy/        # Casbin evaluator, threat escalation, admin API
+│   ├── mfa/           # TOTP enrollment, challenges, fingerprint-bound tokens
+│   ├── gateway/       # Pipeline orchestrator + the 13 stages
+│   ├── proxy/         # mTLS forwarding, registry, breaker, DNS guard
+│   ├── audit/         # Fail-closed WAL for ALLOW, best-effort otherwise
+│   ├── metrics/       # Prometheus counters and histograms
+│   ├── demo-mfa/      # /demo/mfa-token shortcut, registered only in DEMO_MODE
+│   ├── shared/        # mTLS service, TOTP util, request context, filters
+│   ├── config/        # Joi-validated typed config
+│   └── db/            # pg pool + boot-time SQL migrations
+├── microservices/     # Sample mTLS upstreams (orders-service, users-service)
+├── policy/            # Casbin model + policy CSV + BOPLA field policy
+├── sql/migrations/    # Idempotent DDL, replayed at every boot
+├── scripts/           # gen-certs.sh, scenario suite, JWT/TOTP/PoW helpers
+├── observability/     # Prometheus config + provisioned Grafana dashboard
+├── tests/             # Integration and e2e suites (real Postgres)
+├── docker-compose.yml         # Full stack
+└── docker-compose.demo.yml    # Demo overlay (see PRESENTATION_BRIEF.md)
 ```
 
 ## Getting Started
@@ -63,121 +85,99 @@ Downstream demo services:
 ### Prerequisites
 
 - Node.js 18+
-- npm 9+
-- For Docker-based workflows: Docker + Docker Compose
+- Docker and Docker Compose (for the full stack and integration tests)
 
-### Install dependencies
+### Install and configure
 
 ```bash
 npm install
+cp .env.example .env   # then fill in real values
 ```
 
-### Environment configuration
-
-Copy `.env.example` (if present) or edit `.env` directly. Key variables:
+The gateway validates its configuration at boot with Joi and refuses to start if anything required is missing; every violation is reported at once. Key variables (see `.env.example` for the full annotated list):
 
 | Variable | Description |
 | --- | --- |
-| `PORT` | Gateway HTTP port (default `3000`) |
-| `JWT_ALGORITHM` | e.g. `HS256`, `RS256`, `ES256`. Defaults to `HS256`. |
-| `JWT_SECRET` | Shared secret for HS algorithms. Required when using HS*. |
-| `JWT_JWKS_URI` | JWKS endpoint when using RS/ES algorithms. |
-| `JWT_ISSUER` / `JWT_AUDIENCE` | Optional claim enforcement. |
-| `CORS_ORIGINS` | Comma-separated allowlist; blank means allow all. |
-| `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Rate limiter settings. |
-| `MTLS_CA_CERT_PATH`, `MTLS_CERT_PATH`, `MTLS_KEY_PATH` | Paths to gateway cert material for outbound mTLS. |
-| `GATEWAY_CLIENT_CERT_CNS` | Comma-separated CN allowlist for gateway client certs accepted by microservices. |
-| `POLICY_MODEL_PATH`, `POLICY_POLICY_PATH` | Override Casbin files if needed. |
-| `DATABASE_URL` | Postgres connection string used for audit logs and trust telemetry (gateway degrades gracefully if not provided). |
-| `SERVICE_REGISTRY` | JSON map of `{ "service-name": "https://hostname:port" }` used as the allowlist for downstream targets. |
-| `PROXY_MAX_RETRIES` / `PROXY_RETRY_DELAY_MS` | Retry count and base delay (ms) for transient downstream failures. |
-| `PROXY_CIRCUIT_BREAKER_THRESHOLD` / `PROXY_CIRCUIT_BREAKER_TIMEOUT_MS` | Failure count and cool-off window for the circuit breaker. |
-| `TRUST_WEIGHT_BASE`, `TRUST_WEIGHT_DEVICE`, `TRUST_WEIGHT_IP`, `TRUST_WEIGHT_FREQUENCY`, `TRUST_WEIGHT_GEO` | Weights applied to trust-score components (defaults sum around 1). |
-| `TRUST_FREQUENCY_WINDOW_MS` / `TRUST_FREQUENCY_THRESHOLD` | Sliding window + threshold for request frequency anomaly detection. |
-| `TRUST_ACTIVITY_RETENTION_MS` | Retention for trust telemetry activity records. |
-| `ALLOW_INSECURE_MICROSERVICE_HTTP` | Set `true` to allow HTTP-only microservices (dev only). |
-| `STRICT_CONFIG` | Set `true` or use `NODE_ENV=production` to fail fast on missing critical config. |
-| `DISABLE_DATABASE` | Set `true` to disable Postgres-backed persistence in tests. |
+| `PORT` | Gateway HTTP port (default `3000`). |
+| `DATABASE_URL` | Postgres connection string. **Required**: migrations run at boot and the app will not start without a reachable database. |
+| `JWT_SECRET` | HS256 secret, minimum 32 chars. Optional `JWT_PUBLIC_KEY` or `JWKS_URI` enable RS256 and ES256; the verifier routes by the token's algorithm, there is no algorithm setting. |
+| `HASHCASH_HMAC_SECRET` | Secret for PoW challenge signing, minimum 32 chars, must differ from the JWT secrets. |
+| `HASHCASH_TRIGGER_THRESHOLD` | Trust score above which PoW is required (default `0.7`, strict greater-than). |
+| `HASHCASH_DIFFICULTY_MIN` / `MAX` | Leading-zero bits required (production `18/22`; the demo uses `8/12`). |
+| `POLICY_CHALLENGE_THRESHOLD` / `POLICY_DENY_THRESHOLD` | Score thresholds for CHALLENGE and DENY (defaults `0.5` and `0.8`, and the demo uses `0.7` and `0.9`). |
+| `MFA_JWT_SECRET` | Secret for MFA tokens, separate from `JWT_SECRET` (ADR-0006). |
+| `MFA_TOTP_ENCRYPTION_KEY` | Base64 key that must decode to exactly 32 bytes (AES-256-GCM for TOTP secrets at rest). |
+| `MFA_CHALLENGE_TTL_MS` / `MFA_TOKEN_TTL_MS` | Challenge TTL must be strictly less than token TTL. |
+| `MTLS_CA_CERT_PATH` / `MTLS_CLIENT_CERT_PATH` / `MTLS_CLIENT_KEY_PATH` | Gateway certificate material for outbound mTLS. |
+| `MTLS_ALLOWED_SUBJECTS` | Comma-separated CN allowlist for downstream server certificates. |
+| `PROXY_SERVICE_REGISTRY` | **Required** JSON map of `serviceName → baseUrl`. This is the egress allowlist: only registered services can be proxied to. |
+| `PROXY_CB_VOLUME_THRESHOLD` / `PROXY_CB_ERROR_THRESHOLD` / `PROXY_CB_RESET_TIMEOUT` / `PROXY_MAX_RETRIES` | Circuit breaker and retry tuning. |
+| `BLACKLIST_TTL_MS` / `HONEYPOT_ROUTES` | Honeypot blacklist TTL and optional extra trap routes. |
+| `TRUST_*` | Trust-signal tuning: reputation threshold, decay time constant, anomaly warm-up, frequency window. |
+| `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS`, `CORS_ORIGIN` | Edge rate limiting and CORS. |
 
-### Run the gateway (dev mode)
+### Run
 
 ```bash
-npm run start:dev
+npm run start:dev     # hot reload; needs Postgres reachable at DATABASE_URL
 ```
-
-Gateway boots on `http://localhost:3000` with hot reload.
-
-### Start demo microservices
-
-Each microservice can be launched with `ts-node`:
-
-```bash
-./create-certs.sh
-npx ts-node microservices/users-service/main.ts
-npx ts-node microservices/orders-service/main.ts
-npx ts-node microservices/permissions-service/main.ts
-```
-
-> Certificates in `certs/` enable mTLS during development. Microservices validate the gateway client certificate CNs via `GATEWAY_CLIENT_CERT_CNS`. To run microservices without HTTPS, set `ALLOW_INSECURE_MICROSERVICE_HTTP=true` (dev only).
 
 ### Docker Compose
 
-Run the full stack (gateway + demo services + Postgres + Prometheus + Grafana):
+The full stack (gateway, orders-service, Postgres, Prometheus, Grafana, plus a one-shot cert-mint container):
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 - Gateway: `http://localhost:3000`
-- Grafana: `http://localhost:3005` (default creds `admin/admin`)
 - Prometheus: `http://localhost:9090`
-- Postgres: exposed on `localhost:5432` (used for audit logs + trust telemetry)
+- Grafana: `http://localhost:3001` (admin, `GRAFANA_ADMIN_PASSWORD`, default `admin`)
+- Postgres: `localhost:5432`
+
+For the deterministic demo environment (pinnable trust scores, fast PoW, a second upstream for BOPLA, and the six-scenario UAT suite), use the demo overlay described in [`docs/PRESENTATION_BRIEF.md`](docs/PRESENTATION_BRIEF.md):
+
+```bash
+bash scripts/gen-certs.sh
+docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo up --build -d
+for n in 1 2 3 4 5 6; do bash scripts/scenarios/scenario-$n.sh; done
+```
 
 ## Testing
 
 ```bash
-npm test
+npm test              # unit suites under src/**/__tests__ (no database needed)
+npm run test:e2e      # integration suites under tests/ (needs Postgres; DB suites skip without DATABASE_URL)
+npm run test:cov      # coverage report
 ```
 
-- Unit suites cover auth, policy, proxy, trust-score, audit, and gateway error handling.
-- Integration suite (`tests/integration/gateway-flow.e2e.spec.ts`) spins up the Nest app and exercises end-to-end flows. In sandboxed CI environments where binding to a TCP port isn’t allowed, the tests auto-skip but still report success.
-- Coverage artifacts are emitted in `coverage/`.
-
-## Request Walkthrough
-
-1. **Auth Guard** extracts Bearer tokens, validates them (secret or JWKS), and attaches `userClaims` to the request context.
-2. **Gateway Middleware** logs a request ID, performs extra schema/path validation, and invokes the Trust Score service.
-3. **Trust Score** returns a numeric score + factor metadata.
-4. **Policy Evaluator** checks Casbin rules for either `user:<id>` or `role:<role>` subjects. If authorized, the score is compared to challenge/deny thresholds.
-5. **Proxy Service** forwards allow-listed requests to the matching microservice, appending `x-user-id`, `x-roles`, and `x-trust-score` headers and using mTLS certificates from the config.
-6. **Audit + Metrics** log every decision (best-effort) and update Prometheus metrics for observability.
+- Unit tests are colocated with each module and mock the repositories.
+- Integration tests use a real Postgres (the Compose `postgres` service works) and real libraries: jose, casbin, https servers with actual mTLS handshakes.
+- The six UAT scenarios in `scripts/scenarios/` run against the live demo stack and exit non-zero on any mismatch; between them they exercise every pipeline stage.
 
 ## Policy Administration API
 
-Authenticated operators can manage rules at runtime:
+Admin-role operators can manage rules and threat escalation at runtime:
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/policy/admin/rules` | List loaded Casbin policies (`subject`, `resource`, `action`). |
-| `POST` | `/policy/admin/rules` | Add a policy binding (`{ subject, resource, action }`). |
-| `DELETE` | `/policy/admin/rules` | Remove a policy binding (body mirrors POST). |
-| `POST` | `/policy/admin/reload` | Reload policies from the configured model/policy files. |
+| `GET` | `/policy/admin/rules` | List loaded Casbin policies. |
+| `POST` | `/policy/admin/rules` | Add a policy binding `{ subject, resource, action }`. |
+| `DELETE` | `/policy/admin/rules` | Remove a policy binding. |
+| `GET` | `/policy/admin/escalation` | Current threat level and counters. |
+| `POST` | `/policy/admin/escalation` | Manually override the threat level. |
+| `DELETE` | `/policy/admin/escalation` | Clear a manual override. |
 
-Changes are persisted via the Casbin adapter (file-based by default) so they survive restarts.
+Rule changes are persisted through the Casbin adapter and survive restarts.
 
-## Metrics & Observability
+## Known Boundaries (v1)
 
-- `/metrics` exposes Prometheus text format (counters, histograms, and default Node metrics). Scrape it directly or via the bundled Prometheus container.
-- Audit logs are inserted into `audit_logs` in Postgres when `DATABASE_URL` is configured. The gateway falls back to best-effort logging if the database is unavailable.
-- Trust telemetry tables (`trust_signals`, `trust_activity`) capture per-user/device history that feeds into risk scoring, providing a paper trail for anomalous decisions.
+Deliberate scope decisions, documented in the ADRs rather than hidden:
 
-## Roadmap / Future Enhancements
-
-- Ship opinionated Prometheus/Grafana dashboards (latency, decision mix, trust telemetry) and bundle alerts/SLOs.
-- Enhance Trust Score with behavioral baselines, device reputation feeds, or ML-backed anomaly detection.
-- Add policy versioning / approvals plus persistence beyond flat files (e.g., database adapter or OPA integration).
-- Implement certificate rotation automation for mTLS (step-ca integration) and richer service discovery integrations.
-- Expand test coverage with fuzzing & security suites (JWT tampering, SSRF, policy bypass attempts).
+- Revocation list, honeypot blacklist, used PoW nonces, and threat-escalation counters are in-memory and single-instance; a shared store (Redis) is the v2 path (ADR-0012).
+- The DNS-rebinding guard blocks loopback and the cloud metadata endpoint only; RFC1918 targets are intentionally allowed because upstreams live on private networks. Registry path-prefix routing is the primary SSRF control (ADR-0009).
+- No retention jobs yet: `trust_activity`, `audit_logs`, and the MFA tables grow unbounded; expiry is enforced at read time.
+- Downstream identity headers are plaintext and rely on network isolation plus mTLS; signed headers are future work.
 
 ## License
 
